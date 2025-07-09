@@ -238,7 +238,7 @@ replace sage    = 0 if mstat != 2
 replace swages  = 0 if mstat != 2
 replace sbusinc = 0 if mstat != 2
 
-* 8) Option‐flag defaults
+* Option‐flag defaults
 foreach v in opt1 opt1v opt2 opt2v {
     gen `v' = 0
 }
