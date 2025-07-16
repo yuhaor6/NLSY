@@ -322,35 +322,46 @@ foreach v in pwages swages pbusinc sbusinc sui gssi transfers nonprop ///
     replace `v' = `v' * deflator
 }
 
-* save deflated‐inputs for the t–3 step
+bysort taxsimid: egen pwages94    = mean(cond(year==1994, pwages,     .))
+bysort taxsimid: egen swages94    = mean(cond(year==1994, swages,     .))
+bysort taxsimid: egen pbusinc94   = mean(cond(year==1994, pbusinc,    .))
+bysort taxsimid: egen sbusinc94   = mean(cond(year==1994, sbusinc,    .))
+bysort taxsimid: egen sui94       = mean(cond(year==1994, sui,        .))
+bysort taxsimid: egen gssi94      = mean(cond(year==1994, gssi,       .))
+bysort taxsimid: egen transfers94 = mean(cond(year==1994, transfers,  .))
+bysort taxsimid: egen nonprop94   = mean(cond(year==1994, nonprop,    .))
+bysort taxsimid: egen mortgage94  = mean(cond(year==1994, mortgage,   .))
+bysort taxsimid: egen pensions94  = mean(cond(year==1994, pensions,   .))
+bysort taxsimid: egen dividends94 = mean(cond(year==1994, dividends,  .))
+bysort taxsimid: egen intrec94    = mean(cond(year==1994, intrec,     .))
+bysort taxsimid: egen rentpaid94  = mean(cond(year==1994, rentpaid,   .))
+
+replace pwages    = pwages94
+replace swages    = swages94
+replace pbusinc   = pbusinc94
+replace sbusinc   = sbusinc94
+replace sui       = sui94
+replace gssi      = gssi94
+replace transfers = transfers94
+replace nonprop   = nonprop94
+replace mortgage  = mortgage94
+replace pensions  = pensions94
+replace dividends = dividends94
+replace intrec    = intrec94
+replace rentpaid  = rentpaid94
+
+drop pwages94 swages94 pbusinc94 sbusinc94 ///
+     sui94 gssi94 transfers94 nonprop94 ///
+     mortgage94 pensions94 dividends94 ///
+     intrec94 rentpaid94 deflator
+
+replace swages   = 0   if mstat != 2
+replace sbusinc  = 0   if mstat != 2
+replace sui      = 0   if mstat != 2
+
+* save deflated‐inputs
 save "nlsy_long_deflated.dta", replace
-
-use "nlsy_long_deflated.dta", clear
-tsset taxsimid year, yearly
-
-foreach v in pwages swages pbusinc sbusinc {
-    gen L3_`v' = L3.`v'
-}
-
-* overwrite current inputs with the t–3 lagged real
-replace pwages  = L3_pwages
-replace swages  = L3_swages
-replace pbusinc = L3_pbusinc
-replace sbusinc = L3_sbusinc
-
-drop L3_pwages L3_swages L3_pbusinc L3_sbusinc deflator
 
 * Run Taxsim again
 taxsimlocal35, replace
-save "taxsim_out_fixedreal.dta", replace
-
-* rename outputs
-use "taxsim_out_fixedreal.dta", clear
-rename fiitax  tax_fed_fix
-rename siitax  tax_st_fix
-rename fica    tax_payroll_fix
-rename frate   mtr_fed_fix
-rename srate   mtr_st_fix
-rename ficar   fica_rt_fix
-rename tfica   fica_taxliab_fix
 save "taxsim_out_fixedreal.dta", replace
