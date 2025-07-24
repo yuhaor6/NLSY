@@ -190,3 +190,32 @@ foreach b of local bins {
     display as text "--------------------------------------"
 }
 
+**************************************************
+* Model 2: extensive‐margin FE–IV
+**************************************************
+
+* define the extensive‐margin outcome
+gen byte work = (hrs_ > 0)
+label variable work "1 if respondent works positive hours"
+
+* first‐stage for Model 2 (should be identical to Model 1)
+quietly xtreg ln_nsh Dln_nsh_sim i.year c.grade c.AFQT i.race i.female, ///
+    fe cluster(taxsimid)
+display as text "FIRST‐STAGE (Model 2):"
+test Dln_nsh_sim
+
+* OLS 
+xtreg work ln_nsh i.year c.grade c.AFQT i.race i.female, ///
+    fe vce(cluster taxsimid)
+estimates store lpm_ols
+
+* IV (FE–IV)
+xtivreg work (ln_nsh = Dln_nsh_sim) ///
+    i.year c.grade c.AFQT i.race i.female, ///
+    fe vce(cluster taxsimid)
+estimates store lpm_iv
+
+* table of OLS vs IV for Model 2
+esttab lpm_ols lpm_iv using lpm_ols_vs_iv.rtf, ///
+    b(3) se(2) ///
+    title("Model 2: Extensive‑Margin LPM FE vs FE‑IV") replace
