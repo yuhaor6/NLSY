@@ -1,0 +1,286 @@
+Analysis Output from 1994-2000 NLSY79 sample
+
+diagnostic: first‐stage F
+. **************************************************
+. xtreg ln_nsh Dln_nsh_sim i.year, fe cluster(taxsimid)
+
+Fixed-effects (within) regression               Number of obs     =      3,124
+Group variable: taxsimid                        Number of groups  =      1,245
+
+R-squared:                                      Obs per group:
+     Within  = 0.9091                                         min =          1
+     Between = 0.6626                                         avg =        2.5
+     Overall = 0.7714                                         max =          4
+
+                                                F(4, 1244)        =    4187.10
+corr(u_i, Xb) = 0.0251                          Prob > F          =     0.0000
+
+                           (Std. err. adjusted for 1,245 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+      ln_nsh | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+ Dln_nsh_sim |  -.0994598   .0364382    -2.73   0.006    -.1709468   -.0279727
+             |
+        year |
+       1996  |   .4745425   .0095751    49.56   0.000     .4557574    .4933277
+       1998  |   .4644855   .0090576    51.28   0.000     .4467156    .4822554
+       2000  |   .4448881   .0096115    46.29   0.000     .4260316    .4637446
+             |
+       _cons |   2.741717   .0249998   109.67   0.000     2.692671    2.790764
+-------------+----------------------------------------------------------------
+     sigma_u |  .11774999
+     sigma_e |  .08342997
+         rho |  .66576939   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. test Dln_nsh_sim
+
+ ( 1)  Dln_nsh_sim = 0
+
+       F(  1,  1244) =    7.45
+            Prob > F =    0.0064
+
+
+Model 1: intensive‐margin FE–IV
+. **************************************************
+. xtivreg lnH ///
+>     (ln_nsh = Dln_nsh_sim) ///
+>     i.year             /// calendar‑year FEs only
+>   , fe vce(cluster taxsimid)
+
+Fixed-effects (within) IV regression            Number of obs     =      3,124
+Group variable: taxsimid                        Number of groups  =      1,245
+
+R-squared:                                      Obs per group:
+     Within  = 0.0643                                         min =          1
+     Between = 0.0055                                         avg =        2.5
+     Overall = 0.0069                                         max =          4
+
+
+                                                Wald chi2(4)      =      57.81
+corr(u_i, Xb) = -0.1273                         Prob > chi2       =     0.0000
+
+                           (Std. err. adjusted for 1,245 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+         lnH | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      ln_nsh |   1.691125    1.76988     0.96   0.339    -1.777776    5.160027
+             |
+        year |
+       1996  |  -.1339942    .888255    -0.15   0.880    -1.874942    1.606954
+       1998  |   .5007447   .8719826     0.57   0.566     -1.20831    2.209799
+       2000  |   .7630142   .8259809     0.92   0.356    -.8558787    2.381907
+             |
+       _cons |  -2.561611   4.735901    -0.54   0.589    -11.84381    6.720585
+-------------+----------------------------------------------------------------
+     sigma_u |  3.0702832
+     sigma_e |  2.5644039
+         rho |  .58906162   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+Endogenous: ln_nsh
+Exogenous:  1996.year 1998.year 2000.year Dln_nsh_sim
+
+. 
+. * tidy up
+. estimates store iv_model1
+
+. 
+* compare to OLS FE
+. **************************************************
+. * OLS: ΔlnH on Δln(1–τ)
+. xtreg lnH ln_nsh i.year, fe vce(cluster taxsimid)
+
+Fixed-effects (within) regression               Number of obs     =      5,351
+Group variable: taxsimid                        Number of groups  =      2,577
+
+R-squared:                                      Obs per group:
+     Within  = 0.0170                                         min =          1
+     Between = 0.0019                                         avg =        2.1
+     Overall = 0.0040                                         max =          4
+
+                                                F(4, 2576)        =       9.64
+corr(u_i, Xb) = -0.0349                         Prob > F          =     0.0000
+
+                           (Std. err. adjusted for 2,577 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+         lnH | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      ln_nsh |    -.69255   .5697658    -1.22   0.224    -1.809795    .4246953
+             |
+        year |
+       1996  |   .5822446   .3044428     1.91   0.056    -.0147329    1.179222
+       1998  |   .9692051   .3070248     3.16   0.002     .3671646    1.571245
+       2000  |   1.106002   .3005454     3.68   0.000     .5166669    1.695337
+             |
+       _cons |   5.106018   1.523621     3.35   0.001     2.118371    8.093665
+-------------+----------------------------------------------------------------
+     sigma_u |  3.1257063
+     sigma_e |  2.6444595
+         rho |  .58282646   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. estimates store ols
+
+. 
+. * IV: instrument Δln(1–τ) with Δln(1–τ)_sim
+. xtivreg lnH (ln_nsh = Dln_nsh_sim) i.year, fe vce(cluster taxsimid)
+
+Fixed-effects (within) IV regression            Number of obs     =      3,124
+Group variable: taxsimid                        Number of groups  =      1,245
+
+R-squared:                                      Obs per group:
+     Within  = 0.0643                                         min =          1
+     Between = 0.0055                                         avg =        2.5
+     Overall = 0.0069                                         max =          4
+
+
+                                                Wald chi2(4)      =      57.81
+corr(u_i, Xb) = -0.1273                         Prob > chi2       =     0.0000
+
+                           (Std. err. adjusted for 1,245 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+         lnH | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      ln_nsh |   1.691125    1.76988     0.96   0.339    -1.777776    5.160027
+             |
+        year |
+       1996  |  -.1339942    .888255    -0.15   0.880    -1.874942    1.606954
+       1998  |   .5007447   .8719826     0.57   0.566     -1.20831    2.209799
+       2000  |   .7630142   .8259809     0.92   0.356    -.8558787    2.381907
+             |
+       _cons |  -2.561611   4.735901    -0.54   0.589    -11.84381    6.720585
+-------------+----------------------------------------------------------------
+     sigma_u |  3.0702832
+     sigma_e |  2.5644039
+         rho |  .58906162   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+Endogenous: ln_nsh
+Exogenous:  1996.year 1998.year 2000.year Dln_nsh_sim
+
+. estimates store iv
+
+. 
+. esttab ols iv using ols_vs_iv.rtf, ///
+>     b(3) se(2) ///
+>     title("OLS vs. IV: Intensive‐Margin Elasticity") replace
+(output written to ols_vs_iv.rtf)
+
+. 
+. 
+. capture log close
+
+. 
+. // ——————————————
+. // Diagnostics by gender & age bins
+. // ——————————————
+. 
+. // 1) setup age
+. rename page age
+
+. label variable age "Age in survey year"
+
+. 
+. // 2) set up age bins
+. gen byte age25_34 = inrange(age,25,34)
+
+. gen byte age35_44 = inrange(age,35,44)
+
+. gen byte age45_64 = inrange(age,45,64)
+
+. 
+. gen byte agebin = .
+(50,744 missing values generated)
+
+. replace agebin = 1 if age25_34
+(12,161 real changes made)
+
+. replace agebin = 2 if age35_44
+(21,795 real changes made)
+
+. replace agebin = 3 if age45_64
+(0 real changes made)
+
+. label define agelab 1 "25–34" 2 "35–44" 3 "45–64"
+
+. label values agebin agelab
+
+. 
+. // 3) Loop over gender
+. display as text _newline "======================================"
+
+======================================
+
+. display as text " FIRST‐STAGE by gender (FE) "
+ FIRST‐STAGE by gender (FE) 
+
+. display as text "======================================"
+======================================
+
+. foreach g in 0 1 {
+  2.     local lab = cond(`g'==1, "Female", "Male")
+  3.     display as text _newline "---- `lab' sample ----"
+  4.     quietly xtreg ln_nsh ln_nsh_h i.year if female==`g', fe cluster(taxsimid)
+  5.     test ln_nsh_h
+  6.     display as text "--------------------------------------"
+  7. }
+
+---- Male sample ----
+
+ ( 1)  ln_nsh_h = 0
+
+       F(  1,   453) =    4.67
+            Prob > F =    0.0313
+--------------------------------------
+
+---- Female sample ----
+
+ ( 1)  ln_nsh_h = 0
+
+       F(  1,   790) =    6.31
+            Prob > F =    0.0122
+--------------------------------------
+
+. 
+. // 4) Loop over age bins
+. display as text _newline "======================================"
+
+======================================
+
+. display as text " FIRST‐STAGE by age bin (FE) "
+ FIRST‐STAGE by age bin (FE) 
+
+. display as text "======================================"
+======================================
+
+. levelsof agebin if !missing(agebin), local(bins)
+1 2
+
+. foreach b of local bins {
+  2.     local desc : label agelab `b'
+  3.     display as text _newline "---- Age bin: `desc' ----"
+  4.     quietly xtreg ln_nsh ln_nsh_h i.year if agebin==`b', fe cluster(taxsimid)
+  5.     test ln_nsh_h
+  6.     display as text "--------------------------------------"
+  7. }
+
+---- Age bin: 25–34 ----
+
+ ( 1)  ln_nsh_h = 0
+
+       F(  1,   817) =    2.09
+            Prob > F =    0.1491
+--------------------------------------
+
+---- Age bin: 35–44 ----
+
+ ( 1)  ln_nsh_h = 0
+
+       F(  1,   984) =    5.07
+            Prob > F =    0.0246
+--------------------------------------
+
+
