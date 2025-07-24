@@ -1,5 +1,6 @@
 Analysis Output from 1994-2000 NLSY79 sample
 
+
 diagnostic: first‐stage F
 . **************************************************
 . xtreg ln_nsh Dln_nsh_sim i.year, fe cluster(taxsimid)
@@ -282,5 +283,120 @@ Exogenous:  1996.year 1998.year 2000.year Dln_nsh_sim
        F(  1,   984) =    5.07
             Prob > F =    0.0246
 --------------------------------------
+
+ 
+**************************************************
+* Model 2: extensive‐margin FE–IV
+**************************************************
+* first‐stage for Model 2 
+. quietly xtreg ln_nsh Dln_nsh_sim i.year c.grade c.AFQT i.race i.female, ///
+>     fe cluster(taxsimid)
+
+. display as text "FIRST‐STAGE (Model 2):"
+FIRST‐STAGE (Model 2):
+
+. test Dln_nsh_sim
+
+ ( 1)  Dln_nsh_sim = 0
+
+       F(  1,  1244) =    7.45
+            Prob > F =    0.0064
+
+. 
+. *  OLS 
+. xtreg work ln_nsh i.year c.grade c.AFQT i.race i.female, ///
+>     fe vce(cluster taxsimid)
+note: grade omitted because of collinearity.
+note: AFQT omitted because of collinearity.
+note: 2.race omitted because of collinearity.
+note: 3.race omitted because of collinearity.
+note: 1.female omitted because of collinearity.
+
+Fixed-effects (within) regression               Number of obs     =      5,351
+Group variable: taxsimid                        Number of groups  =      2,577
+
+R-squared:                                      Obs per group:
+     Within  = 0.0103                                         min =          1
+     Between = 0.0007                                         avg =        2.1
+     Overall = 0.0019                                         max =          4
+
+                                                F(4, 2576)        =       6.08
+corr(u_i, Xb) = -0.0403                         Prob > F          =     0.0001
+
+                                       (Std. err. adjusted for 2,577 clusters in taxsimid)
+------------------------------------------------------------------------------------------
+                         |               Robust
+                    work | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------------------+----------------------------------------------------------------
+                  ln_nsh |  -.1123499   .0797375    -1.41   0.159     -.268706    .0440062
+                         |
+                    year |
+                   1996  |   .0779403   .0429604     1.81   0.070    -.0063002    .1621807
+                   1998  |   .1272182   .0430354     2.96   0.003     .0428306    .2116058
+                   2000  |   .1369132   .0424186     3.23   0.001     .0537352    .2200911
+                         |
+                   grade |          0  (omitted)
+                    AFQT |          0  (omitted)
+                         |
+                    race |
+                  Black  |          0  (omitted)
+Non‐Black, Non‐Hispanic  |          0  (omitted)
+                         |
+                1.female |          0  (omitted)
+                   _cons |    .783847   .2134035     3.67   0.000     .3653872    1.202307
+-------------------------+----------------------------------------------------------------
+                 sigma_u |  .43052373
+                 sigma_e |  .39177751
+                     rho |  .54701488   (fraction of variance due to u_i)
+------------------------------------------------------------------------------------------
+
+. estimates store lpm_ols
+
+. 
+. *  IV (FE–IV)
+. xtivreg work (ln_nsh = Dln_nsh_sim) ///
+>     i.year c.grade c.AFQT i.race i.female, ///
+>     fe vce(cluster taxsimid)
+
+Fixed-effects (within) IV regression            Number of obs     =      3,124
+Group variable: taxsimid                        Number of groups  =      1,245
+
+R-squared:                                      Obs per group:
+     Within  = 0.0329                                         min =          1
+     Between = 0.0037                                         avg =        2.5
+     Overall = 0.0022                                         max =          4
+
+
+                                                Wald chi2(4)      =      43.37
+corr(u_i, Xb) = -0.1927                         Prob > chi2       =     0.0000
+
+                                       (Std. err. adjusted for 1,245 clusters in taxsimid)
+------------------------------------------------------------------------------------------
+                         |               Robust
+                    work | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------------------+----------------------------------------------------------------
+                  ln_nsh |   .5868825   .3627807     1.62   0.106    -.1241546    1.297919
+                         |
+                    year |
+                   1996  |  -.1937435    .181976    -1.06   0.287      -.55041     .162923
+                   1998  |  -.1071821   .1774159    -0.60   0.546    -.4549109    .2405468
+                   2000  |   -.071104   .1692108    -0.42   0.674     -.402751    .2605431
+                         |
+                   grade |          0  (omitted)
+                    AFQT |          0  (omitted)
+                         |
+                    race |
+                  Black  |          0  (omitted)
+Non‐Black, Non‐Hispanic  |          0  (omitted)
+                         |
+                1.female |          0  (omitted)
+                   _cons |  -1.275995   .9703073    -1.32   0.188    -3.177762    .6257726
+-------------------------+----------------------------------------------------------------
+                 sigma_u |  .42983643
+                 sigma_e |  .38736254
+                     rho |  .55183494   (fraction of variance due to u_i)
+------------------------------------------------------------------------------------------
+Endogenous: ln_nsh
+Exogenous:  1996.year 1998.year 2000.year grade AFQT 2.race 3.race 1.female Dln_nsh_sim
 
 
