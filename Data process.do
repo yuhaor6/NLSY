@@ -801,3 +801,14 @@ rename t8791801 child3month_2020
 rename t8791802 child3year_2020
 rename t9303601 child3month_2022
 rename t9303602 child3year_2022
+
+* Reshape WIDE tp LONG by year
+reshape long ///
+    unemp_ mstat_ page_ depx_ pwages_ swages_ ///
+    psemp_ ssemp_ sui_ gssi_ transfers_ nonprop_ ///
+    mortgage_ pensions_ dividends_ intrec_ rentpaid_ ///
+    spomonth_ spoyear_ ///
+    child1month_ child1year_ ///
+    child2month_ child2year_ ///
+    child3month_ child3year_, ///
+    i(taxsimid) j(year)
