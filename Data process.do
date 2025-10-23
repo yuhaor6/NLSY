@@ -4,67 +4,37 @@ set more off
 
 * 1) Import the CSV (one row per person)
 import delimited "NLSY_All_Data.csv", varnames(1) clear
-
-* 2) Rename the ID
 rename r0000100 taxsimid
+save "base_data.dta", replace
 
-* 3) Rename wave‐specific vars into *_YYYY stubs
-* — Unemployment insurance
-rename g0001400 unemp_1978
-rename g0009200 unemp_1979
-rename g0017000 unemp_1980
-rename g0024800 unemp_1981
-rename g0032600 unemp_1982
-rename g0040400 unemp_1983
-rename g0048200 unemp_1984
-rename g0056000 unemp_1985
-rename g0063800 unemp_1986
-rename g0071600 unemp_1987
-rename g0079400 unemp_1988
-rename g0087200 unemp_1989
-rename g0095000 unemp_1990
-rename g0102800 unemp_1991
-rename g0110600 unemp_1992
-rename g0118400 unemp_1993
-rename g0119700 unemp_1994
-rename g0135200 unemp_1995
-rename g0135300 unemp_1996
-rename g0150800 unemp_1997
-rename g0150900 unemp_1998
-rename g0160400 unemp_1999
-rename g0166500 unemp_2000
-rename g0182100 unemp_2001
-rename g0182100 unemp_2002
-rename g0197600 unemp_2003
-rename g0197700 unemp_2004
-rename g0213300 unemp_2005
-rename g0213400 unemp_2006
-rename g0226700 unemp_2007
-rename g0236600 unemp_2008
-rename g0241700 unemp_2009
-rename g0253800 unemp_2010
-rename g0262100 unemp_2011
-rename g0269500 unemp_2012
-rename g0277000 unemp_2013
-rename g0286200 unemp_2014
-rename g0293800 unemp_2015
-rename g0300700 unemp_2016
-rename g0301900 unemp_2017
-rename g0317700 unemp_2018
-rename g0318800 unemp_2019
-rename g0336300 unemp_2020
-rename g0337500 unemp_2021
-rename g0355400 unemp_2022
-rename g0356400 unemp_2023
+* 2) Import the left-out variables
+import delimited "left_out.csv", varnames(1) clear
+rename r0000100 taxsimid
+save "left_out.dta", replace
+
+* 3) Merge the two datasets by respondent ID
+use "base_data.dta", clear
+merge 1:1 taxsimid using "left_out.dta"
+
+tab _merge
+drop _merge
+
+save "merged_data.dta", replace
+
+
+use "merged_data.dta", clear
+
+
+* 4) Rename wave‐specific vars into *_YYYY stubs
 
 * Marital status, filing status, dependents
 rename r0217500 mstat_1979
-rename r0450600 mstat_1980
+rename r0405600 mstat_1980
 rename r0618600 mstat_1981
 rename r0898400 mstat_1982
 rename r1144900 mstat_1983
 rename r1520100 mstat_1984
-rename r1898000 mstat_1985
+rename r1890800 mstat_1985
 rename r2257900 mstat_1986
 rename r2445300 mstat_1987
 rename r2870900 mstat_1988
@@ -90,12 +60,12 @@ rename t8788400 mstat_2020
 rename t9300200 mstat_2022
 * Page
 rename r0216500 page_1979
-rename r0450610 page_1980
-rename r0619100 page_1981
+rename r0406510 page_1980
+rename r0619010 page_1981
 rename r0898310 page_1982
 rename r1145110 page_1983
-rename r1520130 page_1984
-rename r1899100 page_1985
+rename r1520310 page_1984
+rename r1891010 page_1985
 rename r2258110 page_1986
 rename r2445510 page_1987
 rename r2871300 page_1988
@@ -121,19 +91,19 @@ rename t8788600 page_2020
 rename t9300400 page_2022
 * Depx
 rename r0218001 depx_1979
-rename r0476010 depx_1980
-rename r0647100 depx_1981
-rename r0898310 depx_1982
+rename r0407601 depx_1980
+rename r0647101 depx_1981
+rename r0898838 depx_1982
 rename r1146830 depx_1983
-rename r1520230 depx_1984
-rename r1898370 depx_1985
-rename r2259830 depx_1986
-rename r2448030 depx_1987
-rename r2877060 depx_1988
-rename r3077000 depx_1989
+rename r1522037 depx_1984
+rename r1892737 depx_1985
+rename r2259837 depx_1986
+rename r2448037 depx_1987
+rename r2877600 depx_1988
+rename r3076842 depx_1989
 rename r3407700 depx_1990
-rename r3659040 depx_1991
-rename r4007400 depx_1992
+rename r3659047 depx_1991
+rename r4009447 depx_1992
 rename r4444700 depx_1993
 rename r5087500 depx_1994
 rename r5172800 depx_1996
@@ -142,29 +112,29 @@ rename r7014200 depx_2000
 rename r7711800 depx_2002
 rename r8504300 depx_2004
 rename t0996000 depx_2006
-rename t2217900 depx_2008
+rename t2217800 depx_2008
 rename t3115800 depx_2010
 rename t4120300 depx_2012
 rename t5031500 depx_2014
-rename t5779000 depx_2016
+rename t5779700 depx_2016
 rename t8226800 depx_2018
 rename t8796100 depx_2020
 rename t9307900 depx_2022
 
 * Wages & salary
 rename r0155400 pwages_1979
-rename r0313200 pwages_1980
+rename r0312300 pwages_1980
 rename r0482600 pwages_1981
 rename r0782101 pwages_1982
-rename r1020401 pwages_1983
+rename r1024001 pwages_1983
 rename r1410701 pwages_1984
 rename r1778501 pwages_1985
 rename r2141601 pwages_1986
-rename r2330501 pwages_1987
+rename r2350301 pwages_1987
 rename r2722501 pwages_1988
 rename r2971401 pwages_1989
 rename r3279401 pwages_1990
-rename r3559901 pwages_1991
+rename r3559001 pwages_1991
 rename r3897101 pwages_1992
 rename r4295101 pwages_1993
 rename r4982801 pwages_1994
@@ -181,7 +151,7 @@ rename t4915800 pwages_2014
 rename t5619500 pwages_2016
 rename t8115400 pwages_2018
 rename t8645700 pwages_2020
-rename t9184800 pwages_2022
+rename t9198400 pwages_2022
 
 rename r0155500 swages_1979
 rename r0312710 swages_1980
@@ -210,7 +180,7 @@ rename t3056000 swages_2010
 rename t3987600 swages_2012
 rename t4924900 swages_2014
 rename t5630100 swages_2016
-rename t8153900 swages_2018
+rename t8135900 swages_2018
 rename t8671700 swages_2020
 rename t9223100 swages_2022
 
@@ -220,12 +190,12 @@ rename r0312600 psemp_1980
 rename r0483200 psemp_1981
 rename r0782401 psemp_1982
 rename r1024301 psemp_1983
-rename r1411101 psemp_1984
+rename r1411001 psemp_1984
 rename r1778801 psemp_1985
 rename r2141901 psemp_1986
 rename r2350601 psemp_1987
 rename r2722801 psemp_1988
-rename r2977101 psemp_1989
+rename r2971701 psemp_1989
 rename r3279701 psemp_1990
 rename r3559301 psemp_1991
 rename r3897401 psemp_1992
@@ -234,7 +204,7 @@ rename r4983201 psemp_1994
 rename r5626601 psemp_1996
 rename r6365001 psemp_1998
 rename r6911101 psemp_2000
-rename r7600900 psemp_2002
+rename r7609000 psemp_2002
 rename r8318200 psemp_2004
 rename t0913900 psemp_2006
 rename t2078800 psemp_2008
@@ -242,7 +212,7 @@ rename t3047500 psemp_2010
 rename t3979400 psemp_2012
 rename t4917800 psemp_2014
 rename t5621700 psemp_2016
-rename t8161700 psemp_2018
+rename t8116700 psemp_2018
 rename t8646800 psemp_2020
 rename t9199700 psemp_2022
 
@@ -256,7 +226,7 @@ rename r1781001 ssemp_1985
 rename r2144101 ssemp_1986
 rename r2352801 ssemp_1987
 rename r2725001 ssemp_1988
-rename r2979301 ssemp_1989
+rename r2973901 ssemp_1989
 rename r3281901 ssemp_1990
 rename r3561501 ssemp_1991
 rename r3899601 ssemp_1992
@@ -273,60 +243,60 @@ rename t3058300 ssemp_2010
 rename t3989900 ssemp_2012
 rename t4927200 ssemp_2014
 rename t5632400 ssemp_2016
-rename t8173700 ssemp_2018
+rename t8137300 ssemp_2018
 rename t8673100 ssemp_2020
 rename t9224500 ssemp_2022
 
 * UI
-rename g0001400 pui_1978
-rename g0009200 pui_1979
-rename g0017000 pui_1980
-rename g0024800 pui_1981
-rename g0032600 pui_1982
-rename g0040400 pui_1983
-rename g0048200 pui_1984
-rename g0056000 pui_1985
-rename g0063800 pui_1986
-rename g0071600 pui_1987
-rename g0079400 pui_1988
-rename g0087200 pui_1989
-rename g0095000 pui_1990
-rename g0102800 pui_1991
-rename g0110600 pui_1992
-rename g0118400 pui_1993
-rename g0126200 pui_1994
-rename g0135200 pui_1995
-rename g0135300 pui_1996
-rename g0150800 pui_1997
-rename g0150900 pui_1998
-rename g0166400 pui_1999
-rename g0166500 pui_2000
-rename g0182000 pui_2001
-rename g0182100 pui_2002
-rename g0197600 pui_2003
-rename g0197700 pui_2004
-rename g0213300 pui_2005
-rename g0213400 pui_2006
-rename g0226700 pui_2007
-rename g0236600 pui_2008
-rename g0241700 pui_2009
-rename g0253800 pui_2010
-rename g0262100 pui_2011
-rename g0269500 pui_2012
-rename g0277000 pui_2013
-rename g0286200 pui_2014
-rename g0293800 pui_2015
-rename g0300700 pui_2016
-rename g0301900 pui_2017
-rename g0317700 pui_2018
-rename g0318800 pui_2019
-rename g0336300 pui_2020
-rename g0337500 pui_2021
-rename g0355400 pui_2022
-rename g0356400 pui_2023
+rename g0001400 unemp_1978
+rename g0009200 unemp_1979
+rename g0017000 unemp_1980
+rename g0024800 unemp_1981
+rename g0032600 unemp_1982
+rename g0040400 unemp_1983
+rename g0048200 unemp_1984
+rename g0056000 unemp_1985
+rename g0063800 unemp_1986
+rename g0071600 unemp_1987
+rename g0079400 unemp_1988
+rename g0087200 unemp_1989
+rename g0095000 unemp_1990
+rename g0102800 unemp_1991
+rename g0110600 unemp_1992
+rename g0118400 unemp_1993
+rename g0119700 unemp_1994
+rename g0135200 unemp_1995
+rename g0135300 unemp_1996
+rename g0150800 unemp_1997
+rename g0150900 unemp_1998
+rename g0166400 unemp_1999
+rename g0166500 unemp_2000
+rename g0182000 unemp_2001
+rename g0182100 unemp_2002
+rename g0197600 unemp_2003
+rename g0197700 unemp_2004
+rename g0213300 unemp_2005
+rename g0213400 unemp_2006
+rename g0226700 unemp_2007
+rename g0236600 unemp_2008
+rename g0241700 unemp_2009
+rename g0253800 unemp_2010
+rename g0262100 unemp_2011
+rename g0269500 unemp_2012
+rename g0277000 unemp_2013
+rename g0286200 unemp_2014
+rename g0293800 unemp_2015
+rename g0300700 unemp_2016
+rename g0301900 unemp_2017
+rename g0317700 unemp_2018
+rename g0318800 unemp_2019
+rename g0336300 unemp_2020
+rename g0337500 unemp_2021
+rename g0355400 unemp_2022
+rename g0356400 unemp_2023
 
 rename g0002700 sui_1978
-rename g0009600 sui_1979
+rename g0010500 sui_1979
 rename g0018300 sui_1980
 rename g0026100 sui_1981
 rename g0033900 sui_1982
@@ -340,15 +310,16 @@ rename g0088500 sui_1989
 rename g0096300 sui_1990
 rename g0104100 sui_1991
 rename g0111900 sui_1992
-rename g0119700 sui_1993
+rename g0121000 sui_1993
 rename g0122300 sui_1994
 rename g0137900 sui_1996
+rename g0153400 sui_1997
 rename g0153500 sui_1998
 rename g0169100 sui_2000
 rename g0184600 sui_2001
 rename g0184700 sui_2002
-rename g0200300 sui_2003
-rename g0203000 sui_2004
+rename g0200200 sui_2003
+rename g0200300 sui_2004
 rename g0215900 sui_2005
 rename g0216000 sui_2006
 rename g0226900 sui_2007
@@ -370,14 +341,7 @@ rename g0357700 sui_2022
 rename g0358700 sui_2023
 
 * Other non‐property income
-rename r6943900 nonprop_1998
-rename r6939500 nonprop_2000
-rename t0944800 nonprop_2006
-rename t2111200 nonprop_2008
-rename t3078600 nonprop_2010
-rename t4012700 nonprop_2012
-rename t4947600 nonprop_2014
-rename t5653600 nonprop_2016
+
 
 * Gross Social Security
 rename g0006600 gssi_1978
@@ -412,7 +376,7 @@ rename g0223800 gssi_2006
 rename g0227700 gssi_2007
 rename g0240600 gssi_2008
 rename g0242000 gssi_2009
-rename g0250900 gssi_2010
+rename g0259000 gssi_2010
 rename g0267100 gssi_2011
 rename g0274700 gssi_2012
 rename g0280900 gssi_2013
@@ -424,7 +388,7 @@ rename g0327300 gssi_2018
 rename g0328400 gssi_2019
 rename g0346400 gssi_2020
 rename g0347700 gssi_2021
-rename g0346500 gssi_2022
+rename g0364500 gssi_2022
 rename g0365500 gssi_2023
 
 * Non-taxable transfers (AFDC + food stamps + vet ben)
@@ -509,12 +473,12 @@ rename g0221100 foodstamp_2005
 rename g0221200 foodstamp_2006
 rename g0227400 foodstamp_2007
 rename g0239600 foodstamp_2008
-rename g0249100 foodstamp_2009
+rename g0241900	foodstamp_2009
 rename g0257700 foodstamp_2010
-rename g0265000 foodstamp_2011
+rename g0260500 foodstamp_2011
 rename g0273400 foodstamp_2012
 rename g0279900 foodstamp_2013
-rename g0292100 foodstamp_2014
+rename g0290100 foodstamp_2014
 rename g0297100 foodstamp_2015
 rename g0308100 foodstamp_2016
 rename g0309300 foodstamp_2017
@@ -534,15 +498,15 @@ rename r1422100 vetben_1983
 rename r1788500 vetben_1984 
 rename r2151600 vetben_1985 
 rename r2360300 vetben_1986 
-rename r2723500 vetben_1987 
+rename r2732500 vetben_1987 
 rename r2980900 vetben_1988 
 rename r3290200 vetben_1989 
-rename r3596900 vetben_1990 
+rename r3569800 vetben_1990 
 rename r3907900 vetben_1991 
-rename r4438300 vetben_1992 
+rename r4388300 vetben_1992 
 rename r5044500 vetben_1993 
 rename r5725900 vetben_1995 
-rename r6442400 vetben_1997 
+rename r6424200 vetben_1997 
 rename r6939900 vetben_1999 
 rename r7640800 vetben_2001 
 rename r8349900 vetben_2003 
@@ -552,7 +516,7 @@ rename t3079900 vetben_2009
 rename t4014000 vetben_2011 
 rename t4948900 vetben_2014 
 rename t5654700 vetben_2016 
-rename t8182700 vetben_2018 
+rename t8128700 vetben_2018 
 rename t8664200 vetben_2020 
 rename t9217200 vetben_2022
 
@@ -609,47 +573,35 @@ drop ///
 rename r1791201 mortgage_1985
 rename r2154301 mortgage_1986
 rename r2362901 mortgage_1987
-rename r2758501 mortgage_1988
+rename r2735801 mortgage_1988
 rename r2983301 mortgage_1989
 rename r3293701 mortgage_1990
 rename r3911401 mortgage_1992
-rename r4394701 mortgage_1993
+rename r4392701 mortgage_1993
 rename r5047001 mortgage_1994
 rename r5728401 mortgage_1996
 rename r6426401 mortgage_1998
 rename r6944601 mortgage_2000
-rename r7646101 mortgage_2002
-rename r8349701 mortgage_2004
-rename t0945901 mortgage_2006
-rename t2112601 mortgage_2008
-rename t3079801 mortgage_2010
-rename t4013901 mortgage_2012
-rename t4948801 mortgage_2014
-rename t5654501 mortgage_2016
-rename t8182501 mortgage_2018
-rename t8664001 mortgage_2020
+
 
 * Dividend income (Proxy from stock and bonds)
 * Weighted Average Yield = (0.60×3%) + (0.40×6.5%) = 4.5%
 * Assumes 60% in stocks (3% yield) and 40% in bonds (6.5% yield)
 
-gen dividends_1985 = r1791201 * 0.045
-gen dividends_1986 = r2154301 * 0.045
-gen dividends_1987 = r2362901 * 0.045
-gen dividends_1988 = r2735801 * 0.045
-gen dividends_1989 = r2983301 * 0.045
-gen dividends_1990 = r3293701 * 0.045
-gen dividends_1992 = r3911401 * 0.045
-gen dividends_1993 = r4392701 * 0.045
-gen dividends_1994 = r5047001 * 0.045
-gen dividends_1996 = r5728401 * 0.045
-gen dividends_1998 = r6426401 * 0.045
-gen dividends_2000 = r6944601 * 0.045
+gen dividends_1988 = r2736201 * 0.045
+gen dividends_1989 = r2983701 * 0.045
+gen dividends_1990 = r3294101 * 0.045
+gen dividends_1992 = r3911801 * 0.045
+gen dividends_1993 = r4393201 * 0.045
+gen dividends_1994 = r5048001 * 0.045
+gen dividends_1996 = r5729401 * 0.045
+gen dividends_1998 = r6427401 * 0.045
+gen dividends_2000 = r6946201 * 0.045
 
 drop ///
-    r1791201 r2154301 r2362901 r2735801 r2983301 ///
-    r3293701 r3911401 r4392701 r5047001 r5728401 ///
-    r6426401 r6944601
+    r2736201 r2983701 r3294101  ///
+    r3911801 r4393201 r5048001 r5729401  ///
+    r6427401  r6946201
 
 
 * TAXABLE INTEREST INCOME (3% OF SAVINGS BALANCE)
@@ -675,7 +627,7 @@ drop ///
     r1791401 r2154501 r2363101 r2736001 r2983501 ///
     r3293901 r3911601 r4393001 r5047201 r5728601 ///
     r6426601 r6944801 r8363000 t2126400 t4027600 ///
-    t5656700 t8710300
+    t5665700 t8710300
 
 *  Spouse & children DOB (month/year pairs)
 rename r4506800 spomonth_1994
@@ -748,8 +700,8 @@ rename r6482201 child2month_1998
 rename r6482202 child2year_1998
 rename r7009901 child2month_2000
 rename r7009902 child2year_2000
-rename r7770201 child2month_2002
-rename r7770202 child2year_2002
+rename r7707201 child2month_2002
+rename r7707202 child2year_2002
 rename r8499601 child2month_2004
 rename r8499602 child2year_2004
 rename r9900801 child2month_2006
@@ -779,8 +731,8 @@ rename r6482701 child3month_1998
 rename r6482702 child3year_1998
 rename r7010401 child3month_2000
 rename r7010402 child3year_2000
-rename r7770701 child3month_2002
-rename r7770702 child3year_2002
+rename r7707701 child3month_2002
+rename r7707702 child3year_2002
 rename r8500101 child3month_2004
 rename r8500102 child3year_2004
 rename r9901601 child3month_2006
@@ -812,3 +764,205 @@ reshape long ///
     child2month_ child2year_ ///
     child3month_ child3year_, ///
     i(taxsimid) j(year)
+	
+* turn year into numeric
+destring year, replace
+
+* fix self‐employment stub names
+rename psemp pbusinc
+rename ssemp sbusinc
+
+* Compute ages for spouse & kids
+gen refdate    = mdy(7,1,year)
+gen dob_spouse = mdy(spomonth,  1, spoyear)
+gen dob_c1     = mdy(child1month, 1, child1year)
+gen dob_c2     = mdy(child2month, 1, child2year)
+gen dob_c3     = mdy(child3month, 1, child3year)
+
+gen sage = floor((refdate - dob_spouse)/365.25)
+gen age1 = floor((refdate - dob_c1    )/365.25)
+gen age2 = floor((refdate - dob_c2    )/365.25)
+gen age3 = floor((refdate - dob_c3    )/365.25)
+
+* zero out any negative ages
+replace sage = 0 if sage < 0
+foreach a of varlist age1 age2 age3 {
+    replace `a' = 0 if `a' < 0
+}
+
+* drop intermediate date vars
+drop spomonth spoyear dob_spouse dob_c1 dob_c2 dob_c3 refdate ///
+     child1month child1year child2month child2year child3month child3year
+
+replace sage  = 0 if missing(sage)  | sage  < 0
+replace age1  = 0 if missing(age1)  | age1  < 0
+replace age2  = 0 if missing(age2)  | age2  < 0
+replace age3  = 0 if missing(age3)  | age3  < 0
+
+*  Rename to TAXSIM's exact input names
+rename unemp_     pui
+rename sui_       sui
+rename pwages_    pwages
+rename swages    swages
+rename gssi_      gssi
+rename transfers_ transfers
+rename nonprop_   nonprop
+rename mortgage_  mortgage
+rename pensions_  pensions
+rename dividends_ dividends
+rename intrec_    intrec
+rename rentpaid_  rentpaid
+rename mstat_    mstat
+rename page_     page
+rename depx_     depx
+
+*  Build dependent‐age counts
+gen dep6  = 0
+gen dep13 = 0
+gen dep17 = 0
+gen dep18 = 0
+gen dep19 = 0
+foreach a in age1 age2 age3 {
+    replace dep6  = dep6  + (`a' <  6)
+    replace dep13 = dep13 + (`a' < 13)
+    replace dep17 = dep17 + (`a' < 17)
+    replace dep18 = dep18 + (`a' < 18)
+    replace dep19 = dep19 + (`a' < 19)
+}
+replace depx = dep19 if dep19 > depx
+
+* Mstat
+gen byte mstat2 = .
+replace mstat2 = 2 if mstat == 2
+replace mstat2 = 1 if mstat < 1
+replace mstat2 = 1 if missing(mstat2)
+drop mstat
+rename mstat2 mstat
+
+replace sage    = 0 if mstat != 2
+replace swages  = 0 if mstat != 2
+replace sbusinc = 0 if mstat != 2
+
+
+foreach v in opt1 opt1v opt2 opt2v {
+    gen `v' = 0
+}
+
+gen otherprop = 0
+gen stcg      = 0
+gen ltcg      = 0
+gen proptax   = 0
+gen otheritem = 0
+gen childcare = 0
+gen pprofinc  = 0
+gen sprofinc  = 0
+gen scorp     = 0
+
+*State dummy
+
+
+* Zero‐fill any remaining missing inputs
+foreach v in pui sui pwages swages pbusinc sbusinc ///
+              gssi transfers nonprop mortgage ///
+              pensions dividends intrec rentpaid ///
+              mstat page depx stcg ltcg proptax ///
+              otheritem childcare pprofinc sprofinc scorp {
+    replace `v' = 0 if missing(`v')
+}
+
+local survvars page depx pui pwages swages pbusinc sbusinc sui gssi ///
+                transfers nonprop mortgage pensions dividends ///
+                intrec rentpaid
+
+foreach v of local survvars {
+    replace `v' = 0 if `v' < 0
+}
+
+save "nlsy_long_pre_taxsim.dta", replace
+* Run Taxsim
+taxsimlocal35, replace
+save "taxsim_out_nominal.dta", replace
+
+* rename outputs
+use "taxsim_out_nominal.dta", clear
+rename fiitax  tax_fed        // federal income tax liability
+rename siitax  tax_st         // state income tax liability
+rename fica    tax_payroll    // FICA
+rename frate   mtr_fed        // federal marginal rate
+rename srate   mtr_st         // state marginal rate
+rename ficar   fica_rt         //  FICA rate
+rename tfica   fica_taxliab   // taxpayer liability for FICA
+save "taxsim_out_nominal.dta", replace
+
+*  Merge CPI data to obtain inflation factors (base year = 1994)
+use "BLS_CPI.dta", clear
+keep year CPI
+quietly summarize CPI if year==1994
+gen CPI94 = r(mean)
+gen deflator = CPI94 / CPI
+keep year deflator
+tempfile cpidata
+save `cpidata', replace
+
+* bring back the Taxsim results and merge in CPI
+use "nlsy_long_pre_taxsim.dta", clear
+sort year
+merge m:1 year using `cpidata'
+drop if _merge==2
+drop _merge
+
+foreach v in pwages swages pbusinc sbusinc sui gssi transfers nonprop ///
+             mortgage pensions dividends intrec rentpaid {
+    replace `v' = `v' * deflator
+}
+
+bysort taxsimid: egen pwages94    = mean(cond(year==1994, pwages,     .))
+bysort taxsimid: egen swages94    = mean(cond(year==1994, swages,     .))
+bysort taxsimid: egen pbusinc94   = mean(cond(year==1994, pbusinc,    .))
+bysort taxsimid: egen sbusinc94   = mean(cond(year==1994, sbusinc,    .))
+bysort taxsimid: egen sui94       = mean(cond(year==1994, sui,        .))
+bysort taxsimid: egen gssi94      = mean(cond(year==1994, gssi,       .))
+bysort taxsimid: egen transfers94 = mean(cond(year==1994, transfers,  .))
+bysort taxsimid: egen nonprop94   = mean(cond(year==1994, nonprop,    .))
+bysort taxsimid: egen mortgage94  = mean(cond(year==1994, mortgage,   .))
+bysort taxsimid: egen pensions94  = mean(cond(year==1994, pensions,   .))
+bysort taxsimid: egen dividends94 = mean(cond(year==1994, dividends,  .))
+bysort taxsimid: egen intrec94    = mean(cond(year==1994, intrec,     .))
+bysort taxsimid: egen rentpaid94  = mean(cond(year==1994, rentpaid,   .))
+
+
+replace pwages    = pwages94
+replace swages    = swages94
+replace pbusinc   = pbusinc94
+replace sbusinc   = sbusinc94
+replace sui       = sui94
+replace gssi      = gssi94
+replace transfers = transfers94
+replace nonprop   = nonprop94
+replace mortgage  = mortgage94
+replace pensions  = pensions94
+replace dividends = dividends94
+replace intrec    = intrec94
+replace rentpaid  = rentpaid94
+
+drop pwages94 swages94 pbusinc94 sbusinc94 ///
+     sui94 gssi94 transfers94 nonprop94 ///
+     mortgage94 pensions94 dividends94 ///
+     intrec94 rentpaid94 deflator
+
+replace swages   = 0   if mstat != 2
+replace sbusinc  = 0   if mstat != 2
+replace sui      = 0   if mstat != 2
+
+* save deflated‐inputs
+save "nlsy_long_deflated.dta", replace
+
+* Run Taxsim again
+taxsimlocal35, replace
+save "taxsim_out_fixedreal.dta", replace
+
+use "taxsim_out_fixedreal.dta", clear
+rename frate  mtr_fed_fix
+rename srate  mtr_st_fix
+rename fica   fica_rt_fix
+save "taxsim_out_fixedreal.dta", replace
