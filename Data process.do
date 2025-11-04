@@ -514,11 +514,11 @@ rename t0945800 vetben_2005
 rename t2112500 vetben_2007 
 rename t3079900 vetben_2009 
 rename t4014000 vetben_2011 
-rename t4948900 vetben_2014 
-rename t5654700 vetben_2016 
-rename t8128700 vetben_2018 
-rename t8664200 vetben_2020 
-rename t9217200 vetben_2022
+rename t4948900 vetben_2013 
+rename t5654700 vetben_2015 
+rename t8128700 vetben_2017 
+rename t8664200 vetben_2019 
+rename t9217200 vetben_2021
 
 gen transfers_1979 = afdc_1979 + foodstamp_1979 + vetben_1979
 gen transfers_1980 = afdc_1980 + foodstamp_1980 + vetben_1980
@@ -535,13 +535,13 @@ gen transfers_1990 = afdc_1990 + foodstamp_1990 + vetben_1990
 gen transfers_1991 = afdc_1991 + foodstamp_1991 + vetben_1991
 gen transfers_1992 = afdc_1992 + foodstamp_1992 + vetben_1992
 gen transfers_1993 = afdc_1993 + foodstamp_1993 + vetben_1993
-gen transfers_1994 = afdc_1994 + foodstamp_1994 + vetben_1993
+gen transfers_1994 = afdc_1994 + foodstamp_1994 
 gen transfers_1995 = afdc_1995 + foodstamp_1995 + vetben_1995
-gen transfers_1996 = afdc_1996 + foodstamp_1996 + vetben_1995
+gen transfers_1996 = afdc_1996 + foodstamp_1996 
 gen transfers_1997 = afdc_1997 + foodstamp_1997 + vetben_1997
-gen transfers_1998 = afdc_1998 + foodstamp_1998 + vetben_1997
+gen transfers_1998 = afdc_1998 + foodstamp_1998 
 gen transfers_1999 = afdc_1999 + foodstamp_1999 + vetben_1999
-gen transfers_2000 = afdc_2000 + foodstamp_2000 + vetben_1999
+gen transfers_2000 = afdc_2000 + foodstamp_2000 
 gen transfers_2001 = afdc_2001 + foodstamp_2001 + vetben_2001
 gen transfers_2002 = afdc_2002 + foodstamp_2002
 gen transfers_2003 = afdc_2003 + foodstamp_2003 + vetben_2003
@@ -554,16 +554,16 @@ gen transfers_2009 = afdc_2009 + foodstamp_2009 + vetben_2009
 gen transfers_2010 = afdc_2010 + foodstamp_2010
 gen transfers_2011 = afdc_2011 + foodstamp_2011 + vetben_2011
 gen transfers_2012 = afdc_2012 + foodstamp_2012
-gen transfers_2013 = afdc_2013 + foodstamp_2013
-gen transfers_2014 = afdc_2014 + foodstamp_2014 + vetben_2014
-gen transfers_2015 = afdc_2015 + foodstamp_2015
-gen transfers_2016 = afdc_2016 + foodstamp_2016 + vetben_2016
-gen transfers_2017 = afdc_2017 + foodstamp_2017
-gen transfers_2018 = afdc_2018 + foodstamp_2018 + vetben_2018
-gen transfers_2019 = afdc_2019 + foodstamp_2019
-gen transfers_2020 = afdc_2020 + foodstamp_2020 + vetben_2020
-gen transfers_2021 = afdc_2021 + foodstamp_2021
-gen transfers_2022 = afdc_2022 + foodstamp_2022 + vetben_2022
+gen transfers_2013 = afdc_2013 + foodstamp_2013 + vetben_2013
+gen transfers_2014 = afdc_2014 + foodstamp_2014
+gen transfers_2015 = afdc_2015 + foodstamp_2015 + vetben_2015
+gen transfers_2016 = afdc_2016 + foodstamp_2016 
+gen transfers_2017 = afdc_2017 + foodstamp_2017 + vetben_2017
+gen transfers_2018 = afdc_2018 + foodstamp_2018 
+gen transfers_2019 = afdc_2019 + foodstamp_2019 + vetben_2019
+gen transfers_2020 = afdc_2020 + foodstamp_2020 
+gen transfers_2021 = afdc_2021 + foodstamp_2021 + vetben_2021
+gen transfers_2022 = afdc_2022 + foodstamp_2022 
 gen transfers_2023 = afdc_2023 + foodstamp_2023
 
 drop ///
@@ -768,10 +768,6 @@ reshape long ///
 * turn year into numeric
 destring year, replace
 
-* fix self‐employment stub names
-rename psemp pbusinc
-rename ssemp sbusinc
-
 * Compute ages for spouse & kids
 gen refdate    = mdy(7,1,year)
 gen dob_spouse = mdy(spomonth,  1, spoyear)
@@ -804,6 +800,8 @@ rename unemp_     pui
 rename sui_       sui
 rename pwages_    pwages
 rename swages    swages
+rename psemp_      psemp
+rename ssemp_      ssemp
 rename gssi_      gssi
 rename transfers_ transfers
 rename nonprop_   nonprop
@@ -841,7 +839,7 @@ rename mstat2 mstat
 
 replace sage    = 0 if mstat != 2
 replace swages  = 0 if mstat != 2
-replace sbusinc = 0 if mstat != 2
+replace ssemp = 0 if mstat != 2
 
 
 foreach v in opt1 opt1v opt2 opt2v {
@@ -857,12 +855,13 @@ gen childcare = 0
 gen pprofinc  = 0
 gen sprofinc  = 0
 gen scorp     = 0
+gen pbusinc   = 0
+gen sbusinc   = 0
 
 *State dummy
 
-
 * Zero‐fill any remaining missing inputs
-foreach v in pui sui pwages swages pbusinc sbusinc ///
+foreach v in pui sui pwages swages psemp ssemp ///
               gssi transfers nonprop mortgage ///
               pensions dividends intrec rentpaid ///
               mstat page depx stcg ltcg proptax ///
@@ -878,6 +877,9 @@ foreach v of local survvars {
     replace `v' = 0 if `v' < 0
 }
 
+* change pui to ui, because seems to read ui only
+gen double ui = pui
+
 save "nlsy_long_pre_taxsim.dta", replace
 * Run Taxsim
 taxsimlocal35, replace
@@ -887,82 +889,236 @@ save "taxsim_out_nominal.dta", replace
 use "taxsim_out_nominal.dta", clear
 rename fiitax  tax_fed        // federal income tax liability
 rename siitax  tax_st         // state income tax liability
-rename fica    tax_payroll    // FICA
+rename fica    tax_payroll    // FICA (OADSI and HI, sum of employee AND employer including Additional Medicare Tax)
 rename frate   mtr_fed        // federal marginal rate
 rename srate   mtr_st         // state marginal rate
 rename ficar   fica_rt         //  FICA rate
 rename tfica   fica_taxliab   // taxpayer liability for FICA
 save "taxsim_out_nominal.dta", replace
 
-*  Merge CPI data to obtain inflation factors (base year = 1994)
+* Merge base-year CPI
 use "BLS_CPI.dta", clear
 keep year CPI
-quietly summarize CPI if year==1994
-gen CPI94 = r(mean)
-gen deflator = CPI94 / CPI
-keep year deflator
-tempfile cpidata
-save `cpidata', replace
-
-* bring back the Taxsim results and merge in CPI
-use "nlsy_long_pre_taxsim.dta", clear
 sort year
-merge m:1 year using `cpidata'
-drop if _merge==2
+save "cpi_temp.dta", replace
+
+* Merge CPI into the main taxsim output
+use "taxsim_out_nominal.dta", clear
+merge m:1 year using "cpi_temp.dta", keep(match master) nogen
+
+* Create a lagged CPI variable (3 years prior)
+* We need to merge CPI from 3 years ago
+rename CPI cpi_current
+
+* Temporarily rename for the merge
+gen year_lag3 = year - 3
+rename year year_original
+rename year_lag3 year
+
+merge m:1 year using "cpi_temp.dta", keep(match master) keepusing(CPI)
+rename CPI cpi_lag3
 drop _merge
 
-foreach v in pwages swages pbusinc sbusinc sui gssi transfers nonprop ///
-             mortgage pensions dividends intrec rentpaid {
-    replace `v' = `v' * deflator
+* Restore original variable names
+rename year year_lag3  
+rename year_original year
+
+* Calculate CPI adjustment factor: cpi_current / cpi_lag3
+* This converts nominal dollars from 3 years ago to current-year real dollars
+gen cpi_adjustment = cpi_current / cpi_lag3
+
+* For first 3 years (1978-1980), there's no t-3 data, so set adjustment to missing
+* These observations will be dropped from the analysis later
+replace cpi_adjustment = . if missing(cpi_lag3)
+
+* Show which years have missing CPI adjustment
+tab year if missing(cpi_adjustment)
+
+save "taxsim_with_cpi.dta", replace
+
+
+*Create lagged income variables (from 3 years prior)
+use "nlsy_long_pre_taxsim.dta", clear
+
+* Sort and create lagged versions of all dollar-value variables
+sort taxsimid year
+
+* List of dollar-value variables that need to be lagged
+local dollar_vars pwages swages psemp ssemp pui sui gssi transfers nonprop ///
+                  mortgage pensions dividends intrec rentpaid otherprop stcg ltcg ///
+                  proptax otheritem childcare pprofinc sprofinc pbusinc sbusinc
+
+* Create lagged versions (3 years prior)
+foreach var of local dollar_vars {
+    by taxsimid: gen `var'_lag3 = `var'[_n-3]
+    * Set to missing if not available (first 3 years for each person)
+    replace `var'_lag3 = . if `var'_lag3 == .
 }
 
-bysort taxsimid: egen pwages94    = mean(cond(year==1994, pwages,     .))
-bysort taxsimid: egen swages94    = mean(cond(year==1994, swages,     .))
-bysort taxsimid: egen pbusinc94   = mean(cond(year==1994, pbusinc,    .))
-bysort taxsimid: egen sbusinc94   = mean(cond(year==1994, sbusinc,    .))
-bysort taxsimid: egen sui94       = mean(cond(year==1994, sui,        .))
-bysort taxsimid: egen gssi94      = mean(cond(year==1994, gssi,       .))
-bysort taxsimid: egen transfers94 = mean(cond(year==1994, transfers,  .))
-bysort taxsimid: egen nonprop94   = mean(cond(year==1994, nonprop,    .))
-bysort taxsimid: egen mortgage94  = mean(cond(year==1994, mortgage,   .))
-bysort taxsimid: egen pensions94  = mean(cond(year==1994, pensions,   .))
-bysort taxsimid: egen dividends94 = mean(cond(year==1994, dividends,  .))
-bysort taxsimid: egen intrec94    = mean(cond(year==1994, intrec,     .))
-bysort taxsimid: egen rentpaid94  = mean(cond(year==1994, rentpaid,   .))
+save "nlsy_with_lags.dta", replace
 
+*Create counterfactual dataset with fixed income from t-3
 
-replace pwages    = pwages94
-replace swages    = swages94
-replace pbusinc   = pbusinc94
-replace sbusinc   = sbusinc94
-replace sui       = sui94
-replace gssi      = gssi94
-replace transfers = transfers94
-replace nonprop   = nonprop94
-replace mortgage  = mortgage94
-replace pensions  = pensions94
-replace dividends = dividends94
-replace intrec    = intrec94
-replace rentpaid  = rentpaid94
+use "nlsy_with_lags.dta", clear
 
-drop pwages94 swages94 pbusinc94 sbusinc94 ///
-     sui94 gssi94 transfers94 nonprop94 ///
-     mortgage94 pensions94 dividends94 ///
-     intrec94 rentpaid94 deflator
+* Merge in CPI data for current year
+merge m:1 year using "cpi_temp.dta", keep(match master) nogen
+rename CPI cpi_current
 
-replace swages   = 0   if mstat != 2
-replace sbusinc  = 0   if mstat != 2
-replace sui      = 0   if mstat != 2
+* Merge in CPI data for t-3
+gen year_lag3 = year - 3
+rename year year_original
+rename year_lag3 year
 
-* save deflated‐inputs
-save "nlsy_long_deflated.dta", replace
+merge m:1 year using "cpi_temp.dta", keep(match master) keepusing(CPI)
+rename CPI cpi_lag3
+drop _merge
 
-* Run Taxsim again
+rename year year_lag3
+rename year_original year
+
+* Calculate CPI adjustment factor
+gen cpi_adjustment = cpi_current / cpi_lag3
+replace cpi_adjustment = . if missing(cpi_lag3)
+
+* Create counterfactual versions: use lagged income, adjusted for inflation
+foreach var of local dollar_vars {
+    gen `var'_cf = `var'_lag3 * cpi_adjustment
+    * Keep as missing if either component is missing
+    replace `var'_cf = . if missing(`var'_lag3) | missing(cpi_adjustment)
+}
+
+* Keep all non-dollar variables at their current values
+* This includes: year, taxsimid, mstat, page, sage, depx, dep6, dep13, dep17, 
+* dep18, dep19, age1, age2, age3, ui, scorp, opt1, opt1v, opt2, opt2v
+
+* Create indicator for observations with valid t-3 data
+gen has_lag3_data = !missing(cpi_adjustment)
+label variable has_lag3_data "Has valid t-3 data for comparison"
+
+* Save the counterfactual dataset
+preserve
+
+* Drop observations without t-3 data (first 3 years)
+drop if missing(cpi_adjustment)
+
+* Replace actual values with counterfactual (fixed t-3) values
+foreach var of local dollar_vars {
+    replace `var' = `var'_cf
+}
+
+* Make sure ui is updated
+replace ui = pui
+
+* Drop any observations that still have missing income values
+drop if missing(pwages)
+
+* Zero out spouse variables when not married
+replace sage = 0 if mstat != 2
+replace swages = 0 if mstat != 2
+replace ssemp = 0 if mstat != 2
+replace sui = 0 if mstat != 2
+
+* Save this counterfactual dataset for TAXSIM
+save "nlsy_counterfactual_taxsim.dta", replace
+
+* Run TAXSIM on counterfactual data
 taxsimlocal35, replace
-save "taxsim_out_fixedreal.dta", replace
+save "taxsim_out_counterfactual.dta", replace
 
-use "taxsim_out_fixedreal.dta", clear
-rename frate  mtr_fed_fix
-rename srate  mtr_st_fix
-rename fica   fica_rt_fix
-save "taxsim_out_fixedreal.dta", replace
+restore
+
+* Calculate changes in marginal tax rate and total tax burden
+
+* Load actual TAXSIM output
+use "taxsim_with_cpi.dta", clear
+
+* Rename to indicate these are actual values
+rename mtr_fed mtr_fed_actual
+rename mtr_st mtr_st_actual
+rename tax_fed tax_fed_actual
+rename tax_st tax_st_actual
+rename tax_payroll tax_payroll_actual
+
+* Keep only essential variables for merge
+keep taxsimid year mtr_fed_actual mtr_st_actual tax_fed_actual tax_st_actual ///
+     tax_payroll_actual cpi_current cpi_lag3 cpi_adjustment
+
+* Merge with counterfactual TAXSIM output
+merge 1:1 taxsimid year using "taxsim_out_counterfactual.dta"
+
+* Keep only observations where we have both actual and counterfactual
+* (This drops the first 3 years where counterfactual doesn't exist)
+keep if _merge == 3
+drop _merge
+
+* Rename counterfactual outputs
+rename fiitax tax_fed_cf
+rename siitax tax_st_cf
+rename fica tax_payroll_cf
+rename frate mtr_fed_cf
+rename srate mtr_st_cf
+
+* Create change variables
+
+* Change in marginal tax rates (in percentage points)
+gen change_mtr_fed = mtr_fed_actual - mtr_fed_cf
+gen change_mtr_st = mtr_st_actual - mtr_st_cf
+gen change_mtr_total = change_mtr_fed + change_mtr_st
+
+* Change in total tax burden (in nominal dollars)
+gen change_tax_fed = tax_fed_actual - tax_fed_cf
+gen change_tax_st = tax_st_actual - tax_st_cf
+gen change_tax_payroll = tax_payroll_actual - tax_payroll_cf
+gen change_tax_total = change_tax_fed + change_tax_st + change_tax_payroll
+
+* Label the new variables
+label variable change_mtr_fed "Change in federal marginal tax rate (pp)"
+label variable change_mtr_st "Change in state marginal tax rate (pp)"
+label variable change_mtr_total "Change in total marginal tax rate (pp)"
+label variable change_tax_fed "Change in federal tax liability ($)"
+label variable change_tax_st "Change in state tax liability ($)"
+label variable change_tax_payroll "Change in payroll tax liability ($)"
+label variable change_tax_total "Change in total tax burden ($)"
+
+label variable mtr_fed_actual "Actual federal MTR"
+label variable mtr_fed_cf "Counterfactual federal MTR (t-3 income)"
+label variable tax_fed_actual "Actual federal tax"
+label variable tax_fed_cf "Counterfactual federal tax (t-3 income)"
+
+* Add note about dropped years
+note: First 3 years (1978-1980) are dropped because t-3 data is not available
+
+* Save final dataset
+save "taxsim_with_changes.dta", replace
+
+* Summary statistics and data description
+
+* Show year coverage
+tab year
+di "NOTE: Years 1978-1980 are excluded due to lack of t-3 comparison data"
+di "Analysis covers years 1981-2022 (or latest year in your data)"
+di " "
+
+* Display summary statistics
+di "SUMMARY STATISTICS FOR CHANGE VARIABLES"
+di "========================================"
+summarize change_mtr_fed change_mtr_st change_mtr_total ///
+          change_tax_fed change_tax_st change_tax_payroll change_tax_total, detail
+
+* Show distribution by year
+di " "
+di "AVERAGE CHANGES BY YEAR"
+di "======================="
+table year, contents(mean change_mtr_total mean change_tax_total) format(%9.2f)
+
+* Create histograms
+histogram change_mtr_total, title("Distribution of Change in Total MTR") ///
+          xtitle("Change in MTR (percentage points)") ///
+          note("Change = Actual MTR - Counterfactual MTR (with t-3 income)")
+graph export "change_mtr_histogram.png", replace
+
+histogram change_tax_total, title("Distribution of Change in Total Tax Burden") ///
+          xtitle("Change in Tax Burden (dollars)") ///
+          note("Change = Actual Tax - Counterfactual Tax (with t-3 income)")
+graph export "change_tax_histogram.png", replace
