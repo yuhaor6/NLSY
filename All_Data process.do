@@ -1,4 +1,3 @@
-* Data process.do
 clear all
 set more off
 
@@ -21,13 +20,12 @@ drop _merge
 
 save "merged_data.dta", replace
 
-
 use "merged_data.dta", clear
 
 
 * 4) Rename wave‐specific vars into *_YYYY stubs
 
-* Marital status, filing status, dependents
+* Marital status
 rename r0217500 mstat_1979
 rename r0405600 mstat_1980
 rename r0618600 mstat_1981
@@ -58,6 +56,7 @@ rename t5771100 mstat_2016
 rename t8219200 mstat_2018
 rename t8788400 mstat_2020
 rename t9300200 mstat_2022
+
 * Page
 rename r0216500 page_1979
 rename r0406510 page_1980
@@ -89,6 +88,7 @@ rename t5771500 page_2016
 rename t8219400 page_2018
 rename t8788600 page_2020
 rename t9300400 page_2022
+
 * Depx
 rename r0218001 depx_1979
 rename r0407601 depx_1980
@@ -121,131 +121,132 @@ rename t8226800 depx_2018
 rename t8796100 depx_2020
 rename t9307900 depx_2022
 
-* Wages & salary
-rename r0155400 pwages_1979
-rename r0312300 pwages_1980
-rename r0482600 pwages_1981
-rename r0782101 pwages_1982
-rename r1024001 pwages_1983
-rename r1410701 pwages_1984
-rename r1778501 pwages_1985
-rename r2141601 pwages_1986
-rename r2350301 pwages_1987
-rename r2722501 pwages_1988
-rename r2971401 pwages_1989
-rename r3279401 pwages_1990
-rename r3559001 pwages_1991
-rename r3897101 pwages_1992
-rename r4295101 pwages_1993
-rename r4982801 pwages_1994
-rename r5626201 pwages_1996
-rename r6364601 pwages_1998
-rename r6909701 pwages_2000
-rename r7607800 pwages_2002
-rename r8316300 pwages_2004
-rename t0912400 pwages_2006
-rename t2076700 pwages_2008
-rename t3045300 pwages_2010
-rename t3977400 pwages_2012
-rename t4915800 pwages_2014
-rename t5619500 pwages_2016
-rename t8115400 pwages_2018
-rename t8645700 pwages_2020
-rename t9198400 pwages_2022
+* Wages & salary (IN PAST CALENDAR YEAR)
+rename r0155400 pwages_1978
+rename r0312300 pwages_1979
+rename r0482600 pwages_1980
+rename r0782101 pwages_1981
+rename r1024001 pwages_1982
+rename r1410701 pwages_1983
+rename r1778501 pwages_1984
+rename r2141601 pwages_1985
+rename r2350301 pwages_1986
+rename r2722501 pwages_1987
+rename r2971401 pwages_1988
+rename r3279401 pwages_1989
+rename r3559001 pwages_1990
+rename r3897101 pwages_1991
+rename r4295101 pwages_1992
+rename r4982801 pwages_1993
+rename r5626201 pwages_1995
+rename r6364601 pwages_1997
+rename r6909701 pwages_1999
+rename r7607800 pwages_2001
+rename r8316300 pwages_2003
+rename t0912400 pwages_2005
+rename t2076700 pwages_2007
+rename t3045300 pwages_2009
+rename t3977400 pwages_2011
+rename t4915800 pwages_2013
+rename t5619500 pwages_2015
+rename t8115400 pwages_2017
+rename t8645700 pwages_2019
+rename t9198400 pwages_2021
 
-rename r0155500 swages_1979
-rename r0312710 swages_1980
-rename r0482910 swages_1981
-rename r0784301 swages_1982
-rename r1026201 swages_1983
-rename r1412901 swages_1984
-rename r1780701 swages_1985
-rename r2143801 swages_1986
-rename r2352501 swages_1987
-rename r2724701 swages_1988
-rename r2973601 swages_1989
-rename r3281601 swages_1990
-rename r3561201 swages_1991
-rename r3899301 swages_1992
-rename r4314401 swages_1993
-rename r4996001 swages_1994
-rename r5650801 swages_1996
-rename r6374901 swages_1998
-rename r6917801 swages_2000
-rename r7617300 swages_2002
-rename r8325800 swages_2004
-rename t0920800 swages_2006
-rename t2085500 swages_2008
-rename t3056000 swages_2010
-rename t3987600 swages_2012
-rename t4924900 swages_2014
-rename t5630100 swages_2016
-rename t8135900 swages_2018
-rename t8671700 swages_2020
-rename t9223100 swages_2022
+rename r0155500 swages_1978
+rename r0312710 swages_1979
+rename r0482910 swages_1980
+rename r0784301 swages_1981
+rename r1026201 swages_1982
+rename r1412901 swages_1983
+rename r1780701 swages_1984
+rename r2143801 swages_1985
+rename r2352501 swages_1986
+rename r2724701 swages_1987
+rename r2973601 swages_1988
+rename r3281601 swages_1989
+rename r3561201 swages_1990
+rename r3899301 swages_1991
+rename r4314401 swages_1992
+rename r4996001 swages_1993
+rename r5650801 swages_1995
+rename r6374901 swages_1997
+rename r6917801 swages_1999
+rename r7617300 swages_2001
+rename r8325800 swages_2003
+rename t0920800 swages_2005
+rename t2085500 swages_2007
+rename t3056000 swages_2009
+rename t3987600 swages_2011
+rename t4924900 swages_2013
+rename t5630100 swages_2015
+rename t8135900 swages_2017
+rename t8671700 swages_2019
+rename t9223100 swages_2021
 
 * Self‐employment income
-rename r0156000 psemp_1979
-rename r0312600 psemp_1980
-rename r0483200 psemp_1981
-rename r0782401 psemp_1982
-rename r1024301 psemp_1983
-rename r1411001 psemp_1984
-rename r1778801 psemp_1985
-rename r2141901 psemp_1986
-rename r2350601 psemp_1987
-rename r2722801 psemp_1988
-rename r2971701 psemp_1989
-rename r3279701 psemp_1990
-rename r3559301 psemp_1991
-rename r3897401 psemp_1992
-rename r4295501 psemp_1993
-rename r4983201 psemp_1994
-rename r5626601 psemp_1996
-rename r6365001 psemp_1998
-rename r6911101 psemp_2000
-rename r7609000 psemp_2002
-rename r8318200 psemp_2004
-rename t0913900 psemp_2006
-rename t2078800 psemp_2008
-rename t3047500 psemp_2010
-rename t3979400 psemp_2012
-rename t4917800 psemp_2014
-rename t5621700 psemp_2016
-rename t8116700 psemp_2018
-rename t8646800 psemp_2020
-rename t9199700 psemp_2022
+rename r0156000 psemp_1978
+rename r0312600 psemp_1979
+rename r0483200 psemp_1980
+rename r0782401 psemp_1981
+rename r1024301 psemp_1982
+rename r1411001 psemp_1983
+rename r1778801 psemp_1984
+rename r2141901 psemp_1985
+rename r2350601 psemp_1986
+rename r2722801 psemp_1987
+rename r2971701 psemp_1988
+rename r3279701 psemp_1989
+rename r3559301 psemp_1990
+rename r3897401 psemp_1991
+rename r4295501 psemp_1992
+rename r4983201 psemp_1993
+rename r5626601 psemp_1994
+rename r6365001 psemp_1995
+rename r6911101 psemp_1996
+rename r6911101 psemp_1997
+rename r7609000 psemp_1998
+rename r8318200 psemp_2000
+rename t0913900 psemp_2002
+rename t2078800 psemp_2004
+rename t3047500 psemp_2006
+rename t3979400 psemp_2008
+rename t4917800 psemp_2010
+rename t5621700 psemp_2012
+rename t8116700 psemp_2014
+rename t8646800 psemp_2016
+rename t9199700 psemp_2018
 
-rename r0156100 ssemp_1979
-rename r0313000 ssemp_1980
-rename r0483500 ssemp_1981
-rename r0784601 ssemp_1982
-rename r1026501 ssemp_1983
-rename r1413201 ssemp_1984
-rename r1781001 ssemp_1985
-rename r2144101 ssemp_1986
-rename r2352801 ssemp_1987
-rename r2725001 ssemp_1988
-rename r2973901 ssemp_1989
-rename r3281901 ssemp_1990
-rename r3561501 ssemp_1991
-rename r3899601 ssemp_1992
-rename r4314901 ssemp_1993
-rename r4996601 ssemp_1994
-rename r5651401 ssemp_1996
-rename r6375301 ssemp_1998
-rename r6919201 ssemp_2000
-rename r7618500 ssemp_2002
-rename r8328000 ssemp_2004
-rename t0922200 ssemp_2006
-rename t2087700 ssemp_2008
-rename t3058300 ssemp_2010
-rename t3989900 ssemp_2012
-rename t4927200 ssemp_2014
-rename t5632400 ssemp_2016
-rename t8137300 ssemp_2018
-rename t8673100 ssemp_2020
-rename t9224500 ssemp_2022
+rename r0156100 ssemp_1978
+rename r0313000 ssemp_1979
+rename r0483500 ssemp_1980
+rename r0784601 ssemp_1981
+rename r1026501 ssemp_1982
+rename r1413201 ssemp_1983
+rename r1781001 ssemp_1984
+rename r2144101 ssemp_1985
+rename r2352801 ssemp_1986
+rename r2725001 ssemp_1987
+rename r2973901 ssemp_1988
+rename r3281901 ssemp_1989
+rename r3561501 ssemp_1990
+rename r3899601 ssemp_1991
+rename r4314901 ssemp_1992
+rename r4996601 ssemp_1993
+rename r5651401 ssemp_1995
+rename r6375301 ssemp_1997
+rename r6919201 ssemp_1999
+rename r7618500 ssemp_2001
+rename r8328000 ssemp_2003
+rename t0922200 ssemp_2005
+rename t2087700 ssemp_2007
+rename t3058300 ssemp_2009
+rename t3989900 ssemp_2011
+rename t4927200 ssemp_2013
+rename t5632400 ssemp_2015
+rename t8137300 ssemp_2017
+rename t8673100 ssemp_2019
+rename t9224500 ssemp_2021
 
 * UI
 rename g0001400 unemp_1978
@@ -342,7 +343,6 @@ rename g0358700 sui_2023
 
 * Other non‐property income
 
-
 * Gross Social Security
 rename g0006600 gssi_1978
 rename g0014400 gssi_1979
@@ -391,7 +391,8 @@ rename g0347700 gssi_2021
 rename g0364500 gssi_2022
 rename g0365500 gssi_2023
 
-* Non-taxable transfers (AFDC + food stamps + vet ben)
+* Non-taxable transfers (AFDC + food stamps)
+* Veteran benefits REMOVED due to missing data
 
 * AFDC
 rename g0004000 afdc_1978
@@ -473,7 +474,7 @@ rename g0221100 foodstamp_2005
 rename g0221200 foodstamp_2006
 rename g0227400 foodstamp_2007
 rename g0239600 foodstamp_2008
-rename g0241900	foodstamp_2009
+rename g0241900 foodstamp_2009
 rename g0257700 foodstamp_2010
 rename g0260500 foodstamp_2011
 rename g0273400 foodstamp_2012
@@ -489,147 +490,60 @@ rename g0345100 foodstamp_2021
 rename g0362200 foodstamp_2022
 rename g0363200 foodstamp_2023
 
-*Veteran benefits
-rename r0322800 vetben_1979 
-rename r0493300 vetben_1980 
-rename r0793500 vetben_1981 
-rename r1035400 vetben_1982 
-rename r1422100 vetben_1983 
-rename r1788500 vetben_1984 
-rename r2151600 vetben_1985 
-rename r2360300 vetben_1986 
-rename r2732500 vetben_1987 
-rename r2980900 vetben_1988 
-rename r3290200 vetben_1989 
-rename r3569800 vetben_1990 
-rename r3907900 vetben_1991 
-rename r4388300 vetben_1992 
-rename r5044500 vetben_1993 
-rename r5725900 vetben_1995 
-rename r6424200 vetben_1997 
-rename r6939900 vetben_1999 
-rename r7640800 vetben_2001 
-rename r8349900 vetben_2003 
-rename t0945800 vetben_2005 
-rename t2112500 vetben_2007 
-rename t3079900 vetben_2009 
-rename t4014000 vetben_2011 
-rename t4948900 vetben_2013 
-rename t5654700 vetben_2015 
-rename t8128700 vetben_2017 
-rename t8664200 vetben_2019 
-rename t9217200 vetben_2021
-
-gen transfers_1979 = afdc_1979 + foodstamp_1979 + vetben_1979
-gen transfers_1980 = afdc_1980 + foodstamp_1980 + vetben_1980
-gen transfers_1981 = afdc_1981 + foodstamp_1981 + vetben_1981
-gen transfers_1982 = afdc_1982 + foodstamp_1982 + vetben_1982
-gen transfers_1983 = afdc_1983 + foodstamp_1983 + vetben_1983
-gen transfers_1984 = afdc_1984 + foodstamp_1984 + vetben_1984
-gen transfers_1985 = afdc_1985 + foodstamp_1985 + vetben_1985
-gen transfers_1986 = afdc_1986 + foodstamp_1986 + vetben_1986
-gen transfers_1987 = afdc_1987 + foodstamp_1987 + vetben_1987
-gen transfers_1988 = afdc_1988 + foodstamp_1988 + vetben_1988
-gen transfers_1989 = afdc_1989 + foodstamp_1989 + vetben_1989
-gen transfers_1990 = afdc_1990 + foodstamp_1990 + vetben_1990
-gen transfers_1991 = afdc_1991 + foodstamp_1991 + vetben_1991
-gen transfers_1992 = afdc_1992 + foodstamp_1992 + vetben_1992
-gen transfers_1993 = afdc_1993 + foodstamp_1993 + vetben_1993
+* CALCULATE TRANSFERS (Excluding Vetben)
+gen transfers_1978 = afdc_1978 + foodstamp_1978 
+gen transfers_1979 = afdc_1979 + foodstamp_1979 
+gen transfers_1980 = afdc_1980 + foodstamp_1980 
+gen transfers_1981 = afdc_1981 + foodstamp_1981 
+gen transfers_1982 = afdc_1982 + foodstamp_1982 
+gen transfers_1983 = afdc_1983 + foodstamp_1983 
+gen transfers_1984 = afdc_1984 + foodstamp_1984 
+gen transfers_1985 = afdc_1985 + foodstamp_1985
+gen transfers_1986 = afdc_1986 + foodstamp_1986
+gen transfers_1987 = afdc_1987 + foodstamp_1987
+gen transfers_1988 = afdc_1988 + foodstamp_1988
+gen transfers_1989 = afdc_1989 + foodstamp_1989
+gen transfers_1990 = afdc_1990 + foodstamp_1990
+gen transfers_1991 = afdc_1991 + foodstamp_1991
+gen transfers_1992 = afdc_1992 + foodstamp_1992
+gen transfers_1993 = afdc_1993 + foodstamp_1993
 gen transfers_1994 = afdc_1994 + foodstamp_1994 
-gen transfers_1995 = afdc_1995 + foodstamp_1995 + vetben_1995
+gen transfers_1995 = afdc_1995 + foodstamp_1995
 gen transfers_1996 = afdc_1996 + foodstamp_1996 
-gen transfers_1997 = afdc_1997 + foodstamp_1997 + vetben_1997
+gen transfers_1997 = afdc_1997 + foodstamp_1997
 gen transfers_1998 = afdc_1998 + foodstamp_1998 
-gen transfers_1999 = afdc_1999 + foodstamp_1999 + vetben_1999
+gen transfers_1999 = afdc_1999 + foodstamp_1999
 gen transfers_2000 = afdc_2000 + foodstamp_2000 
-gen transfers_2001 = afdc_2001 + foodstamp_2001 + vetben_2001
+gen transfers_2001 = afdc_2001 + foodstamp_2001
 gen transfers_2002 = afdc_2002 + foodstamp_2002
-gen transfers_2003 = afdc_2003 + foodstamp_2003 + vetben_2003
+gen transfers_2003 = afdc_2003 + foodstamp_2003
 gen transfers_2004 = afdc_2004 + foodstamp_2004
-gen transfers_2005 = afdc_2005 + foodstamp_2005 + vetben_2005
+gen transfers_2005 = afdc_2005 + foodstamp_2005
 gen transfers_2006 = afdc_2006 + foodstamp_2006
-gen transfers_2007 = afdc_2007 + foodstamp_2007 + vetben_2007
+gen transfers_2007 = afdc_2007 + foodstamp_2007
 gen transfers_2008 = afdc_2008 + foodstamp_2008
-gen transfers_2009 = afdc_2009 + foodstamp_2009 + vetben_2009
+gen transfers_2009 = afdc_2009 + foodstamp_2009
 gen transfers_2010 = afdc_2010 + foodstamp_2010
-gen transfers_2011 = afdc_2011 + foodstamp_2011 + vetben_2011
+gen transfers_2011 = afdc_2011 + foodstamp_2011
 gen transfers_2012 = afdc_2012 + foodstamp_2012
-gen transfers_2013 = afdc_2013 + foodstamp_2013 + vetben_2013
+gen transfers_2013 = afdc_2013 + foodstamp_2013
 gen transfers_2014 = afdc_2014 + foodstamp_2014
-gen transfers_2015 = afdc_2015 + foodstamp_2015 + vetben_2015
+gen transfers_2015 = afdc_2015 + foodstamp_2015
 gen transfers_2016 = afdc_2016 + foodstamp_2016 
-gen transfers_2017 = afdc_2017 + foodstamp_2017 + vetben_2017
+gen transfers_2017 = afdc_2017 + foodstamp_2017
 gen transfers_2018 = afdc_2018 + foodstamp_2018 
-gen transfers_2019 = afdc_2019 + foodstamp_2019 + vetben_2019
+gen transfers_2019 = afdc_2019 + foodstamp_2019
 gen transfers_2020 = afdc_2020 + foodstamp_2020 
-gen transfers_2021 = afdc_2021 + foodstamp_2021 + vetben_2021
+gen transfers_2021 = afdc_2021 + foodstamp_2021
 gen transfers_2022 = afdc_2022 + foodstamp_2022 
 gen transfers_2023 = afdc_2023 + foodstamp_2023
 
-drop ///
-    afdc_* foodstamp_* vetben_*
-	
-*Mortgage interest deductions
-rename r1791201 mortgage_1985
-rename r2154301 mortgage_1986
-rename r2362901 mortgage_1987
-rename r2735801 mortgage_1988
-rename r2983301 mortgage_1989
-rename r3293701 mortgage_1990
-rename r3911401 mortgage_1992
-rename r4392701 mortgage_1993
-rename r5047001 mortgage_1994
-rename r5728401 mortgage_1996
-rename r6426401 mortgage_1998
-rename r6944601 mortgage_2000
+drop afdc_* foodstamp_* 
+* REMOVED: Mortgage Interest Deductions
+* REMOVED: Dividend Income
+* REMOVED: Taxable Interest Income
 
-
-* Dividend income (Proxy from stock and bonds)
-* Weighted Average Yield = (0.60×3%) + (0.40×6.5%) = 4.5%
-* Assumes 60% in stocks (3% yield) and 40% in bonds (6.5% yield)
-
-gen dividends_1988 = r2736201 * 0.045
-gen dividends_1989 = r2983701 * 0.045
-gen dividends_1990 = r3294101 * 0.045
-gen dividends_1992 = r3911801 * 0.045
-gen dividends_1993 = r4393201 * 0.045
-gen dividends_1994 = r5048001 * 0.045
-gen dividends_1996 = r5729401 * 0.045
-gen dividends_1998 = r6427401 * 0.045
-gen dividends_2000 = r6946201 * 0.045
-
-drop ///
-    r2736201 r2983701 r3294101  ///
-    r3911801 r4393201 r5048001 r5729401  ///
-    r6427401  r6946201
-
-
-* TAXABLE INTEREST INCOME (3% OF SAVINGS BALANCE)
-gen intrec_1985 = r1791401 * 0.03
-gen intrec_1986 = r2154501 * 0.03
-gen intrec_1987 = r2363101 * 0.03
-gen intrec_1988 = r2736001 * 0.03
-gen intrec_1989 = r2983501 * 0.03
-gen intrec_1990 = r3293901 * 0.03
-gen intrec_1992 = r3911601 * 0.03
-gen intrec_1993 = r4393001 * 0.03
-gen intrec_1994 = r5047201 * 0.03
-gen intrec_1996 = r5728601 * 0.03
-gen intrec_1998 = r6426601 * 0.03
-gen intrec_2000 = r6944801 * 0.03
-gen intrec_2004 = r8363000 * 0.03
-gen intrec_2008 = t2126400 * 0.03
-gen intrec_2012 = t4027600 * 0.03
-gen intrec_2016 = t5665700 * 0.03
-gen intrec_2020 = t8710300 * 0.03
-
-drop ///
-    r1791401 r2154501 r2363101 r2736001 r2983501 ///
-    r3293901 r3911601 r4393001 r5047201 r5728601 ///
-    r6426601 r6944801 r8363000 t2126400 t4027600 ///
-    t5665700 t8710300
-
-*  Spouse & children DOB (month/year pairs)
+* Spouse & children DOB (month/year pairs)
 rename r4506800 spomonth_1994
 rename r4506801 spoyear_1994
 rename r5206700 spomonth_1996
@@ -754,17 +668,18 @@ rename t8791802 child3year_2020
 rename t9303601 child3month_2022
 rename t9303602 child3year_2022
 
-* Reshape WIDE tp LONG by year
+* Reshape Wide to Long by year
+* Note: Removed mortgage_, dividends_, intrec_ from list
 reshape long ///
     unemp_ mstat_ page_ depx_ pwages_ swages_ ///
     psemp_ ssemp_ sui_ gssi_ transfers_ nonprop_ ///
-    mortgage_ pensions_ dividends_ intrec_ rentpaid_ ///
+    pensions_ rentpaid_ ///
     spomonth_ spoyear_ ///
     child1month_ child1year_ ///
     child2month_ child2year_ ///
     child3month_ child3year_, ///
     i(taxsimid) j(year)
-	
+
 * turn year into numeric
 destring year, replace
 
@@ -795,26 +710,25 @@ replace age1  = 0 if missing(age1)  | age1  < 0
 replace age2  = 0 if missing(age2)  | age2  < 0
 replace age3  = 0 if missing(age3)  | age3  < 0
 
-*  Rename to TAXSIM's exact input names
+* Rename to TAXSIM's exact input names
 rename unemp_     pui
 rename sui_       sui
 rename pwages_    pwages
-rename swages    swages
-rename psemp_      psemp
-rename ssemp_      ssemp
+rename swages_    swages
+rename psemp_     psemp
+rename ssemp_     ssemp
 rename gssi_      gssi
 rename transfers_ transfers
 rename nonprop_   nonprop
-rename mortgage_  mortgage
 rename pensions_  pensions
-rename dividends_ dividends
-rename intrec_    intrec
 rename rentpaid_  rentpaid
-rename mstat_    mstat
-rename page_     page
-rename depx_     depx
+rename mstat_     mstat
+rename page_      page
+rename depx_      depx
 
-*  Build dependent‐age counts
+* Removed: mortgage, dividends, intrec
+
+* Build dependent‐age counts
 gen dep6  = 0
 gen dep13 = 0
 gen dep17 = 0
@@ -858,20 +772,19 @@ gen scorp     = 0
 gen pbusinc   = 0
 gen sbusinc   = 0
 
-*State dummy
-
 * Zero‐fill any remaining missing inputs
+* Removed: mortgage, dividends, intrec from list
 foreach v in pui sui pwages swages psemp ssemp ///
-              gssi transfers nonprop mortgage ///
-              pensions dividends intrec rentpaid ///
-              mstat page depx stcg ltcg proptax ///
-              otheritem childcare pprofinc sprofinc scorp {
+             gssi transfers nonprop ///
+             pensions rentpaid ///
+             mstat page depx stcg ltcg proptax ///
+             otheritem childcare pprofinc sprofinc scorp {
     replace `v' = 0 if missing(`v')
 }
 
 local survvars page depx pui pwages swages pbusinc sbusinc sui gssi ///
-                transfers nonprop mortgage pensions dividends ///
-                intrec rentpaid
+                transfers nonprop pensions ///
+                rentpaid
 
 foreach v of local survvars {
     replace `v' = 0 if `v' < 0
@@ -881,6 +794,7 @@ foreach v of local survvars {
 gen double ui = pui
 
 save "nlsy_long_pre_taxsim.dta", replace
+
 * Run Taxsim
 taxsimlocal35, replace
 save "taxsim_out_nominal.dta", replace
@@ -889,12 +803,13 @@ save "taxsim_out_nominal.dta", replace
 use "taxsim_out_nominal.dta", clear
 rename fiitax  tax_fed        // federal income tax liability
 rename siitax  tax_st         // state income tax liability
-rename fica    tax_payroll    // FICA (OADSI and HI, sum of employee AND employer including Additional Medicare Tax)
+rename fica    tax_payroll    // FICA
 rename frate   mtr_fed        // federal marginal rate
 rename srate   mtr_st         // state marginal rate
 rename ficar   fica_rt         //  FICA rate
 rename tfica   fica_taxliab   // taxpayer liability for FICA
 save "taxsim_out_nominal.dta", replace
+
 
 * Merge base-year CPI
 use "BLS_CPI.dta", clear
@@ -902,115 +817,92 @@ keep year CPI
 sort year
 save "cpi_temp.dta", replace
 
-* Merge CPI into the main taxsim output
+* Merge CPI into the main taxsim output (Current Year)
 use "taxsim_out_nominal.dta", clear
 merge m:1 year using "cpi_temp.dta", keep(match master) nogen
 
-* Create a lagged CPI variable (3 years prior)
-* We need to merge CPI from 3 years ago
+* Create a LEAD CPI variable (4 years forward)
+* We use 4 years to align with biennial survey waves (1994, 1998, etc.)
 rename CPI cpi_current
 
-* Temporarily rename for the merge
-gen year_lag3 = year - 3
+gen year_lead4 = year + 4
 rename year year_original
-rename year_lag3 year
+rename year_lead4 year
 
 merge m:1 year using "cpi_temp.dta", keep(match master) keepusing(CPI)
-rename CPI cpi_lag3
+rename CPI cpi_lead4
 drop _merge
 
 * Restore original variable names
-rename year year_lag3  
+rename year year_lead4  
 rename year_original year
 
-* Calculate CPI adjustment factor: cpi_current / cpi_lag3
-* This converts nominal dollars from 3 years ago to current-year real dollars
-gen cpi_adjustment = cpi_current / cpi_lag3
+* Calculate CPI adjustment factor: cpi_current / cpi_lead4
+gen cpi_adjustment = cpi_current / cpi_lead4
 
-* For first 3 years (1978-1980), there's no t-3 data, so set adjustment to missing
-* These observations will be dropped from the analysis later
-replace cpi_adjustment = . if missing(cpi_lag3)
-
-* Show which years have missing CPI adjustment
-tab year if missing(cpi_adjustment)
+* For the last 4 years of the dataset, there is no t+4 data, so set to missing
+replace cpi_adjustment = . if missing(cpi_lead4)
 
 save "taxsim_with_cpi.dta", replace
 
-
-*Create lagged income variables (from 3 years prior)
+* Create LEAD Income Variables (from 4 years future)
 use "nlsy_long_pre_taxsim.dta", clear
-
-* Sort and create lagged versions of all dollar-value variables
 sort taxsimid year
 
-* List of dollar-value variables that need to be lagged
+* List of dollar-value variables that need to be pulled from the future
 local dollar_vars pwages swages psemp ssemp pui sui gssi transfers nonprop ///
-                  mortgage pensions dividends intrec rentpaid otherprop stcg ltcg ///
+                  pensions rentpaid otherprop stcg ltcg ///
                   proptax otheritem childcare pprofinc sprofinc pbusinc sbusinc
 
-* Create lagged versions (3 years prior)
+* Create LEAD versions (4 years forward)
 foreach var of local dollar_vars {
-    by taxsimid: gen `var'_lag3 = `var'[_n-3]
-    * Set to missing if not available (first 3 years for each person)
-    replace `var'_lag3 = . if `var'_lag3 == .
+    by taxsimid: gen `var'_lead4 = `var'[_n+4]
+    replace `var'_lead4 = . if `var'_lead4 == .
 }
 
-save "nlsy_with_lags.dta", replace
+save "nlsy_with_leads.dta", replace
 
-*Create counterfactual dataset with fixed income from t-3
-
-use "nlsy_with_lags.dta", clear
+* Create Counterfactual Dataset (Fixed Income from t+4)
+use "nlsy_with_leads.dta", clear
 
 * Merge in CPI data for current year
 merge m:1 year using "cpi_temp.dta", keep(match master) nogen
 rename CPI cpi_current
 
-* Merge in CPI data for t-3
-gen year_lag3 = year - 3
+* Merge in CPI data for t+4
+gen year_lead4 = year + 4
 rename year year_original
-rename year_lag3 year
+rename year_lead4 year
 
 merge m:1 year using "cpi_temp.dta", keep(match master) keepusing(CPI)
-rename CPI cpi_lag3
+rename CPI cpi_lead4
 drop _merge
 
-rename year year_lag3
+rename year year_lead4
 rename year_original year
 
 * Calculate CPI adjustment factor
-gen cpi_adjustment = cpi_current / cpi_lag3
-replace cpi_adjustment = . if missing(cpi_lag3)
+gen cpi_adjustment = cpi_current / cpi_lead4
+replace cpi_adjustment = . if missing(cpi_lead4)
 
-* Create counterfactual versions: use lagged income, adjusted for inflation
+* Create counterfactual versions: use FUTURE income (t+4), adjusted to CURRENT prices
 foreach var of local dollar_vars {
-    gen `var'_cf = `var'_lag3 * cpi_adjustment
-    * Keep as missing if either component is missing
-    replace `var'_cf = . if missing(`var'_lag3) | missing(cpi_adjustment)
+    gen `var'_cf = `var'_lead4 * cpi_adjustment
+    replace `var'_cf = . if missing(`var'_lead4) | missing(cpi_adjustment)
 }
-
-* Keep all non-dollar variables at their current values
-* This includes: year, taxsimid, mstat, page, sage, depx, dep6, dep13, dep17, 
-* dep18, dep19, age1, age2, age3, ui, scorp, opt1, opt1v, opt2, opt2v
-
-* Create indicator for observations with valid t-3 data
-gen has_lag3_data = !missing(cpi_adjustment)
-label variable has_lag3_data "Has valid t-3 data for comparison"
 
 * Save the counterfactual dataset
 preserve
 
-* Drop observations without t-3 data (first 3 years)
+* Drop observations without t+4 data (The last 4 years of data)
 drop if missing(cpi_adjustment)
 
-* Replace actual values with counterfactual (fixed t-3) values
+* Replace actual values with counterfactual (future t+4) values
 foreach var of local dollar_vars {
     replace `var' = `var'_cf
 }
 
-* Make sure ui is updated
 replace ui = pui
-
-* Drop any observations that still have missing income values
 drop if missing(pwages)
 
 * Zero out spouse variables when not married
@@ -1028,31 +920,26 @@ save "taxsim_out_counterfactual.dta", replace
 
 restore
 
-* Calculate changes in marginal tax rate and total tax burden
+* Calculate Changes (Actual vs Future Counterfactual)
 
 * Load actual TAXSIM output
 use "taxsim_with_cpi.dta", clear
 
-* Rename to indicate these are actual values
 rename mtr_fed mtr_fed_actual
 rename mtr_st mtr_st_actual
 rename tax_fed tax_fed_actual
 rename tax_st tax_st_actual
 rename tax_payroll tax_payroll_actual
 
-* Keep only essential variables for merge
 keep taxsimid year mtr_fed_actual mtr_st_actual tax_fed_actual tax_st_actual ///
-     tax_payroll_actual cpi_current cpi_lag3 cpi_adjustment
+     tax_payroll_actual cpi_current cpi_lead4 cpi_adjustment
 
 * Merge with counterfactual TAXSIM output
 merge 1:1 taxsimid year using "taxsim_out_counterfactual.dta"
 
-* Keep only observations where we have both actual and counterfactual
-* (This drops the first 3 years where counterfactual doesn't exist)
 keep if _merge == 3
 drop _merge
 
-* Rename counterfactual outputs
 rename fiitax tax_fed_cf
 rename siitax tax_st_cf
 rename fica tax_payroll_cf
@@ -1060,19 +947,15 @@ rename frate mtr_fed_cf
 rename srate mtr_st_cf
 
 * Create change variables
-
-* Change in marginal tax rates (in percentage points)
 gen change_mtr_fed = mtr_fed_actual - mtr_fed_cf
 gen change_mtr_st = mtr_st_actual - mtr_st_cf
 gen change_mtr_total = change_mtr_fed + change_mtr_st
 
-* Change in total tax burden (in nominal dollars)
 gen change_tax_fed = tax_fed_actual - tax_fed_cf
 gen change_tax_st = tax_st_actual - tax_st_cf
 gen change_tax_payroll = tax_payroll_actual - tax_payroll_cf
 gen change_tax_total = change_tax_fed + change_tax_st + change_tax_payroll
 
-* Label the new variables
 label variable change_mtr_fed "Change in federal marginal tax rate (pp)"
 label variable change_mtr_st "Change in state marginal tax rate (pp)"
 label variable change_mtr_total "Change in total marginal tax rate (pp)"
@@ -1082,43 +965,37 @@ label variable change_tax_payroll "Change in payroll tax liability ($)"
 label variable change_tax_total "Change in total tax burden ($)"
 
 label variable mtr_fed_actual "Actual federal MTR"
-label variable mtr_fed_cf "Counterfactual federal MTR (t-3 income)"
+label variable mtr_fed_cf "Counterfactual federal MTR (t+4 income)"
 label variable tax_fed_actual "Actual federal tax"
-label variable tax_fed_cf "Counterfactual federal tax (t-3 income)"
+label variable tax_fed_cf "Counterfactual federal tax (t+4 income)"
 
-* Add note about dropped years
-note: First 3 years (1978-1980) are dropped because t-3 data is not available
+note: Last 4 years are dropped because t+4 data is not available (Forward Look)
 
-* Save final dataset
 save "taxsim_with_changes.dta", replace
 
 * Summary statistics and data description
 
 * Show year coverage
 tab year
-di "NOTE: Years 1978-1980 are excluded due to lack of t-3 comparison data"
-di "Analysis covers years 1981-2022 (or latest year in your data)"
-di " "
+di "NOTE: Last 4 years are excluded due to lack of t+4 comparison data"
 
 * Display summary statistics
 di "SUMMARY STATISTICS FOR CHANGE VARIABLES"
-di "========================================"
 summarize change_mtr_fed change_mtr_st change_mtr_total ///
           change_tax_fed change_tax_st change_tax_payroll change_tax_total, detail
 
 * Show distribution by year
 di " "
-di "AVERAGE CHANGES BY YEAR"
-di "======================="
-table year, contents(mean change_mtr_total mean change_tax_total) format(%9.2f)
+di "AVERAGE CHANGES BY YEAR (t+4 Horizon)"
+tabstat change_mtr_total change_tax_total, by(year) format(%9.2f)
 
 * Create histograms
-histogram change_mtr_total, title("Distribution of Change in Total MTR") ///
+histogram change_mtr_total, title("Change in Total MTR (t+4)") ///
           xtitle("Change in MTR (percentage points)") ///
-          note("Change = Actual MTR - Counterfactual MTR (with t-3 income)")
+          note("Change = Actual MTR - Counterfactual MTR (with t+4 income)")
 graph export "change_mtr_histogram.png", replace
 
-histogram change_tax_total, title("Distribution of Change in Total Tax Burden") ///
+histogram change_tax_total, title("Change in Total Tax Burden (t+4)") ///
           xtitle("Change in Tax Burden (dollars)") ///
-          note("Change = Actual Tax - Counterfactual Tax (with t-3 income)")
+          note("Change = Actual Tax - Counterfactual Tax (with t+4 income)")
 graph export "change_tax_histogram.png", replace
