@@ -2,6 +2,7 @@ clear all
 set more off
 
 * 1) Import the CSV (one row per person)
+* 1) Import the CSV (one row per person)
 import delimited "NLSY_All_Data.csv", varnames(1) clear
 rename r0000100 taxsimid
 save "base_data.dta", replace
@@ -20,11 +21,189 @@ drop _merge
 
 save "merged_data.dta", replace
 
+import delimited "demo_x_hour.csv", varnames(1) clear
+rename r0000100 taxsimid
+save "demo_hour_data.dta", replace
+
+* Merge with existing data
+use "merged_data.dta", clear
+merge 1:1 taxsimid using "demo_hour_data.dta"
+tab _merge
+drop _merge
+
+save "merged_data.dta", replace
+
 use "merged_data.dta", clear
 
+* Race/Ethnicity (1=Hispanic, 2=Black, 3=Non-Black Non-Hispanic)
+rename r0214700 race_ethnicity
+
+* Sex (1=Male, 2=Female)
+rename r0214800 sex
+
+* Sample type
+rename r0173600 sample_id
+
+* AFQT scores (all measured in 1981)
+rename r0618200 afqt_pct_1980    // Original 1980 percentile
+rename r0618300 afqt_pct_1989    // 1989 revised percentile
+rename r0618301 afqt_pct_2006    // 2006 revised percentile
 
 * 4) Rename wave‐specific vars into *_YYYY stubs
 
+* RENAME HIGHEST GRADE COMPLETED VARIABLES
+rename r0017300 hgc_1979
+rename r0229200 hgc_1980
+rename r0417400 hgc_1981
+rename r0664500 hgc_1982
+rename r0905900 hgc_1983
+rename r1205800 hgc_1984
+rename r1605100 hgc_1985
+rename r1905600 hgc_1986
+rename r2306500 hgc_1987
+rename r2509000 hgc_1988
+rename r2908100 hgc_1989
+rename r3110200 hgc_1990
+rename r3510200 hgc_1991
+rename r3710200 hgc_1992
+rename r4137900 hgc_1993
+rename r4526500 hgc_1994
+rename r5221800 hgc_1996
+rename r5821800 hgc_1998
+rename r6540400 hgc_2000
+rename r7103600 hgc_2002
+rename r7810500 hgc_2004
+rename t0014400 hgc_2006
+rename t1214300 hgc_2008
+rename t2272800 hgc_2010
+rename t3212900 hgc_2012
+rename t4201100 hgc_2014
+rename t5176100 hgc_2016
+rename t7743900 hgc_2018
+rename t8355300 hgc_2020
+
+* RENAME HOURS WORKED VARIABLES
+rename r0215710 hrs_1978
+rename r0407300 hrs_1979
+rename r0646600 hrs_1980
+rename r0896800 hrs_1981
+rename r1145200 hrs_1982
+rename r1520400 hrs_1983
+rename r1891100 hrs_1984
+rename r2258200 hrs_1985
+rename r2445600 hrs_1986
+rename r2871400 hrs_1987
+rename r3075100 hrs_1988
+rename r3401800 hrs_1989
+rename r3657200 hrs_1990
+rename r4007700 hrs_1991
+rename r4418800 hrs_1992
+rename r5081800 hrs_1993
+rename r5167100 hrs_1995
+rename r6479900 hrs_1997
+rename r7007600 hrs_1999
+rename r7704900 hrs_2001
+rename r8497300 hrs_2003
+rename t0989100 hrs_2005
+rename t2210900 hrs_2007
+rename t3108800 hrs_2009
+rename t4113300 hrs_2011
+rename t5024700 hrs_2013
+rename t5772700 hrs_2015
+rename t8219900 hrs_2017
+rename t8789100 hrs_2019
+rename t9300900 hrs_2021
+
+* Replace NLSY missing codes with Stata missing
+* -1 = Refused, -2 = Don't know, -3 = Invalid skip, -4 = Valid skip, -5 = Non-interview
+
+foreach var of varlist hrs_* {
+    capture replace `var' = . if `var' < 0
+}
+
+foreach var of varlist hgc_* {
+    capture replace `var' = . if `var' < 0
+}
+
+foreach var of varlist afqt_* {
+    capture replace `var' = . if `var' < 0
+}
+
+replace race_ethnicity = . if race_ethnicity < 0
+replace sex = . if sex < 0
+
+* Create a female indicator
+gen female = (sex == 2) if sex != .
+
+* Create race dummies
+gen black = (race_ethnicity == 2) if race_ethnicity != .
+gen hispanic = (race_ethnicity == 1) if race_ethnicity != .
+
+* Create education categories (using most recent non-missing HGC)
+egen max_education = rowmax(hgc_*)
+gen college_grad = (max_education >= 16) if max_education != .
+gen some_college = (max_education >= 13 & max_education < 16) if max_education != .
+gen hs_grad = (max_education == 12) if max_education != .
+
+* Apply value labels
+label define race_lbl 1 "Hispanic" 2 "Black" 3 "Non-Black, Non-Hispanic"
+label values race_ethnicity race_lbl
+
+label define sex_lbl 1 "Male" 2 "Female"
+label values sex sex_lbl
+
+label var female "Female indicator"
+label var black "Black indicator"
+label var hispanic "Hispanic indicator"
+label var max_education "Maximum education attained"
+label var college_grad "College graduate (16+ years)"
+label var some_college "Some college (13-15 years)"
+label var hs_grad "High school graduate only"
+
+* CREATE CUMULATIVE HOURS WORKED
+foreach yr in 1978 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992 1993 1995 1997 1999 2001 2003 2005 2007 2009 2011 2013 2015 2017 2019 2021 {
+    gen hrs_temp_`yr' = hrs_`yr'
+    replace hrs_temp_`yr' = 0 if missing(hrs_temp_`yr')
+}
+
+gen cumhrs_1978 = hrs_temp_1978
+gen cumhrs_1979 = cumhrs_1978 + hrs_temp_1979
+gen cumhrs_1980 = cumhrs_1979 + hrs_temp_1980
+gen cumhrs_1981 = cumhrs_1980 + hrs_temp_1981
+gen cumhrs_1982 = cumhrs_1981 + hrs_temp_1982
+gen cumhrs_1983 = cumhrs_1982 + hrs_temp_1983
+gen cumhrs_1984 = cumhrs_1983 + hrs_temp_1984
+gen cumhrs_1985 = cumhrs_1984 + hrs_temp_1985
+gen cumhrs_1986 = cumhrs_1985 + hrs_temp_1986
+gen cumhrs_1987 = cumhrs_1986 + hrs_temp_1987
+gen cumhrs_1988 = cumhrs_1987 + hrs_temp_1988
+gen cumhrs_1989 = cumhrs_1988 + hrs_temp_1989
+gen cumhrs_1990 = cumhrs_1989 + hrs_temp_1990
+gen cumhrs_1991 = cumhrs_1990 + hrs_temp_1991
+gen cumhrs_1992 = cumhrs_1991 + hrs_temp_1992
+gen cumhrs_1993 = cumhrs_1992 + hrs_temp_1993
+gen cumhrs_1995 = cumhrs_1993 + hrs_temp_1995
+gen cumhrs_1997 = cumhrs_1995 + hrs_temp_1997
+gen cumhrs_1999 = cumhrs_1997 + hrs_temp_1999
+gen cumhrs_2001 = cumhrs_1999 + hrs_temp_2001
+gen cumhrs_2003 = cumhrs_2001 + hrs_temp_2003
+gen cumhrs_2005 = cumhrs_2003 + hrs_temp_2005
+gen cumhrs_2007 = cumhrs_2005 + hrs_temp_2007
+gen cumhrs_2009 = cumhrs_2007 + hrs_temp_2009
+gen cumhrs_2011 = cumhrs_2009 + hrs_temp_2011
+gen cumhrs_2013 = cumhrs_2011 + hrs_temp_2013
+gen cumhrs_2015 = cumhrs_2013 + hrs_temp_2015
+gen cumhrs_2017 = cumhrs_2015 + hrs_temp_2017
+gen cumhrs_2019 = cumhrs_2017 + hrs_temp_2019
+gen cumhrs_2021 = cumhrs_2019 + hrs_temp_2021
+
+* Drop temporary variables
+drop hrs_temp_*
+
+* Label cumulative hours
+foreach yr in 1978 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992 1993 1995 1997 1999 2001 2003 2005 2007 2009 2011 2013 2015 2017 2019 2021 {
+    label var cumhrs_`yr' "Cumulative hours worked through `yr'"
+}
 * Marital status
 rename r0217500 mstat_1979
 rename r0405600 mstat_1980
@@ -201,21 +380,20 @@ rename r3559301 psemp_1990
 rename r3897401 psemp_1991
 rename r4295501 psemp_1992
 rename r4983201 psemp_1993
-rename r5626601 psemp_1994
-rename r6365001 psemp_1995
-rename r6911101 psemp_1996
-rename r6911101 psemp_1997
-rename r7609000 psemp_1998
-rename r8318200 psemp_2000
-rename t0913900 psemp_2002
-rename t2078800 psemp_2004
-rename t3047500 psemp_2006
-rename t3979400 psemp_2008
-rename t4917800 psemp_2010
-rename t5621700 psemp_2012
-rename t8116700 psemp_2014
-rename t8646800 psemp_2016
-rename t9199700 psemp_2018
+rename r5626601 psemp_1995
+rename r6365001 psemp_1997
+rename r6911101 psemp_1999
+rename r7609000 psemp_2001
+rename r8318200 psemp_2003
+rename t0913900 psemp_2005
+rename t2078800 psemp_2007
+rename t3047500 psemp_2009
+rename t3979400 psemp_2011
+rename t4917800 psemp_2013
+rename t5621700 psemp_2015
+rename t8116700 psemp_2017
+rename t8646800 psemp_2019
+rename t9199700 psemp_2021
 
 rename r0156100 ssemp_1978
 rename r0313000 ssemp_1979
@@ -677,7 +855,8 @@ reshape long ///
     spomonth_ spoyear_ ///
     child1month_ child1year_ ///
     child2month_ child2year_ ///
-    child3month_ child3year_, ///
+    child3month_ child3year_ ///
+    hrs_ cumhrs_, ///
     i(taxsimid) j(year)
 
 * turn year into numeric
@@ -725,6 +904,8 @@ rename rentpaid_  rentpaid
 rename mstat_     mstat
 rename page_      page
 rename depx_      depx
+rename hrs_       hrs
+rename cumhrs_    cumhrs
 
 * Removed: mortgage, dividends, intrec
 
@@ -789,213 +970,897 @@ local survvars page depx pui pwages swages pbusinc sbusinc sui gssi ///
 foreach v of local survvars {
     replace `v' = 0 if `v' < 0
 }
-
 * change pui to ui, because seems to read ui only
 gen double ui = pui
 
 save "nlsy_long_pre_taxsim.dta", replace
 
-* Run Taxsim
+clear all
+set more off
+
+*------------------------------------------------------------------------------
+* PART 0: VERIFY DATA QUALITY BEFORE STARTING
+*------------------------------------------------------------------------------
+
+use "nlsy_long_pre_taxsim.dta", clear
+
+di "=============================================================================="
+di "PART 0: DATA QUALITY VERIFICATION"
+di "=============================================================================="
+
+* Check which years actually have income data
+di ""
+di "Checking income data availability by year:"
+di "(Non-survey years after 1993 should have zero/missing income)"
+
+tabstat pwages, by(year) stat(mean median count)
+
+* Check hours data availability
+di ""
+di "Checking hours data availability by year:"
+tabstat hrs, by(year) stat(mean median count)
+
+* Check cumulative hours
+di ""
+di "Checking cumulative hours by year:"
+tabstat cumhrs, by(year) stat(mean median count)
+
+
+* Identify survey years vs non-survey years
+* NLSY79: Annual 1979-1993, then biennial (1994, 1996, 1998, ...)
+* Income reported for PREVIOUS year, so:
+* - 1979 survey → 1978 income
+* - 1980 survey → 1979 income
+* - ...
+* - 1994 survey → 1993 income
+* - 1996 survey → 1995 income (1994 income is MISSING!)
+
+* Create indicator for valid income years
+gen valid_income_year = 0
+
+* Annual period: 1978-1993 income years (from 1979-1994 surveys)
+replace valid_income_year = 1 if year >= 1978 & year <= 1993
+
+* Biennial period: odd years only after 1993
+* 1995, 1997, 1999, 2001, ... (from 1996, 1998, 2000, 2002 surveys)
+replace valid_income_year = 1 if year >= 1995 & mod(year, 2) == 1
+
+* Also include even years for recent surveys if they exist
+* 2019, 2021 from 2020, 2022 surveys
+replace valid_income_year = 1 if inlist(year, 2019, 2021)
+
+di ""
+di "Valid income years in data:"
+tab year valid_income_year
+
+* Check how much data we lose by keeping only valid years
+count if valid_income_year == 1
+local valid_n = r(N)
+count
+local total_n = r(N)
+di ""
+di "Observations with valid income years: `valid_n' out of `total_n' (" %4.1f 100*`valid_n'/`total_n' "%)"
+
+*------------------------------------------------------------------------------
+* PART 1: RUN TAXSIM ON ACTUAL DATA (Only valid income years)
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "PART 1: RUNNING TAXSIM ON ACTUAL DATA"
+di "=============================================================================="
+
+use "nlsy_long_pre_taxsim.dta", clear
+
+* CRITICAL: Keep only valid income years
+* For the annual period analysis, we focus on 1978-1993
+* This matches Gruber-Saez's time period (1979-1990 with 3-year differences)
+
+keep if year >= 1978 & year <= 1993
+
+di "Keeping only annual period (1978-1993 income years):"
+tab year
+count
+
+* Additional data cleaning before TAXSIM
+* Drop observations where primary wage earner has zero/negative income
+* (These are likely non-workers or data errors)
+
+di ""
+di "Income distribution before cleaning:"
+sum pwages, detail
+
+* Run TAXSIM to get actual marginal tax rates
 taxsimlocal35, replace
-save "taxsim_out_nominal.dta", replace
+save "taxsim_actual.dta", replace
 
-* rename outputs
-use "taxsim_out_nominal.dta", clear
-rename fiitax  tax_fed        // federal income tax liability
-rename siitax  tax_st         // state income tax liability
-rename fica    tax_payroll    // FICA
-rename frate   mtr_fed        // federal marginal rate
-rename srate   mtr_st         // state marginal rate
-rename ficar   fica_rt         //  FICA rate
-rename tfica   fica_taxliab   // taxpayer liability for FICA
-save "taxsim_out_nominal.dta", replace
+* Rename the key outputs we need
+use "taxsim_actual.dta", clear
+rename fiitax  tax_fed_t
+rename siitax  tax_st_t
+rename frate   mtr_fed_t
+rename srate   mtr_st_t
 
+di ""
+di "Actual marginal tax rates from TAXSIM:"
+sum mtr_fed_t mtr_st_t, detail
 
-* Merge base-year CPI
+* Keep only the variables we need for merging
+keep taxsimid year mtr_fed_t mtr_st_t tax_fed_t tax_st_t ///
+     pwages swages psemp ssemp pui sui gssi transfers nonprop pensions rentpaid ///
+     mstat page depx
+
+save "taxsim_actual_clean.dta", replace
+
+*------------------------------------------------------------------------------
+* PART 2: CREATE CPI DATA FOR INFLATION ADJUSTMENT
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "PART 2: CREATING CPI DATA"
+di "=============================================================================="
+
+* Load your CPI data and prepare two versions for merging
 use "BLS_CPI.dta", clear
 keep year CPI
 sort year
-save "cpi_temp.dta", replace
 
-* Merge CPI into the main taxsim output (Current Year)
-use "taxsim_out_nominal.dta", clear
-merge m:1 year using "cpi_temp.dta", keep(match master) nogen
+* Check CPI data
+di "CPI data:"
+list if year >= 1978 & year <= 1996
 
-* Create a LEAD CPI variable (4 years forward)
-* We use 4 years to align with biennial survey waves (1994, 1998, etc.)
-rename CPI cpi_current
+* Save version for base year (year t) merge
+rename year year_t
+rename CPI cpi_t
+save "cpi_base.dta", replace
 
-gen year_lead4 = year + 4
-rename year year_original
-rename year_lead4 year
+* Save version for end year (year t+3) merge
+use "BLS_CPI.dta", clear
+keep year CPI
+sort year
+rename year year_t3
+rename CPI cpi_t3
+save "cpi_end.dta", replace
 
-merge m:1 year using "cpi_temp.dta", keep(match master) keepusing(CPI)
-rename CPI cpi_lead4
-drop _merge
+*------------------------------------------------------------------------------
+* PART 3: CREATE 3-YEAR PAIRED OBSERVATIONS
+*------------------------------------------------------------------------------
 
-* Restore original variable names
-rename year year_lead4  
-rename year_original year
+di ""
+di "=============================================================================="
+di "PART 3: CREATING 3-YEAR PAIRED OBSERVATIONS"
+di "=============================================================================="
 
-* Calculate CPI adjustment factor: cpi_current / cpi_lead4
-gen cpi_adjustment = cpi_current / cpi_lead4
+use "taxsim_actual_clean.dta", clear
 
-* For the last 4 years of the dataset, there is no t+4 data, so set to missing
-replace cpi_adjustment = . if missing(cpi_lead4)
+* For Gruber-Saez, we use 3-year differences
+local lag = 3
 
-save "taxsim_with_cpi.dta", replace
-
-* Create LEAD Income Variables (from 4 years future)
-use "nlsy_long_pre_taxsim.dta", clear
+* Sort by person and year
 sort taxsimid year
 
-* List of dollar-value variables that need to be pulled from the future
-local dollar_vars pwages swages psemp ssemp pui sui gssi transfers nonprop ///
-                  pensions rentpaid otherprop stcg ltcg ///
-                  proptax otheritem childcare pprofinc sprofinc pbusinc sbusinc
+* CRITICAL CHECK: Verify years are consecutive for each person
+* With annual data 1978-1993, this should be true
+by taxsimid: gen year_gap = year - year[_n-1]
+tab year_gap if year_gap != .
+di "Year gaps should all be 1 for annual data"
 
-* Create LEAD versions (4 years forward)
-foreach var of local dollar_vars {
-    by taxsimid: gen `var'_lead4 = `var'[_n+4]
-    replace `var'_lead4 = . if `var'_lead4 == .
-}
+* Create LEAD variables for year t+3 (the END year)
+by taxsimid: gen mtr_fed_t3 = mtr_fed_t[_n + `lag']
+by taxsimid: gen mtr_st_t3 = mtr_st_t[_n + `lag']
+by taxsimid: gen tax_fed_t3 = tax_fed_t[_n + `lag']
+by taxsimid: gen tax_st_t3 = tax_st_t[_n + `lag']
 
-save "nlsy_with_leads.dta", replace
+* Create LEAD income variables (for measuring income change)
+by taxsimid: gen pwages_t3 = pwages[_n + `lag']
+by taxsimid: gen swages_t3 = swages[_n + `lag']
+by taxsimid: gen psemp_t3 = psemp[_n + `lag']
+by taxsimid: gen ssemp_t3 = ssemp[_n + `lag']
+by taxsimid: gen pui_t3 = pui[_n + `lag']
+by taxsimid: gen sui_t3 = sui[_n + `lag']
+by taxsimid: gen gssi_t3 = gssi[_n + `lag']
+by taxsimid: gen transfers_t3 = transfers[_n + `lag']
+by taxsimid: gen nonprop_t3 = nonprop[_n + `lag']
+by taxsimid: gen pensions_t3 = pensions[_n + `lag']
+by taxsimid: gen rentpaid_t3 = rentpaid[_n + `lag']
 
-* Create Counterfactual Dataset (Fixed Income from t+4)
-use "nlsy_with_leads.dta", clear
+* Create LEAD marital status (for checking if it changed)
+by taxsimid: gen mstat_t3 = mstat[_n + `lag']
 
-* Merge in CPI data for current year
-merge m:1 year using "cpi_temp.dta", keep(match master) nogen
-rename CPI cpi_current
+* Create LEAD page and depx for potential use
+by taxsimid: gen page_t3 = page[_n + `lag']
+by taxsimid: gen depx_t3 = depx[_n + `lag']
 
-* Merge in CPI data for t+4
-gen year_lead4 = year + 4
-rename year year_original
-rename year_lead4 year
+* Create the end year variable
+by taxsimid: gen year_t3 = year[_n + `lag']
 
-merge m:1 year using "cpi_temp.dta", keep(match master) keepusing(CPI)
-rename CPI cpi_lead4
-drop _merge
+* Rename base year variables for clarity
+rename year year_t
+rename pwages pwages_t
+rename swages swages_t
+rename psemp psemp_t
+rename ssemp ssemp_t
+rename pui pui_t
+rename sui sui_t
+rename gssi gssi_t
+rename transfers transfers_t
+rename nonprop nonprop_t
+rename pensions pensions_t
+rename rentpaid rentpaid_t
+rename mstat mstat_t
+rename page page_t
+rename depx depx_t
 
-rename year year_lead4
-rename year_original year
+drop year_gap
 
-* Calculate CPI adjustment factor
-gen cpi_adjustment = cpi_current / cpi_lead4
-replace cpi_adjustment = . if missing(cpi_lead4)
+* Drop observations where we can't form pairs (last 3 years)
+drop if missing(mtr_fed_t3)
 
-* Create counterfactual versions: use FUTURE income (t+4), adjusted to CURRENT prices
-foreach var of local dollar_vars {
-    gen `var'_cf = `var'_lead4 * cpi_adjustment
-    replace `var'_cf = . if missing(`var'_lead4) | missing(cpi_adjustment)
-}
+* CRITICAL: Verify year pairs are correct
+di ""
+di "Year pairs in data:"
+tab year_t year_t3
 
-* Save the counterfactual dataset
-preserve
+* Keep only base years 1978-1990 (so end years are 1981-1993)
+* This matches Gruber-Saez exactly
+keep if year_t >= 1978 & year_t <= 1990
 
-* Drop observations without t+4 data (The last 4 years of data)
-drop if missing(cpi_adjustment)
+di ""
+di "After restricting to 1978-1990 base years:"
+tab year_t
+count
 
-* Replace actual values with counterfactual (future t+4) values
-foreach var of local dollar_vars {
-    replace `var' = `var'_cf
-}
+save "paired_observations.dta", replace
 
-replace ui = pui
-drop if missing(pwages)
+*------------------------------------------------------------------------------
+* PART 4: CONSTRUCT THE INSTRUMENT (CORRECTED DIRECTION!)
+*------------------------------------------------------------------------------
 
-* Zero out spouse variables when not married
-replace sage = 0 if mstat != 2
+di ""
+di "=============================================================================="
+di "PART 4: CONSTRUCTING THE INSTRUMENT"
+di "=============================================================================="
+
+* KEY INSIGHT: The instrument is the PREDICTED marginal tax rate in year t+3
+* if the taxpayer's REAL income stayed the same as in year t.
+*
+* Steps:
+* 1. Take year t income
+* 2. Inflate it to year t+3 prices (multiply by CPI_t3 / CPI_t)
+* 3. Apply year t+3 tax law to this inflated income
+* 4. This gives us the "predicted" marginal rate
+
+use "paired_observations.dta", clear
+
+* Merge CPI for base year (year t)
+merge m:1 year_t using "cpi_base.dta", keep(match master) nogen
+
+* Merge CPI for end year (year t+3)
+merge m:1 year_t3 using "cpi_end.dta", keep(match master) nogen
+
+* Check CPI merge results
+di ""
+di "CPI merge check:"
+sum cpi_t cpi_t3
+
+* Calculate inflation factor: CPI_t+3 / CPI_t
+gen inflation_factor = cpi_t3 / cpi_t
+
+* Display inflation factors by year
+di ""
+di "Inflation factors by base year (should be > 1 for all years):"
+tabstat inflation_factor, by(year_t) stat(mean min max n)
+
+* Create INFLATED year t income (in year t+3 dollars)
+gen pwages_inflated = pwages_t * inflation_factor
+gen swages_inflated = swages_t * inflation_factor
+gen psemp_inflated = psemp_t * inflation_factor
+gen ssemp_inflated = ssemp_t * inflation_factor
+gen pui_inflated = pui_t * inflation_factor
+gen sui_inflated = sui_t * inflation_factor
+gen gssi_inflated = gssi_t * inflation_factor
+gen transfers_inflated = transfers_t * inflation_factor
+gen nonprop_inflated = nonprop_t * inflation_factor
+gen pensions_inflated = pensions_t * inflation_factor
+gen rentpaid_inflated = rentpaid_t * inflation_factor
+
+save "paired_with_inflation.dta", replace
+
+*------------------------------------------------------------------------------
+* PART 4b: RUN TAXSIM ON COUNTERFACTUAL (inflated year t income, year t+3 law)
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "PART 4b: RUNNING TAXSIM ON COUNTERFACTUAL DATA"
+di "=============================================================================="
+
+use "paired_with_inflation.dta", clear
+
+* Save original identifiers for later merge back
+gen taxsimid_orig = taxsimid
+gen year_t_orig = year_t
+
+* Prepare variables for TAXSIM
+* TAXSIM needs specific variable names, so we create them
+
+* Set year to t+3 so TAXSIM uses t+3 tax law
+gen year = year_t3
+
+* Use inflated year t income
+gen pwages = pwages_inflated
+gen swages = swages_inflated
+gen psemp = psemp_inflated
+gen ssemp = ssemp_inflated
+gen pui = pui_inflated
+gen sui = sui_inflated
+gen gssi = gssi_inflated
+gen transfers = transfers_inflated
+gen nonprop = nonprop_inflated
+gen pensions = pensions_inflated
+gen rentpaid = rentpaid_inflated
+
+* Use base year demographics
+gen mstat = mstat_t
+gen page = page_t
+gen depx = depx_t
+
+* Generate required TAXSIM variables that might be missing
+capture gen otherprop = 0
+capture gen stcg = 0
+capture gen ltcg = 0
+capture gen proptax = 0
+capture gen otheritem = 0
+capture gen childcare = 0
+capture gen pprofinc = 0
+capture gen sprofinc = 0
+capture gen scorp = 0
+capture gen pbusinc = 0
+capture gen sbusinc = 0
+
+* Zero out spouse variables if not married
 replace swages = 0 if mstat != 2
 replace ssemp = 0 if mstat != 2
 replace sui = 0 if mstat != 2
 
-* Save this counterfactual dataset for TAXSIM
-save "nlsy_counterfactual_taxsim.dta", replace
+* Generate ui variable for TAXSIM
+gen ui = pui
+
+* Zero-fill missing values
+foreach v in pwages swages psemp ssemp ui sui gssi transfers nonprop pensions rentpaid ///
+             mstat page depx otherprop stcg ltcg proptax otheritem childcare ///
+             pprofinc sprofinc scorp pbusinc sbusinc {
+    capture replace `v' = 0 if missing(`v')
+    capture replace `v' = 0 if `v' < 0
+}
+
+* Keep only variables needed for TAXSIM plus our identifiers
+keep taxsimid year taxsimid_orig year_t_orig ///
+     pwages swages psemp ssemp ui sui gssi transfers nonprop pensions rentpaid ///
+     mstat page depx otherprop stcg ltcg proptax otheritem childcare ///
+     pprofinc sprofinc scorp pbusinc sbusinc
+
+drop if missing(year)
+
+di "Observations for counterfactual TAXSIM:"
+count
+
+save "counterfactual_for_taxsim.dta", replace
 
 * Run TAXSIM on counterfactual data
 taxsimlocal35, replace
-save "taxsim_out_counterfactual.dta", replace
+save "taxsim_counterfactual_raw.dta", replace
 
-restore
+* Extract the predicted marginal rates
+use "taxsim_counterfactual_raw.dta", clear
+rename frate mtr_fed_predicted
+rename srate mtr_st_predicted
+rename fiitax tax_fed_predicted
+rename siitax tax_st_predicted
 
-* Calculate Changes (Actual vs Future Counterfactual)
+keep taxsimid_orig year_t_orig mtr_fed_predicted mtr_st_predicted tax_fed_predicted tax_st_predicted
 
-* Load actual TAXSIM output
-use "taxsim_with_cpi.dta", clear
+rename taxsimid_orig taxsimid
+rename year_t_orig year_t
 
-rename mtr_fed mtr_fed_actual
-rename mtr_st mtr_st_actual
-rename tax_fed tax_fed_actual
-rename tax_st tax_st_actual
-rename tax_payroll tax_payroll_actual
+di ""
+di "Predicted marginal rates summary:"
+sum mtr_fed_predicted mtr_st_predicted, detail
 
-keep taxsimid year mtr_fed_actual mtr_st_actual tax_fed_actual tax_st_actual ///
-     tax_payroll_actual cpi_current cpi_lead4 cpi_adjustment
+save "predicted_rates.dta", replace
 
-* Merge with counterfactual TAXSIM output
-merge 1:1 taxsimid year using "taxsim_out_counterfactual.dta"
+*------------------------------------------------------------------------------
+* PART 5: MERGE EVERYTHING AND CREATE REGRESSION VARIABLES
+*------------------------------------------------------------------------------
 
+di ""
+di "=============================================================================="
+di "PART 5: MERGING DATA AND CREATING VARIABLES"
+di "=============================================================================="
+
+use "paired_with_inflation.dta", clear
+
+merge 1:1 taxsimid year_t using "predicted_rates.dta"
+
+tab _merge
 keep if _merge == 3
 drop _merge
 
-rename fiitax tax_fed_cf
-rename siitax tax_st_cf
-rename fica tax_payroll_cf
-rename frate mtr_fed_cf
-rename srate mtr_st_cf
+di "After merging predicted rates:"
+count
 
-* Create change variables
-gen change_mtr_fed = mtr_fed_actual - mtr_fed_cf
-gen change_mtr_st = mtr_st_actual - mtr_st_cf
-gen change_mtr_total = change_mtr_fed + change_mtr_st
+*------------------------------------------------------------------------------
+* PART 6: SAMPLE RESTRICTIONS (Gruber-Saez style)
+*------------------------------------------------------------------------------
 
-gen change_tax_fed = tax_fed_actual - tax_fed_cf
-gen change_tax_st = tax_st_actual - tax_st_cf
-gen change_tax_payroll = tax_payroll_actual - tax_payroll_cf
-gen change_tax_total = change_tax_fed + change_tax_st + change_tax_payroll
+di ""
+di "=============================================================================="
+di "PART 6: APPLYING SAMPLE RESTRICTIONS"
+di "=============================================================================="
 
-label variable change_mtr_fed "Change in federal marginal tax rate (pp)"
-label variable change_mtr_st "Change in state marginal tax rate (pp)"
-label variable change_mtr_total "Change in total marginal tax rate (pp)"
-label variable change_tax_fed "Change in federal tax liability ($)"
-label variable change_tax_st "Change in state tax liability ($)"
-label variable change_tax_payroll "Change in payroll tax liability ($)"
-label variable change_tax_total "Change in total tax burden ($)"
+count
+local initial_n = r(N)
+di "Initial observations: `initial_n'"
 
-label variable mtr_fed_actual "Actual federal MTR"
-label variable mtr_fed_cf "Counterfactual federal MTR (t+4 income)"
-label variable tax_fed_actual "Actual federal tax"
-label variable tax_fed_cf "Counterfactual federal tax (t+4 income)"
+* Restriction 1: Drop if marital status changed between t and t+3
+gen mstat_changed = (mstat_t != mstat_t3)
+tab mstat_changed
+drop if mstat_changed == 1
+count
+di "After dropping marital status changes: " r(N)
 
-note: Last 4 years are dropped because t+4 data is not available (Forward Look)
+* Restriction 2: Create broad income measure
+* Gruber-Saez "Broad Income" = wages + self-employment + UI + SS + pensions + other
+gen broad_income_t = pwages_t + swages_t + psemp_t + ssemp_t + ///
+                     pui_t + sui_t + gssi_t + pensions_t + nonprop_t
+gen broad_income_t3 = pwages_t3 + swages_t3 + psemp_t3 + ssemp_t3 + ///
+                      pui_t3 + sui_t3 + gssi_t3 + pensions_t3 + nonprop_t3
 
-save "taxsim_with_changes.dta", replace
+di ""
+di "Broad income summary (before restrictions):"
+sum broad_income_t broad_income_t3, detail
 
-* Summary statistics and data description
+* Drop if base year broad income < $10,000
+drop if broad_income_t < 10000
+count
+di "After dropping income < $10,000: " r(N)
 
-* Show year coverage
-tab year
-di "NOTE: Last 4 years are excluded due to lack of t+4 comparison data"
+* Restriction 3: Drop if end-year income is zero or negative (can't take logs)
+drop if broad_income_t3 <= 0
+count
+di "After dropping zero/negative income at t+3: " r(N)
 
-* Display summary statistics
-di "SUMMARY STATISTICS FOR CHANGE VARIABLES"
-summarize change_mtr_fed change_mtr_st change_mtr_total ///
-          change_tax_fed change_tax_st change_tax_payroll change_tax_total, detail
+* NEW RESTRICTION: Exclude observations with extreme negative marginal rates
+* The EITC can create marginal rates as low as -40% to -50%
+* These observations are disproportionately influencing results
+* We follow the approach of excluding the EITC range
 
-* Show distribution by year
-di " "
-di "AVERAGE CHANGES BY YEAR (t+4 Horizon)"
-tabstat change_mtr_total change_tax_total, by(year) format(%9.2f)
+di ""
+di "Checking marginal tax rate distribution:"
+sum mtr_fed_t mtr_fed_t3 mtr_fed_predicted, detail
 
-* Create histograms
-histogram change_mtr_total, title("Change in Total MTR (t+4)") ///
-          xtitle("Change in MTR (percentage points)") ///
-          note("Change = Actual MTR - Counterfactual MTR (with t+4 income)")
-graph export "change_mtr_histogram.png", replace
+* Option A: Drop observations where ANY marginal rate is highly negative (< -10%)
+* This removes EITC phase-in observations
+gen extreme_eitc = (mtr_fed_t < -10 | mtr_fed_t3 < -10 | mtr_fed_predicted < -10)
+tab extreme_eitc
+drop if extreme_eitc == 1
+count
+di "After dropping extreme EITC observations (MTR < -10%): " r(N)
 
-histogram change_tax_total, title("Change in Total Tax Burden (t+4)") ///
-          xtitle("Change in Tax Burden (dollars)") ///
-          note("Change = Actual Tax - Counterfactual Tax (with t+4 income)")
-graph export "change_tax_histogram.png", replace
+*------------------------------------------------------------------------------
+* PART 7: CREATE REGRESSION VARIABLES
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "PART 7: CREATING REGRESSION VARIABLES"
+di "=============================================================================="
+
+* Dependent variable: log change in income
+gen log_income_t = ln(broad_income_t)
+gen log_income_t3 = ln(broad_income_t3)
+gen log_income_change = log_income_t3 - log_income_t
+
+di ""
+di "Log income change before censoring:"
+sum log_income_change, detail
+
+* Censor extreme income changes at +/- 7 (Gruber-Saez restriction)
+replace log_income_change = 7 if log_income_change > 7 & !missing(log_income_change)
+replace log_income_change = -7 if log_income_change < -7 & !missing(log_income_change)
+
+di ""
+di "Log income change after censoring:"
+sum log_income_change, detail
+
+* Create combined marginal tax rates (federal only since no state variation)
+gen mtr_t = mtr_fed_t
+gen mtr_t3 = mtr_fed_t3
+gen mtr_predicted = mtr_fed_predicted
+
+di ""
+di "Marginal tax rates summary:"
+sum mtr_t mtr_t3 mtr_predicted, detail
+
+* Endogenous variable: log change in net-of-tax rate
+* Net-of-tax rate = (1 - marginal tax rate)
+* TAXSIM returns rates in percentage points, so divide by 100
+gen ntr_t = 1 - mtr_t/100
+gen ntr_t3 = 1 - mtr_t3/100
+gen ntr_predicted = 1 - mtr_predicted/100
+
+* Handle edge cases where NTR might be <= 0
+replace ntr_t = 0.01 if ntr_t <= 0
+replace ntr_t3 = 0.01 if ntr_t3 <= 0
+replace ntr_predicted = 0.01 if ntr_predicted <= 0
+
+gen log_ntr_t = ln(ntr_t)
+gen log_ntr_t3 = ln(ntr_t3)
+gen log_ntr_predicted = ln(ntr_predicted)
+
+* ENDOGENOUS VARIABLE: Actual log change in net-of-tax rate
+gen log_ntr_change = log_ntr_t3 - log_ntr_t
+
+* INSTRUMENT: Predicted log change in net-of-tax rate
+gen log_ntr_instrument = log_ntr_predicted - log_ntr_t
+
+di ""
+di "Endogenous variable and instrument summary:"
+sum log_ntr_change log_ntr_instrument, detail
+
+* CRITICAL CHECK: Correlation between instrument and endogenous variable
+di ""
+di "CRITICAL: First-stage correlation (should be positive and ideally > 0.3):"
+corr log_ntr_change log_ntr_instrument
+
+* Income weights (capped at $1 million)
+gen income_weight = min(broad_income_t, 1000000)
+
+* Marital status dummies
+gen married = (mstat_t == 2)
+gen single = (mstat_t == 1)
+gen other_marital = (married == 0 & single == 0)
+
+di ""
+di "Marital status distribution:"
+tab mstat_t
+
+*------------------------------------------------------------------------------
+* PART 8: CREATE 10-PIECE INCOME SPLINE
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "PART 8: CREATING INCOME SPLINES"
+di "=============================================================================="
+
+* Calculate decile cutpoints of log base-year income
+quietly _pctile log_income_t, p(10 20 30 40 50 60 70 80 90)
+
+local cut1 = r(r1)
+local cut2 = r(r2)
+local cut3 = r(r3)
+local cut4 = r(r4)
+local cut5 = r(r5)
+local cut6 = r(r6)
+local cut7 = r(r7)
+local cut8 = r(r8)
+local cut9 = r(r9)
+
+di "Income spline cutpoints (log scale and dollar equivalents):"
+di "10th pctile: `cut1' = $" %12.0fc exp(`cut1')
+di "20th pctile: `cut2' = $" %12.0fc exp(`cut2')
+di "30th pctile: `cut3' = $" %12.0fc exp(`cut3')
+di "40th pctile: `cut4' = $" %12.0fc exp(`cut4')
+di "50th pctile: `cut5' = $" %12.0fc exp(`cut5')
+di "60th pctile: `cut6' = $" %12.0fc exp(`cut6')
+di "70th pctile: `cut7' = $" %12.0fc exp(`cut7')
+di "80th pctile: `cut8' = $" %12.0fc exp(`cut8')
+di "90th pctile: `cut9' = $" %12.0fc exp(`cut9')
+
+* Create spline variables
+gen spline1 = max(0, log_income_t - `cut1')
+gen spline2 = max(0, log_income_t - `cut2')
+gen spline3 = max(0, log_income_t - `cut3')
+gen spline4 = max(0, log_income_t - `cut4')
+gen spline5 = max(0, log_income_t - `cut5')
+gen spline6 = max(0, log_income_t - `cut6')
+gen spline7 = max(0, log_income_t - `cut7')
+gen spline8 = max(0, log_income_t - `cut8')
+gen spline9 = max(0, log_income_t - `cut9')
+
+*------------------------------------------------------------------------------
+* PART 9: FINAL DATA CHECKS AND DIAGNOSTICS
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "PART 9: FINAL DATA CHECKS"
+di "=============================================================================="
+
+* Check for missing values
+di "Missing value check:"
+misstable summarize log_income_change log_ntr_change log_ntr_instrument log_income_t
+
+* Final summary statistics
+di ""
+di "Final sample summary statistics:"
+sum log_income_change log_ntr_change log_ntr_instrument log_income_t broad_income_t ///
+    mtr_t mtr_t3 mtr_predicted
+
+* Check instrument variation by year
+di ""
+di "Instrument variation by base year:"
+di "(Look for variation - different years should have different mean instrument values)"
+tabstat log_ntr_instrument, by(year_t) stat(mean sd min max n)
+
+* Compare to Gruber-Saez Table 3 pattern
+di ""
+di "Tax reform periods to look for:"
+di "  1979-1982: Bracket creep (negative instrument expected)"
+di "  1980-1983: ERTA 1981 effects begin (positive for high incomes)"
+di "  1984-1987: TRA 1986 effects (positive, especially for high incomes)"
+di "  1987-1990: TRA 1986 fully phased in (small positive)"
+
+* Final sample size
+count
+di ""
+di "Final sample size for regression: " r(N)
+
+* Compare to Gruber-Saez
+di ""
+di "COMPARISON TO GRUBER-SAEZ:"
+di "  Gruber-Saez sample: ~69,000-100,000 observations"
+di "  Your sample: " r(N) " observations"
+di "  (Smaller sample expected due to NLSY being one birth cohort)"
+
+save "gruber_saez_regression_data.dta", replace
+
+*------------------------------------------------------------------------------
+* PART 10: RUN THE GRUBER-SAEZ REGRESSIONS
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "PART 10: GRUBER-SAEZ REGRESSIONS"
+di "=============================================================================="
+
+use "gruber_saez_regression_data.dta", clear
+
+di ""
+di "Sample size: " _N
+di ""
+di "Base years in sample:"
+tab year_t
+
+*--- First Stage Regression (Diagnostic) ---
+di ""
+di "FIRST STAGE REGRESSION (Instrument → Endogenous Variable):"
+di "============================================================"
+
+regress log_ntr_change log_ntr_instrument ///
+    log_income_t spline1-spline9 i.year_t married single ///
+    [aweight=income_weight], cluster(taxsimid)
+
+* Test instrument strength
+di ""
+di "F-test for instrument (should be > 10, preferably > 20):"
+test log_ntr_instrument
+
+* Store F-statistic
+local first_stage_F = r(F)
+di ""
+di "First-stage F-statistic: " %6.2f `first_stage_F'
+
+if `first_stage_F' < 10 {
+    di ""
+    di "WARNING: Weak instrument (F < 10)!"
+    di "2SLS estimates may be biased and unreliable."
+    di "Consider using LIML or other weak-instrument robust methods."
+}
+
+*--- Model 1: No income controls ---
+di ""
+di "MODEL 1: No income controls"
+di "----------------------------"
+
+ivregress 2sls log_income_change ///
+    (log_ntr_change = log_ntr_instrument) ///
+    i.year_t married single ///
+    [aweight=income_weight], ///
+    cluster(taxsimid)
+
+estimates store model1
+estat firststage
+
+*--- Model 2: With log income control ---
+di ""
+di "MODEL 2: With log income control"
+di "---------------------------------"
+
+ivregress 2sls log_income_change ///
+    (log_ntr_change = log_ntr_instrument) ///
+    log_income_t i.year_t married single ///
+    [aweight=income_weight], ///
+    cluster(taxsimid)
+
+estimates store model2
+estat firststage
+
+*--- Model 3: With 10-piece income spline (PREFERRED) ---
+di ""
+di "MODEL 3: With 10-piece income spline (PREFERRED SPECIFICATION)"
+di "--------------------------------------------------------------"
+
+ivregress 2sls log_income_change ///
+    (log_ntr_change = log_ntr_instrument) ///
+    log_income_t spline1-spline9 i.year_t married single ///
+    [aweight=income_weight], ///
+    cluster(taxsimid)
+
+estimates store model3
+estat firststage
+
+*--- Model 4: OLS for comparison ---
+di ""
+di "MODEL 4: OLS (biased - for comparison only)"
+di "--------------------------------------------"
+
+regress log_income_change log_ntr_change ///
+    log_income_t spline1-spline9 i.year_t married single ///
+    [aweight=income_weight], ///
+    cluster(taxsimid)
+
+estimates store model4_ols
+
+*------------------------------------------------------------------------------
+* PART 11: RESULTS SUMMARY
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "SUMMARY OF RESULTS"
+di "=============================================================================="
+
+estimates table model1 model2 model3 model4_ols, ///
+    keep(log_ntr_change) ///
+    b(%9.3f) se(%9.3f) ///
+    stats(N) ///
+    title("Elasticity of Taxable Income Estimates")
+
+di ""
+di "INTERPRETATION:"
+di "  - Model 1 (no controls): Likely biased by mean reversion"
+di "  - Model 2 (log income): Partially controls for mean reversion"
+di "  - Model 3 (splines): PREFERRED - best controls for mean reversion"
+di "  - Model 4 (OLS): Biased benchmark (endogeneity not addressed)"
+di ""
+di "Gruber-Saez (2000) found:"
+di "  - Broad Income elasticity: 0.12 (with splines)"
+di "  - Taxable Income elasticity: 0.40 (with splines)"
+
+*------------------------------------------------------------------------------
+* PART 12: HETEROGENEITY BY INCOME GROUP
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "HETEROGENEITY BY INCOME GROUP"
+di "=============================================================================="
+
+* Create income groups
+gen income_group = 1 if broad_income_t >= 10000 & broad_income_t < 50000
+replace income_group = 2 if broad_income_t >= 50000 & broad_income_t < 100000
+replace income_group = 3 if broad_income_t >= 100000
+
+label define inc_grp 1 "$10K-$50K" 2 "$50K-$100K" 3 "$100K+"
+label values income_group inc_grp
+
+di "Income group distribution:"
+tab income_group
+
+* Run separate regressions by income group
+di ""
+di "Income Group: $10,000 - $50,000"
+di "--------------------------------"
+capture noisily ivregress 2sls log_income_change ///
+    (log_ntr_change = log_ntr_instrument) ///
+    log_income_t spline1-spline9 i.year_t married single ///
+    [aweight=income_weight] if income_group == 1, ///
+    cluster(taxsimid)
+
+di ""
+di "Income Group: $50,000 - $100,000"
+di "---------------------------------"
+capture noisily ivregress 2sls log_income_change ///
+    (log_ntr_change = log_ntr_instrument) ///
+    log_income_t spline1-spline9 i.year_t married single ///
+    [aweight=income_weight] if income_group == 2, ///
+    cluster(taxsimid)
+
+di ""
+di "Income Group: $100,000+"
+di "------------------------"
+capture noisily ivregress 2sls log_income_change ///
+    (log_ntr_change = log_ntr_instrument) ///
+    log_income_t spline1-spline9 i.year_t married single ///
+    [aweight=income_weight] if income_group == 3, ///
+    cluster(taxsimid)
+
+*------------------------------------------------------------------------------
+* PART 13: DIAGNOSTIC PLOTS
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "CREATING DIAGNOSTIC PLOTS"
+di "=============================================================================="
+
+* Histogram of the instrument
+histogram log_ntr_instrument, ///
+    title("Distribution of Instrument") ///
+    xtitle("Predicted Log Change in Net-of-Tax Rate") ///
+    note("Instrument = log(1-τ_predicted) - log(1-τ_t)") ///
+    color(blue%50)
+graph export "instrument_histogram.png", replace
+
+* First stage scatter
+twoway (scatter log_ntr_change log_ntr_instrument, msize(tiny) mcolor(blue%30)) ///
+       (lfit log_ntr_change log_ntr_instrument, lcolor(red) lwidth(medium)), ///
+    title("First Stage: Instrument vs Actual Tax Change") ///
+    xtitle("Instrument: Predicted Log NTR Change") ///
+    ytitle("Actual Log NTR Change") ///
+    legend(off) ///
+    note("Slope represents first-stage relationship")
+graph export "first_stage_scatter.png", replace
+
+* Instrument by year
+graph bar (mean) log_ntr_instrument, over(year_t) ///
+    title("Average Instrument Value by Base Year") ///
+    ytitle("Mean Predicted Log NTR Change") ///
+    note("Positive = predicted tax cut; Negative = predicted tax increase")
+graph export "instrument_by_year.png", replace
+
+* Reduced form: Income change vs Instrument
+twoway (scatter log_income_change log_ntr_instrument, msize(tiny) mcolor(green%30)) ///
+       (lfit log_income_change log_ntr_instrument, lcolor(red) lwidth(medium)), ///
+    title("Reduced Form: Income Change vs Instrument") ///
+    xtitle("Instrument: Predicted Log NTR Change") ///
+    ytitle("Log Income Change") ///
+    legend(off)
+graph export "reduced_form_scatter.png", replace
+
+*------------------------------------------------------------------------------
+* PART 14: WEAK INSTRUMENT ROBUST INFERENCE (IF NEEDED)
+*------------------------------------------------------------------------------
+
+di ""
+di "=============================================================================="
+di "WEAK INSTRUMENT ROBUST INFERENCE"
+di "=============================================================================="
+
+* If first-stage F < 10, use LIML (more robust to weak instruments)
+di ""
+di "LIML Estimation (robust to weak instruments):"
+
+ivregress liml log_income_change ///
+    (log_ntr_change = log_ntr_instrument) ///
+    log_income_t spline1-spline9 i.year_t married single ///
+    [aweight=income_weight], ///
+    cluster(taxsimid)
+
+estimates store model_liml
+
+* Compare 2SLS and LIML
+di ""
+di "Comparison: 2SLS vs LIML"
+di "(If estimates differ substantially, weak instrument bias is likely)"
+estimates table model3 model_liml, ///
+    keep(log_ntr_change) ///
+    b(%9.3f) se(%9.3f) ///
+    title("2SLS vs LIML Comparison")
+
+
+
+
