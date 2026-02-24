@@ -1,11 +1,14 @@
 /*==============================================================================
-SKILL_VS_SIGNAL_ANALYSIS.DO
+SKILL_VS_SIGNAL_ANALYSIS.DO 
 ================================================================================
 Purpose: Test whether early-career wage growth reflects genuine skill formation
          (human capital) or signaling/employer learning
 
-Author: Generated for Yuhao
-Date: February 2026
+CORRECTIONS APPLIED:
+- Uses pot_exp from corrected Data_process.do (current-year education)
+- Uses recent_hrs_annual for cross-period comparisons (annualized hours)
+- AFQT properly standardized
+- Ages are income-year aligned
 
 RESEARCH QUESTION:
 Do early-career wage jumps mainly stem from signaling strategies (long hours, 
@@ -17,10 +20,6 @@ ANALYSES INCLUDED:
 3. Wage Variance Evolution (Does dispersion increase with experience?)
 4. Fixed Effects Comparison (OLS vs FE to assess selection)
 5. Sheepskin Effects (Discrete degree returns vs. continuous education)
-
-PREREQUISITES:
-- Run Data_process.do first (with the additions for skill vs signal variables)
-- Variables needed: afqt_std, pot_exp, recent_hrs, cumhrs, etc.
 
 THEORETICAL FRAMEWORK:
 - Human Capital: Wages rise because workers become more productive
@@ -37,7 +36,6 @@ Sheepskin effects       | Small         | Large
 ==============================================================================*/
 
 * Don't clear all - check if data is already loaded
-* If called from EDA_Wage_Analysis.do, data should already be in memory
 
 * Check if data is already loaded with required variables
 capture confirm variable pwages
@@ -88,7 +86,7 @@ local missing_vars = 0
 foreach v of local required_vars {
     capture confirm variable `v'
     if _rc != 0 {
-        di as error "ERROR: Variable `v' not found. Run Data_process.do with additions first."
+        di as error "ERROR: Variable `v' not found. Run Data_process_CORRECTED.do first."
         local missing_vars = 1
     }
 }
@@ -102,12 +100,57 @@ if `missing_vars' == 1 {
 di "All required variables found."
 di ""
 
+* Verify key corrections
+di "VERIFICATION: Checking corrected variables"
+di "-------------------------------------------"
+
+* Check pot_exp distribution
+di ""
+di "Potential experience distribution (should be non-negative, reasonable):"
+summarize pot_exp, detail
+
+* Check for negative values (should be none after correction)
+count if pot_exp < 0 & !missing(pot_exp)
+if r(N) > 0 {
+    di as error "WARNING: " r(N) " observations have negative pot_exp"
+}
+else {
+    di "GOOD: No negative potential experience values"
+}
+
+* Check AFQT standardization
+di ""
+di "AFQT standardized (should have mean~0, sd~1):"
+summarize afqt_std, detail
+
+* Check recent_hrs_annual exists (for cross-period comparisons)
+capture confirm variable recent_hrs_annual
+if _rc == 0 {
+    di ""
+    di "recent_hrs_annual found - using annualized recent hours for analysis"
+    summarize recent_hrs_annual, detail
+}
+else {
+    di ""
+    di "WARNING: recent_hrs_annual not found. Creating from recent_hrs."
+    * Create annualized version
+    capture confirm variable year_span
+    if _rc == 0 {
+        gen recent_hrs_annual = recent_hrs / year_span if year_span > 0
+        replace recent_hrs_annual = recent_hrs if year_span == 1 | missing(year_span)
+    }
+    else {
+        gen recent_hrs_annual = recent_hrs
+    }
+}
+
 * Define analysis sample
 capture drop skill_sample
 gen skill_sample = (pwages > 0 & !missing(pot_exp) & pot_exp >= 0 & pot_exp <= 40 ///
                    & !missing(afqt_std) & page >= 18 & page <= 65)
 label var skill_sample "Sample for skill vs signaling analysis"
 
+di ""
 di "Sample definition:"
 di "  - Positive wages"
 di "  - Valid potential experience (0-40 years)"
@@ -284,6 +327,9 @@ di ""
 di "  Test: Include both cumulative hours and recent hours in regression"
 di "        See which dominates, especially in early career"
 di ""
+di "NOTE: Using recent_hrs_annual for proper cross-period comparisons"
+di "      (annualized to account for biennial vs annual survey gaps)"
+di ""
 
 /*------------------------------------------------------------------------------
 2.1: Cumulative hours only
@@ -303,42 +349,46 @@ di ""
 di "Cumulative hours elasticity: " %6.3f _b[log_cumhrs]
 
 /*------------------------------------------------------------------------------
-2.2: Recent hours only
+2.2: Recent hours only (annualized)
 ------------------------------------------------------------------------------*/
 
 di ""
-di "2.2 RECENT HOURS ONLY"
-di "---------------------"
+di "2.2 RECENT HOURS ONLY (ANNUALIZED)"
+di "----------------------------------"
 
-regress log_pwages log_recent_hrs pot_exp pot_exp2 educ_years i.year ///
-    if skill_sample == 1 & recent_hrs > 0, cluster(taxsimid)
+* Use annualized recent hours for fair comparison
+capture drop log_recent_hrs_annual
+gen log_recent_hrs_annual = ln(recent_hrs_annual) if recent_hrs_annual > 0
+
+regress log_pwages log_recent_hrs_annual pot_exp pot_exp2 educ_years i.year ///
+    if skill_sample == 1 & recent_hrs_annual > 0, cluster(taxsimid)
 estimates store recent_only
 
 di ""
-di "Recent hours elasticity: " %6.3f _b[log_recent_hrs]
+di "Recent hours (annualized) elasticity: " %6.3f _b[log_recent_hrs_annual]
 
 /*------------------------------------------------------------------------------
 2.3: Horse race - both types of hours
 ------------------------------------------------------------------------------*/
 
 di ""
-di "2.3 HORSE RACE: CUMULATIVE VS RECENT HOURS"
-di "------------------------------------------"
+di "2.3 HORSE RACE: CUMULATIVE VS RECENT HOURS (ANNUALIZED)"
+di "-------------------------------------------------------"
 
-regress log_pwages log_cumhrs log_recent_hrs pot_exp pot_exp2 educ_years i.year ///
-    if skill_sample == 1 & cumhrs > 0 & recent_hrs > 0, cluster(taxsimid)
+regress log_pwages log_cumhrs log_recent_hrs_annual pot_exp pot_exp2 educ_years i.year ///
+    if skill_sample == 1 & cumhrs > 0 & recent_hrs_annual > 0, cluster(taxsimid)
 estimates store hours_horserace
 
 local b_cum = _b[log_cumhrs]
-local b_recent = _b[log_recent_hrs]
+local b_recent = _b[log_recent_hrs_annual]
 
 di ""
 di "============================================================"
 di "HOURS DECOMPOSITION RESULTS"
 di "============================================================"
 di ""
-di "  Cumulative hours elasticity: " %6.3f `b_cum'
-di "  Recent hours elasticity:     " %6.3f `b_recent'
+di "  Cumulative hours elasticity:       " %6.3f `b_cum'
+di "  Recent hours (annual) elasticity:  " %6.3f `b_recent'
 di ""
 
 if abs(`b_cum') > abs(`b_recent') * 2 {
@@ -369,11 +419,11 @@ di "  (when employers have less information about workers)"
 di ""
 
 capture drop recent_x_early
-gen recent_x_early = log_recent_hrs * early_career
+gen recent_x_early = log_recent_hrs_annual * early_career
 
-regress log_pwages log_cumhrs log_recent_hrs recent_x_early early_career ///
+regress log_pwages log_cumhrs log_recent_hrs_annual recent_x_early early_career ///
     pot_exp pot_exp2 educ_years i.year ///
-    if skill_sample == 1 & cumhrs > 0 & recent_hrs > 0, cluster(taxsimid)
+    if skill_sample == 1 & cumhrs > 0 & recent_hrs_annual > 0, cluster(taxsimid)
 estimates store early_career_test
 
 local b_interact = _b[recent_x_early]
@@ -402,9 +452,9 @@ di "2.5 HOURS MODEL COMPARISON"
 di "--------------------------"
 
 estimates table cumhrs_only recent_only hours_horserace early_career_test, ///
-    keep(log_cumhrs log_recent_hrs recent_x_early early_career) ///
+    keep(log_cumhrs log_recent_hrs_annual recent_x_early early_career) ///
     b(%9.4f) se(%9.4f) stats(N r2) ///
-    title("Hours Decomposition: Cumulative vs Recent")
+    title("Hours Decomposition: Cumulative vs Recent (Annualized)")
 
 /*==============================================================================
 PART 3: WAGE VARIANCE EVOLUTION
@@ -449,199 +499,126 @@ di ""
 di "Wage Dispersion by Experience:"
 di "Exp Bin     | Variance | Std Dev | P90-P10 | N"
 di "------------|----------|---------|---------|--------"
+list exp_bin var_log_wage sd_log_wage iqr_log_wage n_obs, clean noobs
 
-forval i = 1/7 {
-    quietly sum var_log_wage if exp_bin == `i'
-    if r(N) > 0 {
-        local var = var_log_wage[`i']
-        local sd = sd_log_wage[`i']
-        local iqr = iqr_log_wage[`i']
-        local n = n_obs[`i']
-        local lbl: label exp_bin_lbl `i'
-        di "`lbl'   | " %7.4f `var' " | " %6.4f `sd' " | " %6.4f `iqr' " | " %7.0f `n'
-    }
-}
-
-* Graph variance evolution
-twoway (connected var_log_wage exp_bin, lcolor(navy) mcolor(navy) lwidth(medthick)) ///
-       (connected iqr_log_wage exp_bin, lcolor(maroon) mcolor(maroon) lpattern(dash)), ///
+* Plot variance evolution
+twoway (connected var_log_wage exp_bin, lcolor(navy) lwidth(thick) msymbol(circle)) ///
+       (connected iqr_log_wage exp_bin, lcolor(maroon) lpattern(dash) msymbol(square)), ///
     title("Wage Dispersion Over the Career") ///
-    subtitle("Evidence for Employer Learning?") ///
     xtitle("Experience Bin") ///
     ytitle("Dispersion Measure") ///
-    xlabel(1 "0-5" 2 "6-10" 3 "11-15" 4 "16-20" 5 "21-25" 6 "26-30" 7 "30+", angle(45)) ///
-    legend(order(1 "Variance of Log Wages" 2 "90th-10th Percentile Gap") pos(6) col(2)) ///
-    note("Employer learning predicts: Rising variance early, then stabilizing")
+    legend(order(1 "Variance" 2 "P90-P10 Gap") pos(11) ring(0)) ///
+    xlabel(1 "0-5" 2 "6-10" 3 "11-15" 4 "16-20" 5 "21-25" 6 "26-30" 7 "30+")
 graph export "wage_variance_evolution.png", replace width(1200)
 
 restore
 
-/*------------------------------------------------------------------------------
-3.2: Formal test - regress variance on experience
-------------------------------------------------------------------------------*/
-
-di ""
-di "3.2 FORMAL VARIANCE EVOLUTION TEST"
-di "----------------------------------"
-
-* Calculate individual-year residuals
-quietly regress log_pwages i.year educ_years female black hispanic if skill_sample == 1
-capture drop resid_wage
-predict resid_wage if e(sample), residual
-
-* Square residuals
-capture drop resid_wage_sq
-gen resid_wage_sq = resid_wage^2
-
-* Regress squared residuals on experience (Breusch-Pagan style)
-regress resid_wage_sq pot_exp pot_exp2 if skill_sample == 1, cluster(taxsimid)
-
-local b_exp_var = _b[pot_exp]
-local b_exp2_var = _b[pot_exp2]
-
-di ""
-di "Variance-Experience relationship:"
-di "  Linear term:    " %9.6f `b_exp_var'
-di "  Quadratic term: " %9.6f `b_exp2_var'
-di ""
-
-if `b_exp_var' > 0 & `b_exp2_var' < 0 {
-    di "RESULT: Inverse-U shaped variance pattern"
-    di "  Variance rises early then falls - CONSISTENT WITH EMPLOYER LEARNING"
-    local peak_var_exp = -`b_exp_var' / (2 * `b_exp2_var')
-    di "  Peak variance at experience = " %4.1f `peak_var_exp' " years"
-}
-else if `b_exp_var' > 0 {
-    di "RESULT: Variance increases throughout career"
-    di "  Partial evidence for employer learning (sorting continues)"
-}
-else {
-    di "RESULT: No clear variance increase pattern"
-    di "  Not strong support for employer learning"
-}
-
-drop resid_wage resid_wage_sq
-
 /*==============================================================================
-PART 4: FIXED EFFECTS COMPARISON
+PART 4: FIXED EFFECTS VS OLS COMPARISON
 ==============================================================================*/
 
 di ""
 di "=============================================================================="
-di "PART 4: FIXED EFFECTS COMPARISON"
+di "PART 4: FIXED EFFECTS VS OLS COMPARISON"
 di "=============================================================================="
 di ""
 di "THEORY:"
-di "  If unobserved ability (signaling) drives wage growth:"
-di "    - OLS coefficients will be biased (ability correlated with experience)"
-di "    - Fixed effects will absorb ability, coefficients will shrink"
+di "  If ability selection drives wages: OLS will overestimate experience effects"
+di "  because high-ability workers accumulate more experience."
 di ""
-di "  If human capital (actual skill growth) drives wage growth:"
-di "    - FE coefficients should be similar to OLS"
+di "  Fixed effects control for time-invariant ability, giving causal effect."
+di ""
+di "  Signaling: FE coefficients much SMALLER than OLS (ability was confounding)"
+di "  Human Capital: FE and OLS coefficients SIMILAR (experience is causal)"
 di ""
 
 /*------------------------------------------------------------------------------
-4.1: Pooled OLS
+4.1: OLS baseline
 ------------------------------------------------------------------------------*/
 
-di "4.1 POOLED OLS"
-di "--------------"
+di "4.1 OLS ESTIMATES"
+di "-----------------"
 
-regress log_pwages pot_exp pot_exp2 log_cumhrs i.year ///
-    if skill_sample == 1 & cumhrs > 0, cluster(taxsimid)
-estimates store pooled_ols
+regress log_pwages pot_exp pot_exp2 educ_years i.year ///
+    if skill_sample == 1, cluster(taxsimid)
+estimates store ols_main
 
-local ols_exp = _b[pot_exp]
-local ols_cumhrs = _b[log_cumhrs]
+local b_exp_ols = _b[pot_exp]
+local b_exp2_ols = _b[pot_exp2]
 
 di ""
-di "Pooled OLS estimates:"
-di "  Experience:       " %7.4f `ols_exp'
-di "  Log cum hours:    " %7.4f `ols_cumhrs'
+di "OLS Experience coefficient: " %7.4f `b_exp_ols'
+di "OLS Experience² coefficient: " %9.6f `b_exp2_ols'
 
 /*------------------------------------------------------------------------------
-4.2: Individual Fixed Effects
+4.2: Fixed effects
 ------------------------------------------------------------------------------*/
 
 di ""
-di "4.2 INDIVIDUAL FIXED EFFECTS"
-di "----------------------------"
+di "4.2 FIXED EFFECTS ESTIMATES"
+di "---------------------------"
 
-* Set panel structure
 xtset taxsimid year
+xtreg log_pwages pot_exp pot_exp2 i.year ///
+    if skill_sample == 1, fe cluster(taxsimid)
+estimates store fe_main
 
-xtreg log_pwages pot_exp pot_exp2 log_cumhrs i.year ///
-    if skill_sample == 1 & cumhrs > 0, fe cluster(taxsimid)
-estimates store fixed_effects
-
-local fe_exp = _b[pot_exp]
-local fe_cumhrs = _b[log_cumhrs]
+local b_exp_fe = _b[pot_exp]
+local b_exp2_fe = _b[pot_exp2]
 
 di ""
-di "Fixed Effects estimates:"
-di "  Experience:       " %7.4f `fe_exp'
-di "  Log cum hours:    " %7.4f `fe_cumhrs'
+di "FE Experience coefficient: " %7.4f `b_exp_fe'
+di "FE Experience² coefficient: " %9.6f `b_exp2_fe'
 
 /*------------------------------------------------------------------------------
-4.3: Compare coefficients
+4.3: Comparison
 ------------------------------------------------------------------------------*/
 
 di ""
-di "4.3 OLS VS FIXED EFFECTS COMPARISON"
-di "-----------------------------------"
+di "4.3 OLS VS FE COMPARISON"
+di "------------------------"
 
-local exp_ratio = `fe_exp' / `ols_exp'
-local hrs_ratio = `fe_cumhrs' / `ols_cumhrs'
+local exp_ratio = `b_exp_fe' / `b_exp_ols'
+local exp2_ratio = `b_exp2_fe' / `b_exp2_ols'
 
 di ""
 di "============================================================"
-di "FIXED EFFECTS COMPARISON RESULTS"
+di "FIXED EFFECTS TEST RESULTS"
 di "============================================================"
 di ""
-di "                    |    OLS    |     FE    | FE/OLS Ratio"
-di "--------------------|-----------|-----------|-------------"
-di "Experience          | " %8.4f `ols_exp' " | " %8.4f `fe_exp' " | " %6.2f `exp_ratio'
-di "Log cumulative hrs  | " %8.4f `ols_cumhrs' " | " %8.4f `fe_cumhrs' " | " %6.2f `hrs_ratio'
+di "                           OLS           FE          Ratio"
+di "------------------------------------------------------------"
+di "Experience               " %8.4f `b_exp_ols' "      " %8.4f `b_exp_fe' "      " %5.2f `exp_ratio'
+di "Experience²              " %8.5f `b_exp2_ols' "     " %8.5f `b_exp2_fe' "     " %5.2f `exp2_ratio'
 di ""
 
-if `exp_ratio' < 0.5 {
-    di "RESULT: Experience coefficient SHRINKS substantially in FE"
-    di "  Much of OLS 'experience effect' was actually selection/ability"
-    di "  Suggests SIGNALING: high-ability workers accumulate more experience"
+if `exp_ratio' > 0.7 {
+    di "RESULT: FE ≈ OLS (ratio > 0.7)"
+    di "  Consistent with HUMAN CAPITAL: Experience effect is mostly causal"
+    di "  Ability selection accounts for small portion of returns"
 }
-else if `exp_ratio' > 0.8 {
-    di "RESULT: Experience coefficient SIMILAR in OLS and FE"
-    di "  Experience effect is not driven by unobserved ability"
-    di "  Suggests HUMAN CAPITAL: experience genuinely builds skills"
-}
-else {
-    di "RESULT: Moderate shrinkage in FE"
-    di "  Both ability selection and genuine skill growth matter"
-}
-
-di ""
-
-if `hrs_ratio' < 0.5 {
-    di "Hours coefficient SHRINKS substantially in FE"
-    di "  High-ability workers both work more AND earn more (selection)"
+else if `exp_ratio' < 0.5 {
+    di "RESULT: FE << OLS (ratio < 0.5)"
+    di "  Consistent with SIGNALING: Much of 'experience return' is ability selection"
+    di "  High-ability workers gain more experience AND earn more"
 }
 else {
-    di "Hours coefficient relatively STABLE in FE"
-    di "  Hours effect not primarily driven by ability selection"
+    di "RESULT: FE somewhat smaller than OLS (0.5 < ratio < 0.7)"
+    di "  Mixed evidence: Some ability selection, but substantial causal returns"
 }
 
 /*------------------------------------------------------------------------------
-4.4: Comparison table
+4.4: Model comparison table
 ------------------------------------------------------------------------------*/
 
 di ""
-di "4.4 OLS VS FE COMPARISON TABLE"
-di "------------------------------"
+di "4.4 OLS VS FE MODEL TABLE"
+di "-------------------------"
 
-estimates table pooled_ols fixed_effects, ///
-    keep(pot_exp pot_exp2 log_cumhrs) ///
+estimates table ols_main fe_main, ///
+    keep(pot_exp pot_exp2 educ_years) ///
     b(%9.4f) se(%9.4f) stats(N r2) ///
-    title("Pooled OLS vs Individual Fixed Effects")
+    title("OLS vs Fixed Effects: Experience Returns")
 
 /*==============================================================================
 PART 5: SHEEPSKIN EFFECTS
@@ -793,10 +770,10 @@ di "1. AFQT × Experience          |               | `ap_result'"
 * Hours decomposition
 quietly estimates restore hours_horserace
 local hrs_result = "Mixed"
-if abs(_b[log_cumhrs]) > abs(_b[log_recent_hrs]) * 1.5 {
+if abs(_b[log_cumhrs]) > abs(_b[log_recent_hrs_annual]) * 1.5 {
     local hrs_result = "Human Cap ✓"
 }
-else if abs(_b[log_recent_hrs]) > abs(_b[log_cumhrs]) * 1.5 {
+else if abs(_b[log_recent_hrs_annual]) > abs(_b[log_cumhrs]) * 1.5 {
     local hrs_result = "Signaling ✓"
 }
 di "2. Hours decomposition        | `hrs_result'              |"
@@ -854,13 +831,19 @@ di "  - Skill_vs_Signal_log.txt"
 di ""
 
 * Clean up temporary variables
-capture drop afqt_x_exp educ_x_exp recent_x_early log_cumhrs skill_sample less_than_hs
+capture drop afqt_x_exp educ_x_exp recent_x_early log_cumhrs skill_sample less_than_hs log_recent_hrs_annual
 
 di ""
 di "=============================================================================="
 di "SKILL VS SIGNALING ANALYSIS COMPLETE"
 di "=============================================================================="
 di "End time: $S_DATE $S_TIME"
+di ""
+di "Key corrections applied in this analysis:"
+di "  - pot_exp uses current-year education (not lifetime max)"
+di "  - recent_hrs_annual used for cross-period comparisons"
+di "  - AFQT properly standardized"
+di "  - Ages are income-year aligned"
 di ""
 
 log close skill_signal_log
