@@ -1,9 +1,21 @@
 /*==============================================================================
-GRUBER-SAEZ TWO-PERIOD ANALYSIS
+TWO_PERIOD_ANALYSIS.DO
 ==============================================================================
 
-This do file continues from Data_process.do after line 976 where you saved:
+This do file continues from Data_process_CORRECTED.do after:
     save "nlsy_long_pre_taxsim.dta", replace
+
+CORRECTIONS APPLIED IN DATA_PROCESS.DO:
+1. MARITAL STATUS: Correctly maps married (NLSY=1) to MFJ (TAXSIM=2)
+2. CUMULATIVE HOURS: Includes interpolated estimates for non-survey years
+3. HGC IN LONG FORMAT: Year-specific education available
+4. AGE ALIGNMENT: Biennial ages are income-year ages (survey age - 1)
+5. POTENTIAL EXPERIENCE: Uses current-year education, not lifetime max
+6. SPOUSE AGE VALIDATION: Bounds checking (0-100) prevents TAXSIM crash
+   - Added validation before ALL taxsimlocal35 calls
+   - sage validated to 0-100 range
+   - sage set to 0 for single filers
+   - sage set to respondent age as proxy for married filers with missing spouse age
 
 RESEARCH DESIGN:
 ================
@@ -32,7 +44,7 @@ log using "two_period_analysis_log.txt", replace text
 
 di ""
 di "=============================================================================="
-di "GRUBER-SAEZ TWO-PERIOD ANALYSIS"
+di "GRUBER-SAEZ TWO-PERIOD ANALYSIS - CORRECTED VERSION"
 di "=============================================================================="
 di "Start time: $S_DATE $S_TIME"
 di ""
@@ -57,7 +69,7 @@ PART 0b: DATA QUALITY VERIFICATION
 
 di ""
 di "=============================================================================="
-di "PART 0b: DATA QUALITY VERIFICATION"
+di "PART 0b: DATA QUALITY VERIFICATION (POST-CORRECTION)"
 di "=============================================================================="
 
 use "nlsy_long_pre_taxsim.dta", clear
@@ -65,11 +77,35 @@ use "nlsy_long_pre_taxsim.dta", clear
 di ""
 di "Total observations in nlsy_long_pre_taxsim.dta: " _N
 
+* Verify marital status coding is correct
+di ""
+di "VERIFICATION: Marital status distribution"
+di "  (Should show ~40-50% as mstat=2 (married), ~50-60% as mstat=1 (single))"
+tab mstat
+
+* Check spouse wages by marital status
+di ""
+di "VERIFICATION: Spouse wages by marital status"
+di "  (mstat=2 should have non-zero mean, mstat=1 should be 0)"
+tabstat swages, by(mstat) stat(mean median n)
+
+* Check age distribution
+di ""
+di "VERIFICATION: Age distribution by period"
+di "  (Ages should be reasonable for each period)"
+tabstat page, by(year) stat(mean min max n)
+
 * Check income by year
 di ""
 di "Income (pwages) by year - checking for valid survey years:"
 di "(Years with mean=0 are non-survey years)"
-tabstat pwages, by(year) stat(mean median n)
+tabstat pwages if inlist(year, 1978, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2019), by(year) stat(mean median n)
+
+* Check cumulative hours (should be roughly monotonic within person)
+di ""
+di "VERIFICATION: Cumulative hours sanity check"
+di "  (Should show increasing trend across years)"
+tabstat cumhrs if inlist(year, 1978, 1985, 1990, 1995, 2000, 2010, 2019), by(year) stat(mean median n)
 
 * Identify valid income years
 di ""
@@ -113,6 +149,36 @@ keep if year >= 1978 & year <= 1993
 di ""
 di "Observations in annual period: " _N
 tab year
+
+* Verify marital status before TAXSIM
+di ""
+di "Marital status distribution (annual period):"
+tab mstat
+
+/*------------------------------------------------------------------------------
+TAXSIM VARIABLE VALIDATION
+------------------------------------------------------------------------------*/
+di ""
+di "Validating TAXSIM inputs..."
+
+* Validate sage and page
+replace sage = 0 if sage < 0 | sage > 100 | missing(sage)
+replace sage = 0 if mstat != 2
+replace page = 0 if page < 0 | page > 100 | missing(page)
+replace mstat = 1 if mstat != 1 & mstat != 2
+replace depx = 0 if depx < 0 | missing(depx)
+replace depx = 15 if depx > 15
+
+* Zero out spouse variables for single filers
+replace swages = 0 if mstat != 2
+replace ssemp = 0 if mstat != 2
+
+* Validate income variables
+foreach v in pwages swages psemp ssemp pui sui gssi transfers nonprop pensions rentpaid {
+    capture replace `v' = 0 if `v' < 0 | missing(`v')
+}
+
+di "Validation complete. Running TAXSIM..."
 
 * Run TAXSIM
 taxsimlocal35, replace
@@ -327,9 +393,23 @@ foreach v in pwages swages psemp ssemp ui sui gssi transfers nonprop pensions re
     capture replace `v' = 0 if `v' < 0
 }
 
+/*------------------------------------------------------------------------------
+TAXSIM VARIABLE VALIDATION - Counterfactual
+------------------------------------------------------------------------------*/
+* Generate sage if not present (TAXSIM requires it)
+capture gen sage = 0
+replace sage = 0 if mstat != 2
+replace sage = page if mstat == 2 & (missing(sage) | sage == 0)  // Use respondent age as proxy
+replace sage = 0 if sage < 0 | sage > 100 | missing(sage)
+
+* Validate page and depx
+replace page = 0 if page < 0 | page > 100 | missing(page)
+replace depx = 0 if depx < 0 | missing(depx)
+replace depx = 15 if depx > 15
+
 keep taxsimid year taxsimid_orig year_t_orig ///
      pwages swages psemp ssemp ui sui gssi transfers nonprop pensions rentpaid ///
-     mstat page depx otherprop stcg ltcg proptax otheritem childcare ///
+     mstat page depx sage otherprop stcg ltcg proptax otheritem childcare ///
      pprofinc sprofinc scorp pbusinc sbusinc
 
 save "counterfactual_annual_for_taxsim.dta", replace
@@ -633,6 +713,8 @@ di "Lag: 2 years (matches survey frequency)"
 di "Cohort ages: ~31-62"
 di "Major tax reforms: EGTRRA 2001, JGTRRA 2003, ATRA 2012, TCJA 2017"
 di ""
+di "NOTE: Ages in biennial period are INCOME-YEAR ages (corrected in Data_process.do)"
+di ""
 
 *------------------------------------------------------------------------------
 * B1: RUN TAXSIM ON BIENNIAL DATA
@@ -656,6 +738,59 @@ tab year
 di ""
 di "Income check (should have positive values):"
 tabstat pwages, by(year) stat(mean median n)
+
+* Verify marital status distribution
+di ""
+di "Marital status distribution (biennial period):"
+tab mstat
+
+/*------------------------------------------------------------------------------
+TAXSIM VARIABLE VALIDATION (FIX #6)
+------------------------------------------------------------------------------
+Ensure all variables are within valid ranges before calling TAXSIM.
+This prevents crashes like "Unbelievable spouse age: 118"
+------------------------------------------------------------------------------*/
+
+di ""
+di "Validating TAXSIM inputs before running..."
+
+* Validate sage (spouse age) - must be 0-100
+replace sage = 0 if sage < 0 | sage > 100 | missing(sage)
+replace sage = 0 if mstat != 2  // Single filers should have sage = 0
+
+* Validate page (primary taxpayer age) - must be 0-100
+replace page = 0 if page < 0 | page > 100 | missing(page)
+
+* Validate mstat - must be 1 or 2
+replace mstat = 1 if mstat != 1 & mstat != 2
+
+* Validate depx - must be 0-15
+replace depx = 0 if depx < 0 | missing(depx)
+replace depx = 15 if depx > 15
+
+* Zero out spouse income for single filers
+replace swages = 0 if mstat != 2
+replace ssemp = 0 if mstat != 2
+
+* Validate all income variables are non-negative
+foreach v in pwages swages psemp ssemp pui sui gssi transfers nonprop pensions rentpaid {
+    capture replace `v' = 0 if `v' < 0 | missing(`v')
+}
+
+di ""
+di "Validation summary:"
+di "  sage range: " 
+summarize sage, meanonly
+di "    min=" r(min) " max=" r(max)
+count if sage > 100 | sage < 0
+di "    invalid values: " r(N)
+
+di "  page range:"
+summarize page, meanonly  
+di "    min=" r(min) " max=" r(max)
+
+di ""
+di "Running TAXSIM..."
 
 * Run TAXSIM
 taxsimlocal35, replace
@@ -804,7 +939,7 @@ di ""
 di "Inflation factors by base year:"
 tabstat inflation_factor, by(year_t) stat(mean min max n)
 
-* Create inflated income
+* Create inflated income (year t income in year t+2 dollars)
 gen pwages_inflated = pwages_t * inflation_factor
 gen swages_inflated = swages_t * inflation_factor
 gen psemp_inflated = psemp_t * inflation_factor
@@ -834,7 +969,7 @@ use "paired_biennial_with_inflation.dta", clear
 gen taxsimid_orig = taxsimid
 gen year_t_orig = year_t
 
-* Prepare for TAXSIM
+* Prepare for TAXSIM (year t+2 law, inflated year t income)
 gen year = year_t2
 gen pwages = pwages_inflated
 gen swages = swages_inflated
@@ -851,16 +986,19 @@ gen mstat = mstat_t
 gen page = page_t
 gen depx = depx_t
 
+* Generate required TAXSIM variables
 foreach v in otherprop stcg ltcg proptax otheritem childcare pprofinc sprofinc scorp pbusinc sbusinc {
     capture gen `v' = 0
 }
 
+* Zero out spouse variables if not married
 replace swages = 0 if mstat != 2
 replace ssemp = 0 if mstat != 2
 replace sui = 0 if mstat != 2
 
 gen ui = pui
 
+* Zero-fill missing/negative
 foreach v in pwages swages psemp ssemp ui sui gssi transfers nonprop pensions rentpaid ///
              mstat page depx otherprop stcg ltcg proptax otheritem childcare ///
              pprofinc sprofinc scorp pbusinc sbusinc {
@@ -868,16 +1006,46 @@ foreach v in pwages swages psemp ssemp ui sui gssi transfers nonprop pensions re
     capture replace `v' = 0 if `v' < 0
 }
 
+/*------------------------------------------------------------------------------
+TAXSIM VARIABLE VALIDATION - Biennial Counterfactual
+------------------------------------------------------------------------------
+This is critical: the original crash "Unbelievable spouse age: 118" occurred
+in the biennial period. Ensure sage is valid before calling TAXSIM.
+------------------------------------------------------------------------------*/
+* Generate sage if not present (TAXSIM requires it)
+capture gen sage = 0
+replace sage = 0 if mstat != 2
+replace sage = page if mstat == 2 & (missing(sage) | sage == 0)  // Use respondent age as proxy
+replace sage = 0 if sage < 0 | sage > 100 | missing(sage)
+
+* Validate page and depx
+replace page = 0 if page < 0 | page > 100 | missing(page)
+replace depx = 0 if depx < 0 | missing(depx)
+replace depx = 15 if depx > 15
+
+di ""
+di "Biennial counterfactual validation:"
+di "  sage range:"
+summarize sage, meanonly
+di "    min=" r(min) " max=" r(max)
+count if sage > 100 | sage < 0
+di "    invalid values: " r(N)
+
 keep taxsimid year taxsimid_orig year_t_orig ///
      pwages swages psemp ssemp ui sui gssi transfers nonprop pensions rentpaid ///
-     mstat page depx otherprop stcg ltcg proptax otheritem childcare ///
+     mstat page depx sage otherprop stcg ltcg proptax otheritem childcare ///
      pprofinc sprofinc scorp pbusinc sbusinc
 
 save "counterfactual_biennial_for_taxsim.dta", replace
 
+di ""
+di "Running TAXSIM on biennial counterfactual..."
+
+* Run TAXSIM
 taxsimlocal35, replace
 save "taxsim_counterfactual_biennial.dta", replace
 
+* Extract predicted rates
 use "taxsim_counterfactual_biennial.dta", clear
 rename frate mtr_fed_predicted
 rename srate mtr_st_predicted
@@ -973,6 +1141,7 @@ gen ntr_t = 1 - mtr_t/100
 gen ntr_end = 1 - mtr_end/100
 gen ntr_predicted = 1 - mtr_predicted/100
 
+* Floor net-of-tax rates at 0.01
 replace ntr_t = 0.01 if ntr_t <= 0
 replace ntr_end = 0.01 if ntr_end <= 0
 replace ntr_predicted = 0.01 if ntr_predicted <= 0
@@ -982,6 +1151,7 @@ gen log_ntr_t = ln(ntr_t)
 gen log_ntr_end = ln(ntr_end)
 gen log_ntr_predicted = ln(ntr_predicted)
 
+* Key variables for regression
 gen log_ntr_change = log_ntr_end - log_ntr_t
 gen log_ntr_instrument = log_ntr_predicted - log_ntr_t
 
@@ -1085,21 +1255,21 @@ if _rc == 0 {
 }
 
 di ""
-di "Bush Tax Cuts (2001-2005 base years):"
+di "Bush Tax Cuts (2001-2007 base years):"
 capture noisily ivregress 2sls log_income_change ///
     (log_ntr_change = log_ntr_instrument) ///
     log_income_t i.year_t married single ///
-    [aweight=income_weight] if year_t >= 2001 & year_t <= 2005, cluster(taxsimid)
+    [aweight=income_weight] if year_t >= 2001 & year_t <= 2007, cluster(taxsimid)
 if _rc == 0 {
     estimates store biennial_bush
 }
 
 di ""
-di "Great Recession (2007-2011 base years):"
+di "Great Recession (2009-2011 base years):"
 capture noisily ivregress 2sls log_income_change ///
     (log_ntr_change = log_ntr_instrument) ///
     log_income_t i.year_t married single ///
-    [aweight=income_weight] if year_t >= 2007 & year_t <= 2011, cluster(taxsimid)
+    [aweight=income_weight] if year_t >= 2009 & year_t <= 2011, cluster(taxsimid)
 if _rc == 0 {
     estimates store biennial_recession
 }
@@ -1285,6 +1455,11 @@ di "  - 2-year lag (biennial): Matches survey frequency"
 di "  - Real income floor ($10K 1984$): Makes samples comparable"
 di "  - Same individuals across periods: Life-cycle tracking"
 di ""
+di "DATA CORRECTIONS APPLIED (see Data_process_CORRECTED.do):"
+di "  - Marital status correctly mapped for TAXSIM"
+di "  - Biennial ages are income-year ages (not interview ages)"
+di "  - Cumulative hours include interpolated non-survey years"
+di ""
 
 /*==============================================================================
                     PART E: SAVE RESULTS
@@ -1354,3 +1529,4 @@ di ""
 di "End time: $S_DATE $S_TIME"
 
 capture log close _all
+
