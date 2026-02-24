@@ -1,6 +1,12 @@
 clear all
 set more off
 
+di ""
+di "=============================================================================="
+di "DATA PROCESSING"
+di "=============================================================================="
+di ""
+
 * 1) Import the CSV (one row per person)
 import delimited "NLSY_All_Data.csv", varnames(1) clear
 rename r0000100 taxsimid
@@ -104,6 +110,34 @@ rename t5176100 hgc_2016
 rename t7743900 hgc_2018
 rename t8355300 hgc_2020
 
+/*==============================================================================
+FIX #3: Realign HGC for biennial years to match income years
+==============================================================================
+For biennial surveys (1996+), hgc is measured at survey time but income is 
+from the prior year. We need education as of the income year.
+
+APPROACH: For biennial years, the education at survey time is a reasonable
+proxy for education during the income year (most education is completed
+before entering the workforce anyway).
+
+We'll align these when reshaping to long format.
+==============================================================================*/
+
+* Realign HGC for biennial years (survey year -> income year)
+rename hgc_1996 hgc_1995
+rename hgc_1998 hgc_1997
+rename hgc_2000 hgc_1999
+rename hgc_2002 hgc_2001
+rename hgc_2004 hgc_2003
+rename hgc_2006 hgc_2005
+rename hgc_2008 hgc_2007
+rename hgc_2010 hgc_2009
+rename hgc_2012 hgc_2011
+rename hgc_2014 hgc_2013
+rename hgc_2016 hgc_2015
+rename hgc_2018 hgc_2017
+rename hgc_2020 hgc_2019
+
 * RENAME HOURS WORKED VARIABLES
 rename r0215710 hrs_1978
 rename r0407300 hrs_1979
@@ -162,6 +196,8 @@ gen black = (race_ethnicity == 2) if race_ethnicity != .
 gen hispanic = (race_ethnicity == 1) if race_ethnicity != .
 
 * Create education categories (using most recent non-missing HGC)
+* NOTE: This is still useful for cross-sectional summaries, but we'll use
+* year-specific hgc for potential experience calculations after reshape
 egen max_education = rowmax(hgc_*)
 gen college_grad = (max_education >= 16) if max_education != .
 gen some_college = (max_education >= 13 & max_education < 16) if max_education != .
@@ -182,12 +218,27 @@ label var college_grad "College graduate (16+ years)"
 label var some_college "Some college (13-15 years)"
 label var hs_grad "High school graduate only"
 
-* CREATE CUMULATIVE HOURS WORKED
+/*==============================================================================
+FIX #2: CREATE CUMULATIVE HOURS WITH INTERPOLATION FOR MISSING YEARS
+==============================================================================
+For biennial years (1995+), we don't have hours for even years (1994, 1996...).
+We interpolate by assuming similar hours to adjacent observed years.
+
+METHOD: For year Y (odd, observed), we estimate hours for Y-1 (even, unobserved)
+as equal to hours_Y (the best proxy available).
+==============================================================================*/
+
+di ""
+di "=============================================================================="
+di "CREATING CUMULATIVE HOURS WITH INTERPOLATION"
+di "=============================================================================="
+
 foreach yr in 1978 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992 1993 1995 1997 1999 2001 2003 2005 2007 2009 2011 2013 2015 2017 2019 2021 {
     gen hrs_temp_`yr' = hrs_`yr'
     replace hrs_temp_`yr' = 0 if missing(hrs_temp_`yr')
 }
 
+* Annual period: straightforward accumulation
 gen cumhrs_1978 = hrs_temp_1978
 gen cumhrs_1979 = cumhrs_1978 + hrs_temp_1979
 gen cumhrs_1980 = cumhrs_1979 + hrs_temp_1980
@@ -204,28 +255,75 @@ gen cumhrs_1990 = cumhrs_1989 + hrs_temp_1990
 gen cumhrs_1991 = cumhrs_1990 + hrs_temp_1991
 gen cumhrs_1992 = cumhrs_1991 + hrs_temp_1992
 gen cumhrs_1993 = cumhrs_1992 + hrs_temp_1993
-gen cumhrs_1995 = cumhrs_1993 + hrs_temp_1995
-gen cumhrs_1997 = cumhrs_1995 + hrs_temp_1997
-gen cumhrs_1999 = cumhrs_1997 + hrs_temp_1999
-gen cumhrs_2001 = cumhrs_1999 + hrs_temp_2001
-gen cumhrs_2003 = cumhrs_2001 + hrs_temp_2003
-gen cumhrs_2005 = cumhrs_2003 + hrs_temp_2005
-gen cumhrs_2007 = cumhrs_2005 + hrs_temp_2007
-gen cumhrs_2009 = cumhrs_2007 + hrs_temp_2009
-gen cumhrs_2011 = cumhrs_2009 + hrs_temp_2011
-gen cumhrs_2013 = cumhrs_2011 + hrs_temp_2013
-gen cumhrs_2015 = cumhrs_2013 + hrs_temp_2015
-gen cumhrs_2017 = cumhrs_2015 + hrs_temp_2017
-gen cumhrs_2019 = cumhrs_2017 + hrs_temp_2019
-gen cumhrs_2021 = cumhrs_2019 + hrs_temp_2021
+
+* Biennial period: CORRECTED - add estimated hours for missing years
+* For 1994 (unobserved): use average of 1993 and 1995 hours as proxy
+gen hrs_est_1994 = (hrs_temp_1993 + hrs_temp_1995) / 2
+gen cumhrs_1994 = cumhrs_1993 + hrs_est_1994
+gen cumhrs_1995 = cumhrs_1994 + hrs_temp_1995
+
+* Continue pattern: estimate even years, then add odd year
+gen hrs_est_1996 = (hrs_temp_1995 + hrs_temp_1997) / 2
+gen cumhrs_1996 = cumhrs_1995 + hrs_est_1996
+gen cumhrs_1997 = cumhrs_1996 + hrs_temp_1997
+
+gen hrs_est_1998 = (hrs_temp_1997 + hrs_temp_1999) / 2
+gen cumhrs_1998 = cumhrs_1997 + hrs_est_1998
+gen cumhrs_1999 = cumhrs_1998 + hrs_temp_1999
+
+gen hrs_est_2000 = (hrs_temp_1999 + hrs_temp_2001) / 2
+gen cumhrs_2000 = cumhrs_1999 + hrs_est_2000
+gen cumhrs_2001 = cumhrs_2000 + hrs_temp_2001
+
+gen hrs_est_2002 = (hrs_temp_2001 + hrs_temp_2003) / 2
+gen cumhrs_2002 = cumhrs_2001 + hrs_est_2002
+gen cumhrs_2003 = cumhrs_2002 + hrs_temp_2003
+
+gen hrs_est_2004 = (hrs_temp_2003 + hrs_temp_2005) / 2
+gen cumhrs_2004 = cumhrs_2003 + hrs_est_2004
+gen cumhrs_2005 = cumhrs_2004 + hrs_temp_2005
+
+gen hrs_est_2006 = (hrs_temp_2005 + hrs_temp_2007) / 2
+gen cumhrs_2006 = cumhrs_2005 + hrs_est_2006
+gen cumhrs_2007 = cumhrs_2006 + hrs_temp_2007
+
+gen hrs_est_2008 = (hrs_temp_2007 + hrs_temp_2009) / 2
+gen cumhrs_2008 = cumhrs_2007 + hrs_est_2008
+gen cumhrs_2009 = cumhrs_2008 + hrs_temp_2009
+
+gen hrs_est_2010 = (hrs_temp_2009 + hrs_temp_2011) / 2
+gen cumhrs_2010 = cumhrs_2009 + hrs_est_2010
+gen cumhrs_2011 = cumhrs_2010 + hrs_temp_2011
+
+gen hrs_est_2012 = (hrs_temp_2011 + hrs_temp_2013) / 2
+gen cumhrs_2012 = cumhrs_2011 + hrs_est_2012
+gen cumhrs_2013 = cumhrs_2012 + hrs_temp_2013
+
+gen hrs_est_2014 = (hrs_temp_2013 + hrs_temp_2015) / 2
+gen cumhrs_2014 = cumhrs_2013 + hrs_est_2014
+gen cumhrs_2015 = cumhrs_2014 + hrs_temp_2015
+
+gen hrs_est_2016 = (hrs_temp_2015 + hrs_temp_2017) / 2
+gen cumhrs_2016 = cumhrs_2015 + hrs_est_2016
+gen cumhrs_2017 = cumhrs_2016 + hrs_temp_2017
+
+gen hrs_est_2018 = (hrs_temp_2017 + hrs_temp_2019) / 2
+gen cumhrs_2018 = cumhrs_2017 + hrs_est_2018
+gen cumhrs_2019 = cumhrs_2018 + hrs_temp_2019
+
+gen hrs_est_2020 = (hrs_temp_2019 + hrs_temp_2021) / 2
+gen cumhrs_2020 = cumhrs_2019 + hrs_est_2020
+gen cumhrs_2021 = cumhrs_2020 + hrs_temp_2021
 
 * Drop temporary variables
-drop hrs_temp_*
+drop hrs_temp_* hrs_est_*
 
 * Label cumulative hours
-foreach yr in 1978 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992 1993 1995 1997 1999 2001 2003 2005 2007 2009 2011 2013 2015 2017 2019 2021 {
-    label var cumhrs_`yr' "Cumulative hours worked through `yr'"
+foreach yr in 1978 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021 {
+    capture label var cumhrs_`yr' "Cumulative hours worked through `yr' (interpolated for even years)"
 }
+
+di "Cumulative hours now include interpolated estimates for non-survey years."
 
 /*==============================================================================
 PART 2: RENAME CPSOCC70 - CPS JOB OCCUPATION (1970 Census 3-digit codes)
@@ -904,215 +1002,22 @@ replace ind_broad_1979 = 10 if ind_1979 >= 807 & ind_1979 <= 817
 replace ind_broad_1979 = 11 if ind_1979 >= 828 & ind_1979 <= 899
 replace ind_broad_1979 = 12 if ind_1979 >= 907 & ind_1979 <= 947
 
-* 1980
-gen ind_broad_1980 = .
-replace ind_broad_1980 = 1 if ind_1980 >= 17 & ind_1980 <= 29
-replace ind_broad_1980 = 2 if ind_1980 >= 47 & ind_1980 <= 58
-replace ind_broad_1980 = 3 if ind_1980 >= 67 & ind_1980 <= 78
-replace ind_broad_1980 = 4 if ind_1980 >= 107 & ind_1980 <= 398
-replace ind_broad_1980 = 5 if ind_1980 >= 407 & ind_1980 <= 499
-replace ind_broad_1980 = 6 if ind_1980 >= 507 & ind_1980 <= 699
-replace ind_broad_1980 = 7 if ind_1980 >= 707 & ind_1980 <= 719
-replace ind_broad_1980 = 8 if ind_1980 >= 727 & ind_1980 <= 767
-replace ind_broad_1980 = 9 if ind_1980 >= 769 & ind_1980 <= 799
-replace ind_broad_1980 = 10 if ind_1980 >= 807 & ind_1980 <= 817
-replace ind_broad_1980 = 11 if ind_1980 >= 828 & ind_1980 <= 899
-replace ind_broad_1980 = 12 if ind_1980 >= 907 & ind_1980 <= 947
-
-* 1981
-gen ind_broad_1981 = .
-replace ind_broad_1981 = 1 if ind_1981 >= 17 & ind_1981 <= 29
-replace ind_broad_1981 = 2 if ind_1981 >= 47 & ind_1981 <= 58
-replace ind_broad_1981 = 3 if ind_1981 >= 67 & ind_1981 <= 78
-replace ind_broad_1981 = 4 if ind_1981 >= 107 & ind_1981 <= 398
-replace ind_broad_1981 = 5 if ind_1981 >= 407 & ind_1981 <= 499
-replace ind_broad_1981 = 6 if ind_1981 >= 507 & ind_1981 <= 699
-replace ind_broad_1981 = 7 if ind_1981 >= 707 & ind_1981 <= 719
-replace ind_broad_1981 = 8 if ind_1981 >= 727 & ind_1981 <= 767
-replace ind_broad_1981 = 9 if ind_1981 >= 769 & ind_1981 <= 799
-replace ind_broad_1981 = 10 if ind_1981 >= 807 & ind_1981 <= 817
-replace ind_broad_1981 = 11 if ind_1981 >= 828 & ind_1981 <= 899
-replace ind_broad_1981 = 12 if ind_1981 >= 907 & ind_1981 <= 947
-
-* 1982
-gen ind_broad_1982 = .
-replace ind_broad_1982 = 1 if ind_1982 >= 17 & ind_1982 <= 29
-replace ind_broad_1982 = 2 if ind_1982 >= 47 & ind_1982 <= 58
-replace ind_broad_1982 = 3 if ind_1982 >= 67 & ind_1982 <= 78
-replace ind_broad_1982 = 4 if ind_1982 >= 107 & ind_1982 <= 398
-replace ind_broad_1982 = 5 if ind_1982 >= 407 & ind_1982 <= 499
-replace ind_broad_1982 = 6 if ind_1982 >= 507 & ind_1982 <= 699
-replace ind_broad_1982 = 7 if ind_1982 >= 707 & ind_1982 <= 719
-replace ind_broad_1982 = 8 if ind_1982 >= 727 & ind_1982 <= 767
-replace ind_broad_1982 = 9 if ind_1982 >= 769 & ind_1982 <= 799
-replace ind_broad_1982 = 10 if ind_1982 >= 807 & ind_1982 <= 817
-replace ind_broad_1982 = 11 if ind_1982 >= 828 & ind_1982 <= 899
-replace ind_broad_1982 = 12 if ind_1982 >= 907 & ind_1982 <= 947
-
-* 1983
-gen ind_broad_1983 = .
-replace ind_broad_1983 = 1 if ind_1983 >= 17 & ind_1983 <= 29
-replace ind_broad_1983 = 2 if ind_1983 >= 47 & ind_1983 <= 58
-replace ind_broad_1983 = 3 if ind_1983 >= 67 & ind_1983 <= 78
-replace ind_broad_1983 = 4 if ind_1983 >= 107 & ind_1983 <= 398
-replace ind_broad_1983 = 5 if ind_1983 >= 407 & ind_1983 <= 499
-replace ind_broad_1983 = 6 if ind_1983 >= 507 & ind_1983 <= 699
-replace ind_broad_1983 = 7 if ind_1983 >= 707 & ind_1983 <= 719
-replace ind_broad_1983 = 8 if ind_1983 >= 727 & ind_1983 <= 767
-replace ind_broad_1983 = 9 if ind_1983 >= 769 & ind_1983 <= 799
-replace ind_broad_1983 = 10 if ind_1983 >= 807 & ind_1983 <= 817
-replace ind_broad_1983 = 11 if ind_1983 >= 828 & ind_1983 <= 899
-replace ind_broad_1983 = 12 if ind_1983 >= 907 & ind_1983 <= 947
-
-* 1984
-gen ind_broad_1984 = .
-replace ind_broad_1984 = 1 if ind_1984 >= 17 & ind_1984 <= 29
-replace ind_broad_1984 = 2 if ind_1984 >= 47 & ind_1984 <= 58
-replace ind_broad_1984 = 3 if ind_1984 >= 67 & ind_1984 <= 78
-replace ind_broad_1984 = 4 if ind_1984 >= 107 & ind_1984 <= 398
-replace ind_broad_1984 = 5 if ind_1984 >= 407 & ind_1984 <= 499
-replace ind_broad_1984 = 6 if ind_1984 >= 507 & ind_1984 <= 699
-replace ind_broad_1984 = 7 if ind_1984 >= 707 & ind_1984 <= 719
-replace ind_broad_1984 = 8 if ind_1984 >= 727 & ind_1984 <= 767
-replace ind_broad_1984 = 9 if ind_1984 >= 769 & ind_1984 <= 799
-replace ind_broad_1984 = 10 if ind_1984 >= 807 & ind_1984 <= 817
-replace ind_broad_1984 = 11 if ind_1984 >= 828 & ind_1984 <= 899
-replace ind_broad_1984 = 12 if ind_1984 >= 907 & ind_1984 <= 947
-
-* 1985
-gen ind_broad_1985 = .
-replace ind_broad_1985 = 1 if ind_1985 >= 17 & ind_1985 <= 29
-replace ind_broad_1985 = 2 if ind_1985 >= 47 & ind_1985 <= 58
-replace ind_broad_1985 = 3 if ind_1985 >= 67 & ind_1985 <= 78
-replace ind_broad_1985 = 4 if ind_1985 >= 107 & ind_1985 <= 398
-replace ind_broad_1985 = 5 if ind_1985 >= 407 & ind_1985 <= 499
-replace ind_broad_1985 = 6 if ind_1985 >= 507 & ind_1985 <= 699
-replace ind_broad_1985 = 7 if ind_1985 >= 707 & ind_1985 <= 719
-replace ind_broad_1985 = 8 if ind_1985 >= 727 & ind_1985 <= 767
-replace ind_broad_1985 = 9 if ind_1985 >= 769 & ind_1985 <= 799
-replace ind_broad_1985 = 10 if ind_1985 >= 807 & ind_1985 <= 817
-replace ind_broad_1985 = 11 if ind_1985 >= 828 & ind_1985 <= 899
-replace ind_broad_1985 = 12 if ind_1985 >= 907 & ind_1985 <= 947
-
-* 1986
-gen ind_broad_1986 = .
-replace ind_broad_1986 = 1 if ind_1986 >= 17 & ind_1986 <= 29
-replace ind_broad_1986 = 2 if ind_1986 >= 47 & ind_1986 <= 58
-replace ind_broad_1986 = 3 if ind_1986 >= 67 & ind_1986 <= 78
-replace ind_broad_1986 = 4 if ind_1986 >= 107 & ind_1986 <= 398
-replace ind_broad_1986 = 5 if ind_1986 >= 407 & ind_1986 <= 499
-replace ind_broad_1986 = 6 if ind_1986 >= 507 & ind_1986 <= 699
-replace ind_broad_1986 = 7 if ind_1986 >= 707 & ind_1986 <= 719
-replace ind_broad_1986 = 8 if ind_1986 >= 727 & ind_1986 <= 767
-replace ind_broad_1986 = 9 if ind_1986 >= 769 & ind_1986 <= 799
-replace ind_broad_1986 = 10 if ind_1986 >= 807 & ind_1986 <= 817
-replace ind_broad_1986 = 11 if ind_1986 >= 828 & ind_1986 <= 899
-replace ind_broad_1986 = 12 if ind_1986 >= 907 & ind_1986 <= 947
-
-* 1987
-gen ind_broad_1987 = .
-replace ind_broad_1987 = 1 if ind_1987 >= 17 & ind_1987 <= 29
-replace ind_broad_1987 = 2 if ind_1987 >= 47 & ind_1987 <= 58
-replace ind_broad_1987 = 3 if ind_1987 >= 67 & ind_1987 <= 78
-replace ind_broad_1987 = 4 if ind_1987 >= 107 & ind_1987 <= 398
-replace ind_broad_1987 = 5 if ind_1987 >= 407 & ind_1987 <= 499
-replace ind_broad_1987 = 6 if ind_1987 >= 507 & ind_1987 <= 699
-replace ind_broad_1987 = 7 if ind_1987 >= 707 & ind_1987 <= 719
-replace ind_broad_1987 = 8 if ind_1987 >= 727 & ind_1987 <= 767
-replace ind_broad_1987 = 9 if ind_1987 >= 769 & ind_1987 <= 799
-replace ind_broad_1987 = 10 if ind_1987 >= 807 & ind_1987 <= 817
-replace ind_broad_1987 = 11 if ind_1987 >= 828 & ind_1987 <= 899
-replace ind_broad_1987 = 12 if ind_1987 >= 907 & ind_1987 <= 947
-
-* 1988
-gen ind_broad_1988 = .
-replace ind_broad_1988 = 1 if ind_1988 >= 17 & ind_1988 <= 29
-replace ind_broad_1988 = 2 if ind_1988 >= 47 & ind_1988 <= 58
-replace ind_broad_1988 = 3 if ind_1988 >= 67 & ind_1988 <= 78
-replace ind_broad_1988 = 4 if ind_1988 >= 107 & ind_1988 <= 398
-replace ind_broad_1988 = 5 if ind_1988 >= 407 & ind_1988 <= 499
-replace ind_broad_1988 = 6 if ind_1988 >= 507 & ind_1988 <= 699
-replace ind_broad_1988 = 7 if ind_1988 >= 707 & ind_1988 <= 719
-replace ind_broad_1988 = 8 if ind_1988 >= 727 & ind_1988 <= 767
-replace ind_broad_1988 = 9 if ind_1988 >= 769 & ind_1988 <= 799
-replace ind_broad_1988 = 10 if ind_1988 >= 807 & ind_1988 <= 817
-replace ind_broad_1988 = 11 if ind_1988 >= 828 & ind_1988 <= 899
-replace ind_broad_1988 = 12 if ind_1988 >= 907 & ind_1988 <= 947
-
-* 1989
-gen ind_broad_1989 = .
-replace ind_broad_1989 = 1 if ind_1989 >= 17 & ind_1989 <= 29
-replace ind_broad_1989 = 2 if ind_1989 >= 47 & ind_1989 <= 58
-replace ind_broad_1989 = 3 if ind_1989 >= 67 & ind_1989 <= 78
-replace ind_broad_1989 = 4 if ind_1989 >= 107 & ind_1989 <= 398
-replace ind_broad_1989 = 5 if ind_1989 >= 407 & ind_1989 <= 499
-replace ind_broad_1989 = 6 if ind_1989 >= 507 & ind_1989 <= 699
-replace ind_broad_1989 = 7 if ind_1989 >= 707 & ind_1989 <= 719
-replace ind_broad_1989 = 8 if ind_1989 >= 727 & ind_1989 <= 767
-replace ind_broad_1989 = 9 if ind_1989 >= 769 & ind_1989 <= 799
-replace ind_broad_1989 = 10 if ind_1989 >= 807 & ind_1989 <= 817
-replace ind_broad_1989 = 11 if ind_1989 >= 828 & ind_1989 <= 899
-replace ind_broad_1989 = 12 if ind_1989 >= 907 & ind_1989 <= 947
-
-* 1990
-gen ind_broad_1990 = .
-replace ind_broad_1990 = 1 if ind_1990 >= 17 & ind_1990 <= 29
-replace ind_broad_1990 = 2 if ind_1990 >= 47 & ind_1990 <= 58
-replace ind_broad_1990 = 3 if ind_1990 >= 67 & ind_1990 <= 78
-replace ind_broad_1990 = 4 if ind_1990 >= 107 & ind_1990 <= 398
-replace ind_broad_1990 = 5 if ind_1990 >= 407 & ind_1990 <= 499
-replace ind_broad_1990 = 6 if ind_1990 >= 507 & ind_1990 <= 699
-replace ind_broad_1990 = 7 if ind_1990 >= 707 & ind_1990 <= 719
-replace ind_broad_1990 = 8 if ind_1990 >= 727 & ind_1990 <= 767
-replace ind_broad_1990 = 9 if ind_1990 >= 769 & ind_1990 <= 799
-replace ind_broad_1990 = 10 if ind_1990 >= 807 & ind_1990 <= 817
-replace ind_broad_1990 = 11 if ind_1990 >= 828 & ind_1990 <= 899
-replace ind_broad_1990 = 12 if ind_1990 >= 907 & ind_1990 <= 947
-
-* 1991
-gen ind_broad_1991 = .
-replace ind_broad_1991 = 1 if ind_1991 >= 17 & ind_1991 <= 29
-replace ind_broad_1991 = 2 if ind_1991 >= 47 & ind_1991 <= 58
-replace ind_broad_1991 = 3 if ind_1991 >= 67 & ind_1991 <= 78
-replace ind_broad_1991 = 4 if ind_1991 >= 107 & ind_1991 <= 398
-replace ind_broad_1991 = 5 if ind_1991 >= 407 & ind_1991 <= 499
-replace ind_broad_1991 = 6 if ind_1991 >= 507 & ind_1991 <= 699
-replace ind_broad_1991 = 7 if ind_1991 >= 707 & ind_1991 <= 719
-replace ind_broad_1991 = 8 if ind_1991 >= 727 & ind_1991 <= 767
-replace ind_broad_1991 = 9 if ind_1991 >= 769 & ind_1991 <= 799
-replace ind_broad_1991 = 10 if ind_1991 >= 807 & ind_1991 <= 817
-replace ind_broad_1991 = 11 if ind_1991 >= 828 & ind_1991 <= 899
-replace ind_broad_1991 = 12 if ind_1991 >= 907 & ind_1991 <= 947
-
-* 1992
-gen ind_broad_1992 = .
-replace ind_broad_1992 = 1 if ind_1992 >= 17 & ind_1992 <= 29
-replace ind_broad_1992 = 2 if ind_1992 >= 47 & ind_1992 <= 58
-replace ind_broad_1992 = 3 if ind_1992 >= 67 & ind_1992 <= 78
-replace ind_broad_1992 = 4 if ind_1992 >= 107 & ind_1992 <= 398
-replace ind_broad_1992 = 5 if ind_1992 >= 407 & ind_1992 <= 499
-replace ind_broad_1992 = 6 if ind_1992 >= 507 & ind_1992 <= 699
-replace ind_broad_1992 = 7 if ind_1992 >= 707 & ind_1992 <= 719
-replace ind_broad_1992 = 8 if ind_1992 >= 727 & ind_1992 <= 767
-replace ind_broad_1992 = 9 if ind_1992 >= 769 & ind_1992 <= 799
-replace ind_broad_1992 = 10 if ind_1992 >= 807 & ind_1992 <= 817
-replace ind_broad_1992 = 11 if ind_1992 >= 828 & ind_1992 <= 899
-replace ind_broad_1992 = 12 if ind_1992 >= 907 & ind_1992 <= 947
-
-* 1993
-gen ind_broad_1993 = .
-replace ind_broad_1993 = 1 if ind_1993 >= 17 & ind_1993 <= 29
-replace ind_broad_1993 = 2 if ind_1993 >= 47 & ind_1993 <= 58
-replace ind_broad_1993 = 3 if ind_1993 >= 67 & ind_1993 <= 78
-replace ind_broad_1993 = 4 if ind_1993 >= 107 & ind_1993 <= 398
-replace ind_broad_1993 = 5 if ind_1993 >= 407 & ind_1993 <= 499
-replace ind_broad_1993 = 6 if ind_1993 >= 507 & ind_1993 <= 699
-replace ind_broad_1993 = 7 if ind_1993 >= 707 & ind_1993 <= 719
-replace ind_broad_1993 = 8 if ind_1993 >= 727 & ind_1993 <= 767
-replace ind_broad_1993 = 9 if ind_1993 >= 769 & ind_1993 <= 799
-replace ind_broad_1993 = 10 if ind_1993 >= 807 & ind_1993 <= 817
-replace ind_broad_1993 = 11 if ind_1993 >= 828 & ind_1993 <= 899
-replace ind_broad_1993 = 12 if ind_1993 >= 907 & ind_1993 <= 947
+* 1980-1993 (abbreviated - same pattern)
+foreach yr in 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992 1993 {
+    gen ind_broad_`yr' = .
+    replace ind_broad_`yr' = 1 if ind_`yr' >= 17 & ind_`yr' <= 29
+    replace ind_broad_`yr' = 2 if ind_`yr' >= 47 & ind_`yr' <= 58
+    replace ind_broad_`yr' = 3 if ind_`yr' >= 67 & ind_`yr' <= 78
+    replace ind_broad_`yr' = 4 if ind_`yr' >= 107 & ind_`yr' <= 398
+    replace ind_broad_`yr' = 5 if ind_`yr' >= 407 & ind_`yr' <= 499
+    replace ind_broad_`yr' = 6 if ind_`yr' >= 507 & ind_`yr' <= 699
+    replace ind_broad_`yr' = 7 if ind_`yr' >= 707 & ind_`yr' <= 719
+    replace ind_broad_`yr' = 8 if ind_`yr' >= 727 & ind_`yr' <= 767
+    replace ind_broad_`yr' = 9 if ind_`yr' >= 769 & ind_`yr' <= 799
+    replace ind_broad_`yr' = 10 if ind_`yr' >= 807 & ind_`yr' <= 817
+    replace ind_broad_`yr' = 11 if ind_`yr' >= 828 & ind_`yr' <= 899
+    replace ind_broad_`yr' = 12 if ind_`yr' >= 907 & ind_`yr' <= 947
+}
 
 * Apply labels
 label define ind_broad_lbl ///
@@ -1129,21 +1034,9 @@ label define ind_broad_lbl ///
     11 "Professional Services" ///
     12 "Public Administration"
 
-label values ind_broad_1979 ind_broad_lbl
-label values ind_broad_1980 ind_broad_lbl
-label values ind_broad_1981 ind_broad_lbl
-label values ind_broad_1982 ind_broad_lbl
-label values ind_broad_1983 ind_broad_lbl
-label values ind_broad_1984 ind_broad_lbl
-label values ind_broad_1985 ind_broad_lbl
-label values ind_broad_1986 ind_broad_lbl
-label values ind_broad_1987 ind_broad_lbl
-label values ind_broad_1988 ind_broad_lbl
-label values ind_broad_1989 ind_broad_lbl
-label values ind_broad_1990 ind_broad_lbl
-label values ind_broad_1991 ind_broad_lbl
-label values ind_broad_1992 ind_broad_lbl
-label values ind_broad_1993 ind_broad_lbl
+foreach yr in 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992 1993 {
+    label values ind_broad_`yr' ind_broad_lbl
+}
 
 di ""
 di "Broad occupation distribution (1990):"
@@ -1152,6 +1045,8 @@ tab occ_broad_1990
 di ""
 di "Broad industry distribution (1990):"
 tab ind_broad_1990
+
+save "merged_data_with_occind.dta", replace
 
 * Marital status
 rename r0217500 mstat_1979
@@ -1468,8 +1363,6 @@ rename g0340000 sui_2021
 rename g0357700 sui_2022
 rename g0358700 sui_2023
 
-* Other non‐property income
-
 * Gross Social Security
 rename g0006600 gssi_1978
 rename g0014400 gssi_1979
@@ -1517,9 +1410,6 @@ rename g0346400 gssi_2020
 rename g0347700 gssi_2021
 rename g0364500 gssi_2022
 rename g0365500 gssi_2023
-
-* Non-taxable transfers (AFDC + food stamps)
-* Veteran benefits REMOVED due to missing data
 
 * AFDC
 rename g0004000 afdc_1978
@@ -1617,60 +1507,17 @@ rename g0345100 foodstamp_2021
 rename g0362200 foodstamp_2022
 rename g0363200 foodstamp_2023
 
-* CALCULATE TRANSFERS (Excluding Vetben)
-gen transfers_1978 = afdc_1978 + foodstamp_1978 
-gen transfers_1979 = afdc_1979 + foodstamp_1979 
-gen transfers_1980 = afdc_1980 + foodstamp_1980 
-gen transfers_1981 = afdc_1981 + foodstamp_1981 
-gen transfers_1982 = afdc_1982 + foodstamp_1982 
-gen transfers_1983 = afdc_1983 + foodstamp_1983 
-gen transfers_1984 = afdc_1984 + foodstamp_1984 
-gen transfers_1985 = afdc_1985 + foodstamp_1985
-gen transfers_1986 = afdc_1986 + foodstamp_1986
-gen transfers_1987 = afdc_1987 + foodstamp_1987
-gen transfers_1988 = afdc_1988 + foodstamp_1988
-gen transfers_1989 = afdc_1989 + foodstamp_1989
-gen transfers_1990 = afdc_1990 + foodstamp_1990
-gen transfers_1991 = afdc_1991 + foodstamp_1991
-gen transfers_1992 = afdc_1992 + foodstamp_1992
-gen transfers_1993 = afdc_1993 + foodstamp_1993
-gen transfers_1994 = afdc_1994 + foodstamp_1994 
-gen transfers_1995 = afdc_1995 + foodstamp_1995
-gen transfers_1996 = afdc_1996 + foodstamp_1996 
-gen transfers_1997 = afdc_1997 + foodstamp_1997
-gen transfers_1998 = afdc_1998 + foodstamp_1998 
-gen transfers_1999 = afdc_1999 + foodstamp_1999
-gen transfers_2000 = afdc_2000 + foodstamp_2000 
-gen transfers_2001 = afdc_2001 + foodstamp_2001
-gen transfers_2002 = afdc_2002 + foodstamp_2002
-gen transfers_2003 = afdc_2003 + foodstamp_2003
-gen transfers_2004 = afdc_2004 + foodstamp_2004
-gen transfers_2005 = afdc_2005 + foodstamp_2005
-gen transfers_2006 = afdc_2006 + foodstamp_2006
-gen transfers_2007 = afdc_2007 + foodstamp_2007
-gen transfers_2008 = afdc_2008 + foodstamp_2008
-gen transfers_2009 = afdc_2009 + foodstamp_2009
-gen transfers_2010 = afdc_2010 + foodstamp_2010
-gen transfers_2011 = afdc_2011 + foodstamp_2011
-gen transfers_2012 = afdc_2012 + foodstamp_2012
-gen transfers_2013 = afdc_2013 + foodstamp_2013
-gen transfers_2014 = afdc_2014 + foodstamp_2014
-gen transfers_2015 = afdc_2015 + foodstamp_2015
-gen transfers_2016 = afdc_2016 + foodstamp_2016 
-gen transfers_2017 = afdc_2017 + foodstamp_2017
-gen transfers_2018 = afdc_2018 + foodstamp_2018 
-gen transfers_2019 = afdc_2019 + foodstamp_2019
-gen transfers_2020 = afdc_2020 + foodstamp_2020 
-gen transfers_2021 = afdc_2021 + foodstamp_2021
-gen transfers_2022 = afdc_2022 + foodstamp_2022 
-gen transfers_2023 = afdc_2023 + foodstamp_2023
+* CALCULATE TRANSFERS
+forvalues yr = 1978/1993 {
+    capture gen transfers_`yr' = afdc_`yr' + foodstamp_`yr'
+}
+forvalues yr = 1994/2023 {
+    capture gen transfers_`yr' = afdc_`yr' + foodstamp_`yr'
+}
 
-drop afdc_* foodstamp_* 
-* REMOVED: Mortgage Interest Deductions
-* REMOVED: Dividend Income
-* REMOVED: Taxable Interest Income
+drop afdc_* foodstamp_*
 
-* Spouse & children DOB (month/year pairs)
+* Spouse & children DOB
 rename r4506800 spomonth_1994
 rename r4506801 spoyear_1994
 rename r5206700 spomonth_1996
@@ -1795,192 +1642,67 @@ rename t8791802 child3year_2020
 rename t9303601 child3month_2022
 rename t9303602 child3year_2022
 
-* Note: For 1994, spouse/child DOB variables are only available for the survey year (1994), not the income year (1993)
-*Critical to align demographic variables with income variables for biennial years, since we use spouse/child DOB to calculate dependent ages, which are used in tax unit definitions
-di "=============================================================================="
-di "REALIGNING DEMOGRAPHIC VARIABLES FOR BIENNIAL YEARS"
-di "=============================================================================="
+/*==============================================================================
+FIX #4: REALIGN DEMOGRAPHIC VARIABLES FOR BIENNIAL YEARS
+==============================================================================
+For biennial surveys, income variables refer to the prior calendar year.
+NLSY 1996 survey → 1995 income, 1998 survey → 1997 income, etc.
 
-* Rename biennial demographic variables: SURVEY YEAR → INCOME YEAR
-* page: Survey year → Income year (survey_year - 1)
-rename page_1996 page_1995
-rename page_1998 page_1997
-rename page_2000 page_1999
-rename page_2002 page_2001
-rename page_2004 page_2003
-rename page_2006 page_2005
-rename page_2008 page_2007
-rename page_2010 page_2009
-rename page_2012 page_2011
-rename page_2014 page_2013
-rename page_2016 page_2015
-rename page_2018 page_2017
-rename page_2020 page_2019
-rename page_2022 page_2021
+PAGE: For income year analysis, we need the age at the midpoint of the income
+      year, not at interview time. For someone interviewed in 1996 who reports
+      1995 income, we subtract 1 from their interview age.
 
-* mstat: Survey year → Income year
-rename mstat_1996 mstat_1995
-rename mstat_1998 mstat_1997
-rename mstat_2000 mstat_1999
-rename mstat_2002 mstat_2001
-rename mstat_2004 mstat_2003
-rename mstat_2006 mstat_2005
-rename mstat_2008 mstat_2007
-rename mstat_2010 mstat_2009
-rename mstat_2012 mstat_2011
-rename mstat_2014 mstat_2013
-rename mstat_2016 mstat_2015
-rename mstat_2018 mstat_2017
-rename mstat_2020 mstat_2019
-rename mstat_2022 mstat_2021
-
-* depx: Survey year → Income year
-rename depx_1996 depx_1995
-rename depx_1998 depx_1997
-rename depx_2000 depx_1999
-rename depx_2002 depx_2001
-rename depx_2004 depx_2003
-rename depx_2006 depx_2005
-rename depx_2008 depx_2007
-rename depx_2010 depx_2009
-rename depx_2012 depx_2011
-rename depx_2014 depx_2013
-rename depx_2016 depx_2015
-rename depx_2018 depx_2017
-rename depx_2020 depx_2019
-rename depx_2022 depx_2021
-
-* Also need to align spouse/child DOB variables for biennial years
-* These are used to calculate dependent ages
-
-* spomonth/spoyear
-rename spomonth_1996 spomonth_1995
-rename spoyear_1996 spoyear_1995
-rename spomonth_1998 spomonth_1997
-rename spoyear_1998 spoyear_1997
-rename spomonth_2000 spomonth_1999
-rename spoyear_2000 spoyear_1999
-rename spomonth_2002 spomonth_2001
-rename spoyear_2002 spoyear_2001
-rename spomonth_2004 spomonth_2003
-rename spoyear_2004 spoyear_2003
-rename spomonth_2006 spomonth_2005
-rename spoyear_2006 spoyear_2005
-rename spomonth_2008 spomonth_2007
-rename spoyear_2008 spoyear_2007
-rename spomonth_2010 spomonth_2009
-rename spoyear_2010 spoyear_2009
-rename spomonth_2012 spomonth_2011
-rename spoyear_2012 spoyear_2011
-rename spomonth_2014 spomonth_2013
-rename spoyear_2014 spoyear_2013
-rename spomonth_2016 spomonth_2015
-rename spoyear_2016 spoyear_2015
-rename spomonth_2018 spomonth_2017
-rename spoyear_2018 spoyear_2017
-rename spomonth_2020 spomonth_2019
-rename spoyear_2020 spoyear_2019
-rename spomonth_2022 spomonth_2021
-rename spoyear_2022 spoyear_2021
-
-* child1month/child1year
-rename child1month_1996 child1month_1995
-rename child1year_1996 child1year_1995
-rename child1month_1998 child1month_1997
-rename child1year_1998 child1year_1997
-rename child1month_2000 child1month_1999
-rename child1year_2000 child1year_1999
-rename child1month_2002 child1month_2001
-rename child1year_2002 child1year_2001
-rename child1month_2004 child1month_2003
-rename child1year_2004 child1year_2003
-rename child1month_2006 child1month_2005
-rename child1year_2006 child1year_2005
-rename child1month_2008 child1month_2007
-rename child1year_2008 child1year_2007
-rename child1month_2010 child1month_2009
-rename child1year_2010 child1year_2009
-rename child1month_2012 child1month_2011
-rename child1year_2012 child1year_2011
-rename child1month_2014 child1month_2013
-rename child1year_2014 child1year_2013
-rename child1month_2016 child1month_2015
-rename child1year_2016 child1year_2015
-rename child1month_2018 child1month_2017
-rename child1year_2018 child1year_2017
-rename child1month_2020 child1month_2019
-rename child1year_2020 child1year_2019
-rename child1month_2022 child1month_2021
-rename child1year_2022 child1year_2021
-
-* child2month/child2year
-rename child2month_1996 child2month_1995
-rename child2year_1996 child2year_1995
-rename child2month_1998 child2month_1997
-rename child2year_1998 child2year_1997
-rename child2month_2000 child2month_1999
-rename child2year_2000 child2year_1999
-rename child2month_2002 child2month_2001
-rename child2year_2002 child2year_2001
-rename child2month_2004 child2month_2003
-rename child2year_2004 child2year_2003
-rename child2month_2006 child2month_2005
-rename child2year_2006 child2year_2005
-rename child2month_2008 child2month_2007
-rename child2year_2008 child2year_2007
-rename child2month_2010 child2month_2009
-rename child2year_2010 child2year_2009
-rename child2month_2012 child2month_2011
-rename child2year_2012 child2year_2011
-rename child2month_2014 child2month_2013
-rename child2year_2014 child2year_2013
-rename child2month_2016 child2month_2015
-rename child2year_2016 child2year_2015
-rename child2month_2018 child2month_2017
-rename child2year_2018 child2year_2017
-rename child2month_2020 child2month_2019
-rename child2year_2020 child2year_2019
-rename child2month_2022 child2month_2021
-rename child2year_2022 child2year_2021
-
-* child3month/child3year
-rename child3month_1996 child3month_1995
-rename child3year_1996 child3year_1995
-rename child3month_1998 child3month_1997
-rename child3year_1998 child3year_1997
-rename child3month_2000 child3month_1999
-rename child3year_2000 child3year_1999
-rename child3month_2002 child3month_2001
-rename child3year_2002 child3year_2001
-rename child3month_2004 child3month_2003
-rename child3year_2004 child3year_2003
-rename child3month_2006 child3month_2005
-rename child3year_2006 child3year_2005
-rename child3month_2008 child3month_2007
-rename child3year_2008 child3year_2007
-rename child3month_2010 child3month_2009
-rename child3year_2010 child3year_2009
-rename child3month_2012 child3month_2011
-rename child3year_2012 child3year_2011
-rename child3month_2014 child3month_2013
-rename child3year_2014 child3year_2013
-rename child3month_2016 child3month_2015
-rename child3year_2016 child3year_2015
-rename child3month_2018 child3month_2017
-rename child3year_2018 child3year_2017
-rename child3month_2020 child3month_2019
-rename child3year_2020 child3year_2019
-rename child3month_2022 child3month_2021
-rename child3year_2022 child3year_2021
+CORRECTED APPROACH:
+- For biennial years, create page for income year as survey_page - 1
+- mstat, depx are point-in-time measures (less critical, but also realigned)
+==============================================================================*/
 
 di ""
+di "=============================================================================="
+di "REALIGNING DEMOGRAPHIC VARIABLES FOR BIENNIAL YEARS (CORRECTED)"
+di "=============================================================================="
+
+* First, keep original survey-year ages for reference
+foreach yr in 1996 1998 2000 2002 2004 2006 2008 2010 2012 2014 2016 2018 2020 2022 {
+    local incyr = `yr' - 1
+    
+    * FIX #4: Subtract 1 from age to get income-year age
+    gen page_`incyr' = page_`yr' - 1
+    drop page_`yr'
+    
+    * mstat: Realign to income year (marital status less time-sensitive)
+    rename mstat_`yr' mstat_`incyr'
+    
+    * depx: Realign to income year
+    rename depx_`yr' depx_`incyr'
+    
+    * Spouse/child DOB: Realign to income year
+    rename spomonth_`yr' spomonth_`incyr'
+    rename spoyear_`yr' spoyear_`incyr'
+    rename child1month_`yr' child1month_`incyr'
+    rename child1year_`yr' child1year_`incyr'
+    rename child2month_`yr' child2month_`incyr'
+    rename child2year_`yr' child2year_`incyr'
+    rename child3month_`yr' child3month_`incyr'
+    rename child3year_`yr' child3year_`incyr'
+}
+
 di "Demographic variables realigned to income years."
-di "Now the reshape will correctly match demographics to income data."
-di ""
+di "IMPORTANT: Biennial ages are now INCOME-YEAR ages (survey age - 1)."
 
+/*==============================================================================
+RESHAPE WIDE TO LONG
+==============================================================================
+FIX #3: Include hgc_ in the reshape for year-specific education
+==============================================================================*/
+
+di ""
+di "=============================================================================="
+di "RESHAPING TO LONG FORMAT"
+di "=============================================================================="
 
 * Reshape Wide to Long by year
-* Note: Removed mortgage_, dividends_, intrec_ from list
+* NOTE: Added hgc_ to reshape for year-specific education
 reshape long ///
     unemp_ mstat_ page_ depx_ pwages_ swages_ ///
     psemp_ ssemp_ sui_ gssi_ transfers_ nonprop_ ///
@@ -1989,7 +1711,7 @@ reshape long ///
     child1month_ child1year_ ///
     child2month_ child2year_ ///
     child3month_ child3year_ ///
-    hrs_ cumhrs_, ///
+    hrs_ cumhrs_ hgc_, ///
     i(taxsimid) j(year)
 
 * turn year into numeric
@@ -1997,30 +1719,51 @@ destring year, replace
 
 * Compute ages for spouse & kids
 gen refdate    = mdy(7,1,year)
-gen dob_spouse = mdy(spomonth,  1, spoyear)
-gen dob_c1     = mdy(child1month, 1, child1year)
-gen dob_c2     = mdy(child2month, 1, child2year)
-gen dob_c3     = mdy(child3month, 1, child3year)
+gen dob_spouse = mdy(spomonth_,  1, spoyear_)
+gen dob_c1     = mdy(child1month_, 1, child1year_)
+gen dob_c2     = mdy(child2month_, 1, child2year_)
+gen dob_c3     = mdy(child3month_, 1, child3year_)
 
 gen sage = floor((refdate - dob_spouse)/365.25)
 gen age1 = floor((refdate - dob_c1    )/365.25)
 gen age2 = floor((refdate - dob_c2    )/365.25)
 gen age3 = floor((refdate - dob_c3    )/365.25)
 
-* zero out any negative ages
+/*==============================================================================
+FIX #6: SPOUSE AGE VALIDATION
+==============================================================================
+TAXSIM crashes if spouse age is unreasonable (e.g., 118 years old).
+Add validation to ensure sage is within reasonable bounds.
+TAXSIM expects spouse age between 15 and ~100.
+==============================================================================*/
+
+* Zero out invalid spouse ages (negative or unreasonably high)
 replace sage = 0 if sage < 0
+replace sage = 0 if sage > 100  // Upper bound - no spouse over 100
+
+* Also validate that sage is missing if spouse DOB was missing
+* (dob_spouse would be missing, resulting in sage = .)
+replace sage = 0 if missing(sage)
+
+di ""
+di "Spouse age validation applied:"
+di "  - Negative ages set to 0"
+di "  - Ages > 100 set to 0"
+di "  - Missing ages set to 0"
+summarize sage, detail
+
 foreach a of varlist age1 age2 age3 {
     replace `a' = 0 if `a' < 0
 }
 
 * drop intermediate date vars
-drop spomonth spoyear dob_spouse dob_c1 dob_c2 dob_c3 refdate ///
-     child1month child1year child2month child2year child3month child3year
+drop spomonth_ spoyear_ dob_spouse dob_c1 dob_c2 dob_c3 refdate ///
+     child1month_ child1year_ child2month_ child2year_ child3month_ child3year_
 
-replace sage  = 0 if missing(sage)  | sage  < 0
-replace age1  = 0 if missing(age1)  | age1  < 0
-replace age2  = 0 if missing(age2)  | age2  < 0
-replace age3  = 0 if missing(age3)  | age3  < 0
+replace sage  = 0 if missing(sage)  | sage  < 0 | sage > 100
+replace age1  = 0 if missing(age1)  | age1  < 0 | age1 > 100
+replace age2  = 0 if missing(age2)  | age2  < 0 | age2 > 100
+replace age3  = 0 if missing(age3)  | age3  < 0 | age3 > 100
 
 * Rename to TAXSIM's exact input names
 rename unemp_     pui
@@ -2034,13 +1777,15 @@ rename transfers_ transfers
 rename nonprop_   nonprop
 rename pensions_  pensions
 rename rentpaid_  rentpaid
-rename mstat_     mstat
+rename mstat_     mstat_nlsy
 rename page_      page
 rename depx_      depx
 rename hrs_       hrs
 rename cumhrs_    cumhrs
+rename hgc_       hgc
 
-* Removed: mortgage, dividends, intrec
+* Label HGC
+label var hgc "Highest grade completed (year-specific)"
 
 * Build dependent‐age counts
 gen dep6  = 0
@@ -2057,19 +1802,98 @@ foreach a in age1 age2 age3 {
 }
 replace depx = dep19 if dep19 > depx
 
-* Mstat
-gen byte mstat2 = .
-replace mstat2 = 2 if mstat == 2
-replace mstat2 = 1 if mstat < 1
-replace mstat2 = 1 if missing(mstat2)
-drop mstat
-rename mstat2 mstat
+/*==============================================================================
+FIX #1: CORRECT MARITAL STATUS MAPPING FOR TAXSIM
+==============================================================================
+NLSY79 marital status codes:
+  0 = Never married
+  1 = Married, spouse present  
+  2 = Separated
+  3 = Divorced
+  4 = Widowed
 
+TAXSIM marital status codes:
+  1 = Single
+  2 = Married filing jointly
+
+CORRECTED MAPPING:
+  NLSY 1 (Married, spouse present) → TAXSIM 2 (MFJ)
+  All others → TAXSIM 1 (Single)
+==============================================================================*/
+
+di ""
+di "=============================================================================="
+di "CORRECTING MARITAL STATUS MAPPING (FIX #1)"
+di "=============================================================================="
+
+* Show original distribution
+di "Original NLSY marital status distribution:"
+tab mstat_nlsy, missing
+
+* CORRECTED marital status mapping
+gen byte mstat = .
+replace mstat = 2 if mstat_nlsy == 1       // Married, spouse present → MFJ
+replace mstat = 1 if mstat_nlsy == 0       // Never married → Single
+replace mstat = 1 if mstat_nlsy == 2       // Separated → Single
+replace mstat = 1 if mstat_nlsy == 3       // Divorced → Single
+replace mstat = 1 if mstat_nlsy == 4       // Widowed → Single
+replace mstat = 1 if mstat_nlsy < 0        // Missing codes → Single (conservative)
+replace mstat = 1 if missing(mstat)        // Any remaining → Single
+
+di ""
+di "CORRECTED TAXSIM marital status distribution:"
+tab mstat
+
+di ""
+di "Cross-tabulation (NLSY → TAXSIM):"
+tab mstat_nlsy mstat
+
+* Now zero out spouse variables for non-married
 replace sage    = 0 if mstat != 2
 replace swages  = 0 if mstat != 2
-replace ssemp = 0 if mstat != 2
+replace ssemp   = 0 if mstat != 2
 
+/*==============================================================================
+FIX #6 (continued): COMPREHENSIVE SPOUSE VARIABLE VALIDATION
+==============================================================================
+Ensure all spouse-related variables are valid for TAXSIM:
+- sage must be 0 for single filers
+- sage must be between 15-100 for married filers (or 0 if unknown)
+- Spouse income must be 0 for single filers
+==============================================================================*/
 
+di ""
+di "=============================================================================="
+di "SPOUSE VARIABLE VALIDATION (FIX #6)"
+di "=============================================================================="
+
+* For married filers, validate spouse age is reasonable
+* If sage is unreasonable for a married person, set to respondent's age as proxy
+replace sage = page if mstat == 2 & (sage < 15 | sage > 100) & page >= 18 & page <= 100
+replace sage = 0 if mstat == 2 & sage > 100
+replace sage = 0 if mstat == 2 & sage < 15 & sage != 0
+
+* Final safety check: ensure no invalid sage values
+replace sage = 0 if sage < 0 | sage > 100 | missing(sage)
+
+di ""
+di "Spouse age distribution after all validations:"
+tabstat sage, by(mstat) stat(mean min max n)
+
+di ""
+di "Checking for any remaining invalid spouse ages (should be 0):"
+count if sage < 0 | sage > 100
+if r(N) > 0 {
+    di as error "WARNING: " r(N) " observations still have invalid sage"
+}
+else {
+    di "GOOD: All spouse ages are valid (0-100 range)"
+}
+
+* Drop original NLSY mstat
+drop mstat_nlsy
+
+* Create TAXSIM placeholder variables
 foreach v in opt1 opt1v opt2 opt2v {
     gen `v' = 0
 }
@@ -2087,7 +1911,6 @@ gen pbusinc   = 0
 gen sbusinc   = 0
 
 * Zero‐fill any remaining missing inputs
-* Removed: mortgage, dividends, intrec from list
 foreach v in pui sui pwages swages psemp ssemp ///
              gssi transfers nonprop ///
              pensions rentpaid ///
@@ -2104,48 +1927,55 @@ foreach v of local survvars {
     replace `v' = 0 if `v' < 0
 }
 
-* SKILL VS SIGNALING: Variable Construction
-*The code creates these new variables:
-*- pot_exp          : Potential experience (age - education - 6)
-*- pot_exp2, pot_exp3: Experience squared and cubed
-*- early_career     : Indicator for first 10 years of experience
-*- afqt             : Best available AFQT score
-*- afqt_std         : Standardized AFQT (mean=0, sd=1)
-*- afqt_quartile    : AFQT quartile (1-4)
-*- educ_years       : Years of education
-*- hs_diploma, ba_degree, grad_degree: Degree completion dummies
-*- recent_hrs       : Hours worked in most recent period
-*- log_recent_hrs   : Log of recent hours
-*- exp_bin          : Experience bins (5-year intervals)
+/*==============================================================================
+FIX #5: POTENTIAL EXPERIENCE WITH YEAR-SPECIFIC EDUCATION
+==============================================================================
+Use current-year HGC (from hgc variable) instead of lifetime max_education
+This ensures experience is calculated correctly for young workers still in school
+==============================================================================*/
 
-* 1) Create proper potential experience using education
-*    Experience = Age - Years of Education - 6
-*    (6 is the typical school starting age)
+di ""
+di "=============================================================================="
+di "CREATING POTENTIAL EXPERIENCE WITH YEAR-SPECIFIC EDUCATION (FIX #5)"
+di "=============================================================================="
 
-gen pot_exp = page - max_education - 6 if !missing(page) & !missing(max_education)
+* FIX #5: Use year-specific education
+* pot_exp = Age - Years of Education - 6 (school starting age)
+gen pot_exp = page - hgc - 6 if !missing(page) & !missing(hgc)
+
+* For missing hgc, fall back to max_education
+replace pot_exp = page - max_education - 6 if missing(pot_exp) & !missing(page) & !missing(max_education)
+
+* Floor at zero (can't have negative experience)
 replace pot_exp = 0 if pot_exp < 0 & !missing(pot_exp)
-replace pot_exp = . if page < 16 | page > 65
-label var pot_exp "Potential experience (age - education - 6)"
 
-* 2) Create experience squared and cubed for Mincer regressions
+* Set to missing for unreasonable ages
+replace pot_exp = . if page < 16 | page > 65
+
+label var pot_exp "Potential experience (age - current education - 6)"
+
+* Create experience squared and cubed for Mincer regressions
 gen pot_exp2 = pot_exp^2
 gen pot_exp3 = pot_exp^3
 label var pot_exp2 "Potential experience squared"
 label var pot_exp3 "Potential experience cubed"
 
-* 3) Create early career indicator (first 10 years of potential experience)
+* Create early career indicator (first 10 years of potential experience)
 gen early_career = (pot_exp <= 10) if !missing(pot_exp)
 label var early_career "Early career (0-10 years potential experience)"
 
-* 4) Create AFQT variable (use 2006 revised percentile, most recent revision)
-*    Fall back to 1989 or 1980 if missing
+* Diagnostic: Check for negative raw values before floor
+di ""
+di "Diagnostic: Distribution of potential experience:"
+summarize pot_exp, detail
+
+* Create AFQT variable (use 2006 revised percentile, most recent revision)
 gen afqt = afqt_pct_2006
 replace afqt = afqt_pct_1989 if missing(afqt)
 replace afqt = afqt_pct_1980 if missing(afqt)
 label var afqt "AFQT percentile (best available revision)"
 
-* 5) Create AFQT quartiles for heterogeneity analysis
-*    Note: AFQT is time-invariant, so we calculate quartiles on unique individuals
+* Create AFQT quartiles for heterogeneity analysis
 preserve
 keep taxsimid afqt
 duplicates drop taxsimid, force
@@ -2160,8 +1990,7 @@ label define afqt_q_lbl 1 "Q1 (Lowest)" 2 "Q2" 3 "Q3" 4 "Q4 (Highest)"
 label values afqt_quartile afqt_q_lbl
 label var afqt_quartile "AFQT quartile"
 
-* 6) Standardize AFQT for regression (mean=0, sd=1)
-*    Again, calculate on unique individuals then merge back
+* Standardize AFQT for regression (mean=0, sd=1)
 preserve
 keep taxsimid afqt
 duplicates drop taxsimid, force
@@ -2175,41 +2004,49 @@ restore
 merge m:1 taxsimid using `afqt_s', keep(master match) nogen
 label var afqt_std "AFQT standardized (mean=0, sd=1)"
 
-* 7) Create education categories for sheepskin analysis
-gen educ_years = max_education
-label var educ_years "Years of education"
+* Create education categories for sheepskin analysis
+* Use year-specific hgc where available, fall back to max_education
+gen educ_years = hgc
+replace educ_years = max_education if missing(educ_years)
+label var educ_years "Years of education (current year)"
 
 * Degree completion dummies (sheepskin effects)
-gen hs_diploma = (max_education == 12) if !missing(max_education)
-gen some_coll = (max_education >= 13 & max_education <= 15) if !missing(max_education)
-gen ba_degree = (max_education == 16) if !missing(max_education)
-gen grad_degree = (max_education >= 17) if !missing(max_education)
+gen hs_diploma = (educ_years == 12) if !missing(educ_years)
+gen some_coll = (educ_years >= 13 & educ_years <= 15) if !missing(educ_years)
+gen ba_degree = (educ_years == 16) if !missing(educ_years)
+gen grad_degree = (educ_years >= 17) if !missing(educ_years)
 
 label var hs_diploma "Completed exactly 12 years (HS diploma)"
 label var some_coll "13-15 years (some college, no BA)"
 label var ba_degree "Completed exactly 16 years (BA degree)"
 label var grad_degree "17+ years (graduate degree)"
 
-* 8) Create lagged hours for signaling analysis
-*    We need hours from previous period to separate "recent signaling" from cumulative learning
-*    Sort by person and year first
+* Create lagged hours for signaling analysis
 sort taxsimid year
 
 * Create lagged cumulative hours (previous observation's cumhrs)
 by taxsimid: gen cumhrs_lag = cumhrs[_n-1]
 label var cumhrs_lag "Cumulative hours (lagged one survey period)"
 
+* Track time span for recent hours (important for biennial data)
+by taxsimid: gen year_span = year - year[_n-1]
+label var year_span "Years since last observation"
+
 * Recent hours = current cumhrs - lagged cumhrs
-* This captures hours worked in the most recent period
 gen recent_hrs = cumhrs - cumhrs_lag if !missing(cumhrs) & !missing(cumhrs_lag)
 replace recent_hrs = hrs if missing(recent_hrs) & !missing(hrs)
-label var recent_hrs "Hours worked in most recent period"
+label var recent_hrs "Hours worked since last observation"
 
-* 9) Create log versions for elasticity analysis
+* Create annual-equivalent recent hours for comparability
+gen recent_hrs_annual = recent_hrs / year_span if year_span > 0 & !missing(recent_hrs)
+replace recent_hrs_annual = recent_hrs if year_span == 1 | missing(year_span)
+label var recent_hrs_annual "Recent hours (annualized)"
+
+* Create log versions for elasticity analysis
 gen log_recent_hrs = ln(recent_hrs) if recent_hrs > 0
 label var log_recent_hrs "Log of recent hours"
 
-* 10) Create experience bins for variance analysis
+* Create experience bins for variance analysis
 gen exp_bin = .
 replace exp_bin = 1 if pot_exp >= 0 & pot_exp <= 5
 replace exp_bin = 2 if pot_exp > 5 & pot_exp <= 10
@@ -2226,26 +2063,145 @@ label var exp_bin "Experience bin (5-year intervals)"
 
 di ""
 di "=============================================================================="
-di "SKILL VS SIGNALING VARIABLES CREATED"
+di "VARIABLES CREATED WITH CORRECTIONS"
 di "=============================================================================="
 di ""
+di "Key corrections applied:"
+di "  1. Marital status: NLSY code 1 (married) → TAXSIM code 2 (MFJ)"
+di "  2. Cumulative hours: Interpolated estimates for non-survey years"
+di "  3. HGC in long format: Year-specific education available"
+di "  4. Age alignment: Biennial ages are income-year ages (survey age - 1)"
+di "  5. Potential experience: Uses current-year education, not lifetime max"
+di "  6. Spouse age validation: Bounds checking (0-100) prevents TAXSIM crash"
+di ""
 di "Key variables for analysis:"
-di "  pot_exp        - Potential experience (age - education - 6)"
+di "  pot_exp        - Potential experience (age - current education - 6)"
+di "  hgc            - Year-specific highest grade completed"
 di "  afqt_std       - Standardized AFQT score"
 di "  afqt_quartile  - AFQT quartile (1-4)"
 di "  early_career   - Indicator for first 10 years of experience"
-di "  recent_hrs     - Hours worked in most recent period"
+di "  recent_hrs     - Hours worked since last observation"
+di "  recent_hrs_annual - Annualized recent hours (for cross-period comparison)"
 di "  exp_bin        - Experience bins for variance analysis"
 di ""
 
-* change pui to ui, because seems to read ui only
+* Create UI variable for TAXSIM
 gen double ui = pui
 
+/*==============================================================================
+FINAL TAXSIM VARIABLE VALIDATION
+==============================================================================
+Ensure all variables required by TAXSIM are within valid ranges.
+This prevents TAXSIM from crashing with "Unbelievable" value errors.
+==============================================================================*/
+
+di ""
+di "=============================================================================="
+di "FINAL TAXSIM VARIABLE VALIDATION"
+di "=============================================================================="
+
+* Validate page (primary taxpayer age) - should be 0-100
+replace page = 0 if page < 0 | page > 100 | missing(page)
+
+* Validate sage (spouse age) - should be 0-100
+replace sage = 0 if sage < 0 | sage > 100 | missing(sage)
+
+* Validate depx (number of dependents) - should be 0-15
+replace depx = 0 if depx < 0 | missing(depx)
+replace depx = 15 if depx > 15
+
+* Validate income variables - should be non-negative
+foreach v in pwages swages psemp ssemp pui sui gssi pensions {
+    replace `v' = 0 if `v' < 0 | missing(`v')
+}
+
+* Validate mstat - should be 1 or 2 only
+replace mstat = 1 if mstat != 1 & mstat != 2
+
+* Child ages should be 0-25 (TAXSIM uses these for child-related credits)
+foreach v in age1 age2 age3 {
+    replace `v' = 0 if `v' < 0 | `v' > 25 | missing(`v')
+}
+
+di ""
+di "VALIDATION SUMMARY:"
+di "-------------------"
+
+* Check for any remaining issues
+local has_issues = 0
+
+* Check sage
+count if sage < 0 | sage > 100
+if r(N) > 0 {
+    di as error "  sage: " r(N) " invalid values"
+    local has_issues = 1
+}
+else {
+    di "  sage: OK (all values 0-100)"
+}
+
+* Check page  
+count if page < 0 | page > 100
+if r(N) > 0 {
+    di as error "  page: " r(N) " invalid values"
+    local has_issues = 1
+}
+else {
+    di "  page: OK (all values 0-100)"
+}
+
+* Check mstat
+count if mstat != 1 & mstat != 2
+if r(N) > 0 {
+    di as error "  mstat: " r(N) " invalid values"
+    local has_issues = 1
+}
+else {
+    di "  mstat: OK (all values 1 or 2)"
+}
+
+* Check spouse wages consistency
+count if mstat == 1 & swages > 0
+if r(N) > 0 {
+    di as error "  swages: " r(N) " single filers with spouse wages > 0"
+    replace swages = 0 if mstat == 1
+    di "         (corrected: set to 0)"
+}
+else {
+    di "  swages: OK (0 for all single filers)"
+}
+
+* Check spouse age consistency
+count if mstat == 1 & sage > 0
+if r(N) > 0 {
+    di as error "  sage: " r(N) " single filers with spouse age > 0"
+    replace sage = 0 if mstat == 1
+    di "         (corrected: set to 0)"
+}
+else {
+    di "  sage: OK (0 for all single filers)"
+}
+
+di ""
+if `has_issues' == 1 {
+    di as error "WARNING: Some issues were found and corrected. Check output above."
+}
+else {
+    di "All TAXSIM variables validated successfully."
+}
+di ""
+
 save "nlsy_long_pre_taxsim.dta", replace
+
+di ""
+di "=============================================================================="
+di "DATA PROCESSING COMPLETE"
+di "=============================================================================="
+di "Output: nlsy_long_pre_taxsim.dta"
+di ""
 
 do Two_Period_Analysis.do
 
 do EDA_Wage_Analysis.do
 
 do Skill_vs_Signal_Analysis.do
-
