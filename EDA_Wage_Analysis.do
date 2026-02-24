@@ -4,8 +4,12 @@ EDA_WAGE_ANALYSIS.DO
 Purpose: Exploratory Data Analysis for Wage Dynamics
          Examining how wages change with experience, hours, age, and occupation
 
-Author: Generated for Yuhao
-Date: February 2026
+CORRECTIONS APPLIED:
+- Uses pot_exp (potential experience) from corrected Data_process.do
+- Uses hgc (year-specific education) instead of max_education
+- Uses recent_hrs_annual for cross-period comparisons
+- Cumulative hours now include interpolated non-survey years
+- Ages are correctly aligned to income years
 
 ANALYSES INCLUDED:
 1. Occupation × Industry granularity assessment
@@ -14,11 +18,6 @@ ANALYSES INCLUDED:
 4. Wages vs. Age
 5. Wages vs. Cumulative Hours / Age (work intensity)
 
-PREREQUISITES:
-- Run Data_process.do first to create nlsy_long_pre_taxsim.dta
-- Or use the long-format analysis dataset
-
-NOTE: All analyses use both parametric (regression) and non-parametric approaches
 ==============================================================================*/
 
 clear all
@@ -30,7 +29,7 @@ log using "EDA_wage_analysis_log.txt", replace text
 
 di ""
 di "=============================================================================="
-di "EXPLORATORY DATA ANALYSIS: WAGE DYNAMICS"
+di "EXPLORATORY DATA ANALYSIS: WAGE DYNAMICS - CORRECTED VERSION"
 di "=============================================================================="
 di "Start time: $S_DATE $S_TIME"
 di ""
@@ -45,39 +44,77 @@ di "PART 0: DATA PREPARATION"
 di "=============================================================================="
 
 * Load the long-format data
-* Adjust this path to your actual file
 use "nlsy_long_pre_taxsim.dta", clear
 
 di ""
 di "Loaded dataset with " _N " observations"
 
 * Check which variables are available
-describe pwages page cumhrs hrs year taxsimid
+describe pwages page cumhrs hrs year taxsimid pot_exp hgc
 
 /*------------------------------------------------------------------------------
-0.1: Create key analytic variables
+0.1: Verify corrected variables exist
+------------------------------------------------------------------------------*/
+
+di ""
+di "VERIFICATION: Checking for corrected variables"
+di "-----------------------------------------------"
+
+* Check pot_exp (should be non-negative, based on current-year education)
+capture confirm variable pot_exp
+if _rc == 0 {
+    di "pot_exp found - using corrected potential experience"
+    summarize pot_exp, detail
+} 
+else {
+    di as error "ERROR: pot_exp not found. Run Data_process_CORRECTED.do first."
+    exit 111
+}
+
+* Check hgc (year-specific education)
+capture confirm variable hgc
+if _rc == 0 {
+    di "hgc found - year-specific education available"
+    summarize hgc, detail
+}
+else {
+    di as error "WARNING: hgc not found. Year-specific education not available."
+}
+
+* Check cumhrs (should include interpolated years)
+di ""
+di "Cumulative hours by period (should show growth, not plateau):"
+tabstat cumhrs if inlist(year, 1980, 1990, 2000, 2010, 2019), by(year) stat(mean median n)
+
+/*------------------------------------------------------------------------------
+0.2: Create key analytic variables
 ------------------------------------------------------------------------------*/
 
 * Generate log wages (for workers with positive wages)
-* Use capture drop to avoid "already defined" errors if re-running
 capture drop log_pwages
 gen log_pwages = ln(pwages) if pwages > 0
 
-* Generate potential experience = Age - Years of Education - 6
-* First, we need education. Merge from wide data if needed.
-* If hgc is available:
-capture drop experience
-capture gen experience = page - 6  // Simple version: age - 6 (assumes work starts at 6)
+* Use pot_exp from corrected data (already created in Data_process_CORRECTED.do)
+* If running standalone, create it here
+capture confirm variable pot_exp
+if _rc != 0 {
+    * Fallback: create pot_exp using hgc if available
+    capture confirm variable hgc
+    if _rc == 0 {
+        gen pot_exp = page - hgc - 6 if !missing(page) & !missing(hgc)
+        replace pot_exp = 0 if pot_exp < 0
+    }
+    else {
+        * Last resort: use age-based proxy
+        gen pot_exp = page - 18
+        replace pot_exp = 0 if pot_exp < 0
+    }
+}
 
-* Better version if you have highest grade completed in long format:
-* gen experience = page - hgc - 6 if !missing(hgc) & !missing(page)
-* replace experience = 0 if experience < 0
-
-* For now, use age-based proxy
-capture drop exp_proxy
-gen exp_proxy = page - 18
-replace exp_proxy = 0 if exp_proxy < 0
-replace exp_proxy = . if page < 14 | page > 70
+* Create experience squared for Mincer regression
+capture drop exp2
+gen exp2 = pot_exp^2
+label var exp2 "Potential experience squared"
 
 * Create hours per year of age (work intensity measure)
 capture drop hrs_per_age
@@ -92,13 +129,12 @@ gen log_hrs_per_age = ln(hrs_per_age) if hrs_per_age > 0
 
 * Label variables
 label var log_pwages "Log of primary wages"
-label var exp_proxy "Potential experience (age - 18)"
 label var hrs_per_age "Cumulative hours / Age"
 label var log_cumhrs "Log cumulative hours"
 label var log_hrs_per_age "Log(cumulative hours / age)"
 
 /*------------------------------------------------------------------------------
-0.2: Sample restrictions for wage analysis
+0.3: Sample restrictions for wage analysis
 ------------------------------------------------------------------------------*/
 
 * Create sample indicator for valid wage observations
@@ -242,116 +278,101 @@ else {
     di "  Median obs: " %8.0f r(p50)
     di "  Cells with 30+ obs (good for regression): "
     count if n_obs >= 30
-    di "  Cells with 100+ obs: "
-    count if n_obs >= 100
     
     restore
 }
 
 /*==============================================================================
-PART 2: WAGES VS EXPERIENCE
+PART 2: WAGES VS EXPERIENCE (MINCER-STYLE)
 ==============================================================================*/
 
 di ""
 di "=============================================================================="
-di "PART 2: WAGES VS EXPERIENCE"
+di "PART 2: WAGES VS EXPERIENCE (MINCER EQUATION)"
 di "=============================================================================="
 di ""
-
-use "eda_analysis_temp.dta", clear
-keep if wage_sample == 1
+di "Using CORRECTED potential experience:"
+di "  pot_exp = age - current_year_education - 6"
+di "  (Not lifetime max education)"
+di ""
 
 /*------------------------------------------------------------------------------
-2.1: Non-parametric analysis - Mean wages by experience level
+2.1: Non-parametric by experience bins
 ------------------------------------------------------------------------------*/
 
-di "2.1 NON-PARAMETRIC: MEAN WAGES BY EXPERIENCE"
-di "---------------------------------------------"
+di "2.1 NON-PARAMETRIC: WAGES BY EXPERIENCE BIN"
+di "-------------------------------------------"
 
-preserve
-
-* Collapse by experience level
-collapse (mean) mean_wage=pwages mean_log_wage=log_pwages ///
-         (median) med_wage=pwages ///
-         (p25) p25_wage=pwages (p75) p75_wage=pwages ///
-         (count) n_obs=pwages, by(exp_proxy)
-
-* Keep reasonable experience range
-keep if exp_proxy >= 0 & exp_proxy <= 45
-
-di ""
-di "Mean Wages by Years of Experience:"
-di "Exp   | Mean Wage | Median   | N"
-di "------|-----------|----------|--------"
-forval e = 0(5)40 {
-    local e_end = `e' + 4
-    quietly sum mean_wage if exp_proxy >= `e' & exp_proxy <= `e_end'
-    if r(N) > 0 {
-        local mw = r(mean)
-        quietly sum med_wage if exp_proxy >= `e' & exp_proxy <= `e_end'
-        local med = r(mean)
-        quietly sum n_obs if exp_proxy >= `e' & exp_proxy <= `e_end'
-        local nn = r(sum)
-        di "`e'-`e_end' | " %9.0f `mw' " | " %8.0f `med' " | " %8.0f `nn'
-    }
+* Use exp_bin from corrected data if available
+capture confirm variable exp_bin
+if _rc != 0 {
+    * Create experience bins
+    capture drop exp_bin
+    gen exp_bin = .
+    replace exp_bin = 1 if pot_exp >= 0 & pot_exp <= 5
+    replace exp_bin = 2 if pot_exp > 5 & pot_exp <= 10
+    replace exp_bin = 3 if pot_exp > 10 & pot_exp <= 15
+    replace exp_bin = 4 if pot_exp > 15 & pot_exp <= 20
+    replace exp_bin = 5 if pot_exp > 20 & pot_exp <= 25
+    replace exp_bin = 6 if pot_exp > 25 & pot_exp <= 30
+    replace exp_bin = 7 if pot_exp > 30 & !missing(pot_exp)
+    
+    label define exp_bin_lbl 1 "0-5 yrs" 2 "6-10 yrs" 3 "11-15 yrs" 4 "16-20 yrs" ///
+                             5 "21-25 yrs" 6 "26-30 yrs" 7 "30+ yrs"
+    label values exp_bin exp_bin_lbl
 }
 
-* Create graph
-twoway (line mean_wage exp_proxy, lcolor(navy) lwidth(thick)) ///
-       (line med_wage exp_proxy, lcolor(maroon) lpattern(dash)), ///
-    title("Wage-Experience Profile (Non-Parametric)") ///
-    xtitle("Years of Potential Experience") ///
-    ytitle("Wages ($)") ///
-    legend(order(1 "Mean" 2 "Median") pos(5) ring(0)) ///
-    note("Experience = Age - 18")
+preserve
+keep if wage_sample == 1 & !missing(exp_bin)
+
+collapse (mean) mean_wage=pwages mean_log_wage=log_pwages ///
+         (median) med_wage=pwages ///
+         (p10) p10_wage=pwages ///
+         (p90) p90_wage=pwages ///
+         (count) n_obs=pwages, by(exp_bin)
+
+di ""
+di "Wages by Experience Bin:"
+list, clean noobs
+
+* Create bar chart
+graph bar mean_wage, over(exp_bin) ///
+    title("Mean Wages by Potential Experience") ///
+    ytitle("Mean Wages ($)") ///
+    note("Potential experience = Age - Education - 6 (corrected)")
 graph export "wages_by_experience.png", replace width(1200)
 
 restore
 
 /*------------------------------------------------------------------------------
-2.2: Parametric analysis - Mincer-style regression
+2.2: Parametric Mincer equation
 ------------------------------------------------------------------------------*/
 
 di ""
-di "2.2 PARAMETRIC: MINCER EARNINGS REGRESSION"
-di "------------------------------------------"
+di "2.2 PARAMETRIC: MINCER WAGE EQUATION"
+di "------------------------------------"
 
-* Create squared and cubed experience - use capture drop to avoid errors
-capture drop exp2
-gen exp2 = exp_proxy^2
-
-capture drop exp3
-gen exp3 = exp_proxy^3
-
-* Basic Mincer regression
+* Standard Mincer: log wage = β₀ + β₁*exp + β₂*exp² + year FE
 di ""
-di "Model 1: Log wages = β₀ + β₁*Exp + β₂*Exp² + year FE"
-regress log_pwages exp_proxy exp2 i.year, cluster(taxsimid)
+di "Model 1: Log wages = β₀ + β₁*Experience + β₂*Experience² + year FE"
+regress log_pwages pot_exp exp2 i.year if wage_sample == 1, cluster(taxsimid)
 estimates store mincer1
 
-* Store key results
-local b1 = _b[exp_proxy]
+local b1 = _b[pot_exp]
 local b2 = _b[exp2]
 local peak_exp = -`b1' / (2 * `b2')
 
 di ""
+di "MINCER EQUATION RESULTS:"
+di "  Experience coefficient:     " %8.4f `b1'
+di "  Experience² coefficient:    " %8.5f `b2'
+di "  Peak experience (years):    " %4.1f `peak_exp'
+di ""
 di "INTERPRETATION:"
-di "  Coefficient on experience: " %7.4f `b1'
-di "  Coefficient on experience²: " %9.6f `b2'
-di "  Initial return to experience: " %5.1f `b1'*100 "% per year"
-di "  Peak earnings at experience = " %4.1f `peak_exp' " years"
-di "  (Peak age ≈ " %4.0f `peak_exp' + 18 ")"
-
-* Model with cubic term
+di "  At 0 years experience: Each year → " %4.2f `b1'*100 "% wage increase"
+di "  At 10 years: Each year → " %4.2f (`b1' + 2*`b2'*10)*100 "% wage increase"
+di "  At 20 years: Each year → " %4.2f (`b1' + 2*`b2'*20)*100 "% wage increase"
 di ""
-di "Model 2: Log wages = β₀ + β₁*Exp + β₂*Exp² + β₃*Exp³ + year FE"
-regress log_pwages exp_proxy exp2 exp3 i.year, cluster(taxsimid)
-estimates store mincer2
-
-* Compare models
-di ""
-di "MODEL COMPARISON:"
-estimates table mincer1 mincer2, b(%9.4f) se(%9.4f) stats(N r2)
 
 /*==============================================================================
 PART 3: WAGES VS CUMULATIVE HOURS WORKED
@@ -359,75 +380,66 @@ PART 3: WAGES VS CUMULATIVE HOURS WORKED
 
 di ""
 di "=============================================================================="
-di "PART 3: WAGES VS CUMULATIVE HOURS WORKED"
+di "PART 3: WAGES VS CUMULATIVE HOURS"
 di "=============================================================================="
+di ""
+di "NOTE: Cumulative hours now include interpolated estimates for non-survey years"
+di "      (corrected in Data_process_CORRECTED.do)"
 di ""
 
 /*------------------------------------------------------------------------------
-3.1: Non-parametric analysis
+3.1: Non-parametric by hours quintile
 ------------------------------------------------------------------------------*/
 
-di "3.1 NON-PARAMETRIC: WAGES BY CUMULATIVE HOURS"
-di "---------------------------------------------"
+di "3.1 NON-PARAMETRIC: WAGES BY CUMULATIVE HOURS QUINTILE"
+di "------------------------------------------------------"
 
-* Create hours bins - use capture drop to avoid errors
-capture drop cumhrs_bin
-gen cumhrs_bin = 1 if cumhrs >= 0 & cumhrs < 5000
-replace cumhrs_bin = 2 if cumhrs >= 5000 & cumhrs < 10000
-replace cumhrs_bin = 3 if cumhrs >= 10000 & cumhrs < 20000
-replace cumhrs_bin = 4 if cumhrs >= 20000 & cumhrs < 40000
-replace cumhrs_bin = 5 if cumhrs >= 40000 & cumhrs < 60000
-replace cumhrs_bin = 6 if cumhrs >= 60000 & cumhrs < 80000
-replace cumhrs_bin = 7 if cumhrs >= 80000 & !missing(cumhrs)
+* Create hours quintiles
+capture drop cumhrs_q
+xtile cumhrs_q = cumhrs if wage_sample == 1 & cumhrs > 0, nq(5)
 
-capture label drop hrs_bin_lbl
-label define hrs_bin_lbl 1 "0-5K" 2 "5-10K" 3 "10-20K" 4 "20-40K" 5 "40-60K" 6 "60-80K" 7 "80K+"
-label values cumhrs_bin hrs_bin_lbl
+capture label drop chq_lbl
+label define chq_lbl 1 "Q1 (Lowest)" 2 "Q2" 3 "Q3" 4 "Q4" 5 "Q5 (Highest)"
+label values cumhrs_q chq_lbl
 
 preserve
-keep if !missing(cumhrs_bin) & wage_sample == 1
+keep if !missing(cumhrs_q)
 
-collapse (mean) mean_wage=pwages mean_log_wage=log_pwages ///
+collapse (mean) mean_wage=pwages mean_cumhrs=cumhrs ///
          (median) med_wage=pwages ///
-         (count) n_obs=pwages, by(cumhrs_bin)
+         (count) n_obs=pwages, by(cumhrs_q)
 
 di ""
-di "Mean Wages by Cumulative Hours Worked:"
+di "Wages by Cumulative Hours Quintile:"
 list, clean noobs
 
 * Bar chart
-graph bar mean_wage, over(cumhrs_bin) ///
-    title("Mean Wages by Cumulative Hours Worked") ///
+graph bar mean_wage, over(cumhrs_q) ///
+    title("Mean Wages by Cumulative Hours Quintile") ///
     ytitle("Mean Wages ($)") ///
-    note("Hours bins in thousands")
+    note("Cumulative hours include interpolated non-survey years")
 graph export "wages_by_cumhrs_bars.png", replace width(1200)
 
 restore
 
 /*------------------------------------------------------------------------------
-3.2: Scatter with LOWESS
+3.2: Scatter plot with smoothing
 ------------------------------------------------------------------------------*/
 
 di ""
-di "3.2 SCATTER PLOT WITH LOWESS SMOOTHER"
-di "-------------------------------------"
+di "3.2 VISUAL: LOG WAGES VS LOG CUMULATIVE HOURS"
+di "---------------------------------------------"
 
 preserve
-keep if cumhrs > 0 & cumhrs < 150000 & wage_sample == 1
+keep if wage_sample == 1 & cumhrs > 100  // Minimum hours threshold
+sample 10000, count  // Subsample for visual clarity
 
-* Sample for plotting (full data too dense)
-set seed 12345
-sample 10
-
-gen cumhrs_thousands = cumhrs / 1000
-
-twoway (scatter log_pwages cumhrs_thousands, msize(tiny) mcolor(gs12%30)) ///
-       (lowess log_pwages cumhrs_thousands, bwidth(0.3) lcolor(red) lwidth(thick)), ///
-    title("Log Wages vs Cumulative Hours") ///
-    xtitle("Cumulative Hours (000s)") ///
+twoway (scatter log_pwages log_cumhrs, msize(tiny) mcolor(gs12)) ///
+       (lpoly log_pwages log_cumhrs, lcolor(navy) lwidth(thick)), ///
+    title("Log Wages vs Log Cumulative Hours") ///
+    xtitle("Log Cumulative Hours") ///
     ytitle("Log Wages") ///
-    legend(off) ///
-    note("LOWESS bandwidth = 0.3; 10% random sample shown")
+    legend(order(2 "Local polynomial fit") pos(11) ring(0))
 graph export "wages_cumhrs_scatter.png", replace width(1200)
 
 restore
@@ -437,21 +449,18 @@ restore
 ------------------------------------------------------------------------------*/
 
 di ""
-di "3.3 PARAMETRIC: CUMULATIVE HOURS REGRESSION"
-di "-------------------------------------------"
+di "3.3 PARAMETRIC: LOG WAGES ON LOG CUMULATIVE HOURS"
+di "-------------------------------------------------"
 
-* Regression with log cumulative hours
 di ""
 di "Model: Log wages = β₀ + β₁*Log(CumHrs) + year FE"
-regress log_pwages log_cumhrs i.year if cumhrs > 0, cluster(taxsimid)
+regress log_pwages log_cumhrs i.year if wage_sample == 1 & cumhrs > 0, cluster(taxsimid)
 estimates store cumhrs_reg
 
 local elasticity = _b[log_cumhrs]
 di ""
-di "INTERPRETATION:"
-di "  Elasticity of wages w.r.t. cumulative hours: " %6.3f `elasticity'
-di "  A 10% increase in cumulative hours → " %4.2f `elasticity'*10 "% wage increase"
-di "  Doubling cumulative hours → " %4.1f `elasticity'*100 * ln(2) "% wage increase"
+di "ELASTICITY: " %6.3f `elasticity'
+di "  10% increase in cumulative hours → " %4.2f `elasticity'*10 "% wage increase"
 
 /*==============================================================================
 PART 4: WAGES VS AGE
@@ -462,36 +471,35 @@ di "============================================================================
 di "PART 4: WAGES VS AGE"
 di "=============================================================================="
 di ""
+di "NOTE: Ages are now correctly aligned to income years (corrected in Data_process.do)"
+di ""
 
 /*------------------------------------------------------------------------------
-4.1: Non-parametric analysis
+4.1: Non-parametric age-wage profile
 ------------------------------------------------------------------------------*/
 
 di "4.1 NON-PARAMETRIC: WAGE-AGE PROFILE"
 di "------------------------------------"
 
 preserve
-keep if wage_sample == 1 & page >= 16 & page <= 65
+keep if wage_sample == 1
 
-collapse (mean) mean_wage=pwages mean_log_wage=log_pwages ///
+collapse (mean) mean_wage=pwages ///
          (median) med_wage=pwages ///
-         (p10) p10_wage=pwages (p90) p90_wage=pwages ///
+         (p10) p10_wage=pwages ///
+         (p90) p90_wage=pwages ///
          (count) n_obs=pwages, by(page)
 
-* Display wages for selected ages
 di ""
 di "Wages by Age (selected ages):"
 list if inlist(page, 20, 25, 30, 35, 40, 45, 50, 55, 60), clean noobs
 
-* List all ages
-list if page >= 20 & page <= 60, clean noobs
-
-* Create graph with confidence band
+* Line graph with confidence band
 twoway (rarea p10_wage p90_wage page, color(gs14)) ///
        (line mean_wage page, lcolor(navy) lwidth(thick)) ///
        (line med_wage page, lcolor(maroon) lpattern(dash)), ///
     title("Wage-Age Profile") ///
-    xtitle("Age") ///
+    xtitle("Age (income-year aligned)") ///
     ytitle("Wages ($)") ///
     legend(order(2 "Mean" 3 "Median" 1 "10th-90th %ile") pos(11) ring(0) col(1)) ///
     xlabel(20(5)65)
@@ -507,7 +515,7 @@ di ""
 di "4.2 PARAMETRIC: AGE-EARNINGS REGRESSION"
 di "---------------------------------------"
 
-* Create age terms - MUST use capture drop to avoid "already defined" errors
+* Create age terms
 capture drop age2
 gen age2 = page^2
 
@@ -590,7 +598,7 @@ di ""
 di "5.2 NON-PARAMETRIC: WAGES BY WORK INTENSITY QUINTILE"
 di "----------------------------------------------------"
 
-* Create quintiles - use capture drop to avoid errors
+* Create quintiles
 capture drop hrs_age_q
 xtile hrs_age_q = hrs_per_age if wage_sample == 1, nq(5)
 
@@ -681,7 +689,7 @@ di "COMPREHENSIVE MODEL:"
 di "Log wages = f(Experience, CumHrs, Age, Year)"
 di ""
 
-regress log_pwages exp_proxy exp2 log_cumhrs i.year if cumhrs > 0, cluster(taxsimid)
+regress log_pwages pot_exp exp2 log_cumhrs i.year if cumhrs > 0, cluster(taxsimid)
 estimates store comprehensive
 
 * Create summary table
@@ -689,7 +697,7 @@ di ""
 di "SUMMARY TABLE: Wage Determinants"
 di "================================"
 estimates table mincer1 cumhrs_reg age_quad hrs_age_reg comprehensive, ///
-    keep(exp_proxy exp2 log_cumhrs page age2 log_hrs_per_age) ///
+    keep(pot_exp exp2 log_cumhrs page age2 log_hrs_per_age) ///
     b(%9.4f) se(%9.4f) stats(N r2) ///
     title("Wage Determinants: Alternative Specifications")
 
@@ -725,8 +733,11 @@ di "ANALYSIS COMPLETE"
 di "=============================================================================="
 di "End time: $S_DATE $S_TIME"
 di ""
-
-* Run Skill vs Signal Analysis
-
+di "Key corrections applied in this analysis:"
+di "  - pot_exp uses current-year education (not lifetime max)"
+di "  - cumhrs includes interpolated non-survey years"
+di "  - Ages are income-year aligned"
+di ""
 
 log close
+
