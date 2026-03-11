@@ -1,0 +1,2566 @@
+-------------------------------------------------------------------------------
+      name:  skill_signal_log
+       log:  D:\Stata Data\labor_signaling_project\output\Skill_vs_Signal_log.t
+> xt
+  log type:  text
+ opened on:  11 Mar 2026, 00:18:41
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "SKILL VS SIGNALING ANALYSIS"
+SKILL VS SIGNALING ANALYSIS
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "Research Question: Does early-career wage growth reflect skill formation"
+Research Question: Does early-career wage growth reflect skill formation
+
+. di "                   or signaling/employer learning?"
+                   or signaling/employer learning?
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "Start time: $S_DATE $S_TIME"
+Start time: 11 Mar 2026 00:18:41
+
+. di ""
+
+
+. 
+. /*===========================================================================
+> ===
+> PART 0: DATA VERIFICATION AND SAMPLE DEFINITION
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 0: DATA VERIFICATION"
+PART 0: DATA VERIFICATION
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * Check that required variables exist
+. local required_vars afqt_std pot_exp pot_exp2 early_career recent_hrs cumhrs 
+> ///
+>                     educ_years hs_diploma ba_degree exp_bin log_pwages
+
+. 
+. local missing_vars = 0
+
+. foreach v of local required_vars {
+  2.     capture confirm variable `v'
+  3.     if _rc != 0 {
+  4.         di as error "ERROR: Variable `v' not found. Run Data_process_CORRE
+> CTED.do first."
+  5.         local missing_vars = 1
+  6.     }
+  7. }
+
+. 
+. if `missing_vars' == 1 {
+.     di as error "Missing required variables. Exiting."
+.     log close skill_signal_log
+.     error 111
+. }
+
+. 
+. di "All required variables found."
+All required variables found.
+
+. di ""
+
+
+. 
+. * Verify key corrections
+. di "VERIFICATION: Checking corrected variables"
+VERIFICATION: Checking corrected variables
+
+. di "-------------------------------------------"
+-------------------------------------------
+
+. 
+. * Check pot_exp distribution
+. di ""
+
+
+. di "Potential experience distribution (should be non-negative, reasonable):"
+Potential experience distribution (should be non-negative, reasonable):
+
+. summarize pot_exp, detail
+
+     Potential experience (age - current education - 6)
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%            0              0
+ 5%            0              0
+10%            1              0       Obs             273,682
+25%            4              0       Sum of wgt.     273,682
+
+50%           11                      Mean           14.01133
+                        Largest       Std. dev.      12.01984
+75%           22             54
+90%           34             54       Variance       144.4766
+95%           38             55       Skewness       .7853958
+99%           43             55       Kurtosis       2.523837
+
+. 
+. * Check for negative values (should be none after correction)
+. count if pot_exp < 0 & !missing(pot_exp)
+  0
+
+. if r(N) > 0 {
+.     di as error "WARNING: " r(N) " observations have negative pot_exp"
+. }
+
+. else {
+.     di "GOOD: No negative potential experience values"
+GOOD: No negative potential experience values
+. }
+
+. 
+. * Check AFQT standardization
+. di ""
+
+
+. di "AFQT standardized (should have mean~0, sd~1):"
+AFQT standardized (should have mean~0, sd~1):
+
+. summarize afqt_std, detail
+
+              AFQT standardized (mean=0, sd=1)
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%    -1.455525      -1.472861
+ 5%    -1.367284      -1.472861
+10%    -1.259135      -1.472861       Obs             548,044
+25%    -.8902912      -1.472861       Sum of wgt.     548,044
+
+50%    -.1310465                      Mean           3.02e-10
+                        Largest       Std. dev.      .9999589
+75%      .830147       2.001228
+90%     1.487271       2.001228       Variance       .9999179
+95%     1.734383       2.001228       Skewness       .3116702
+99%     1.955891       2.001228       Kurtosis       1.894365
+
+. 
+. * Check recent_hrs_annual exists (for cross-period comparisons)
+. capture confirm variable recent_hrs_annual
+
+. if _rc == 0 {
+.     di ""
+
+.     di "recent_hrs_annual found - using annualized recent hours for analysis"
+recent_hrs_annual found - using annualized recent hours for analysis
+.     summarize recent_hrs_annual, detail
+
+                  Recent hours (annualized)
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%            0              0
+ 5%            0              0
+10%            0              0       Obs             555,383
+25%            0              0       Sum of wgt.     555,383
+
+50%          579                      Mean           1015.939
+                        Largest       Std. dev.      1104.136
+75%         2080           8736
+90%         2440           8736       Variance        1219117
+95%         2800           8736       Skewness       .6397567
+99%         3640           8736       Kurtosis        2.58717
+. }
+
+. else {
+.     di ""
+.     di "WARNING: recent_hrs_annual not found. Creating from recent_hrs."
+.     * Create annualized version
+.     capture confirm variable year_span
+.     if _rc == 0 {
+.         gen recent_hrs_annual = recent_hrs / year_span if year_span > 0
+.         replace recent_hrs_annual = recent_hrs if year_span == 1 | missing(ye
+> ar_span)
+.     }
+.     else {
+.         gen recent_hrs_annual = recent_hrs
+.     }
+. }
+
+. 
+. * Define analysis sample
+. capture drop skill_sample
+
+. gen skill_sample = (pwages > 0 & !missing(pot_exp) & pot_exp >= 0 & pot_exp <
+> = 40 ///
+>                    & !missing(afqt_std) & page >= 18 & page <= 65)
+
+. label var skill_sample "Sample for skill vs signaling analysis"
+
+. 
+. di ""
+
+
+. di "Sample definition:"
+Sample definition:
+
+. di "  - Positive wages"
+  - Positive wages
+
+. di "  - Valid potential experience (0-40 years)"
+  - Valid potential experience (0-40 years)
+
+. di "  - Non-missing AFQT score"
+  - Non-missing AFQT score
+
+. di "  - Age 18-65"
+  - Age 18-65
+
+. di ""
+
+
+. 
+. tab skill_sample
+
+ Sample for |
+   skill vs |
+  signaling |
+   analysis |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    403,947       69.22       69.22
+          1 |    179,609       30.78      100.00
+------------+-----------------------------------
+      Total |    583,556      100.00
+
+. summarize pwages pot_exp afqt_std if skill_sample == 1
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      pwages |    179,609    27520.59    39411.56          1     484629
+     pot_exp |    179,609    13.45268     11.2245          0         40
+    afqt_std |    179,609    .0896154    1.001898  -1.472861   2.001228
+
+. 
+. /*===========================================================================
+> ===
+> PART 1: ALTONJI-PIERRET EMPLOYER LEARNING TEST
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 1: ALTONJI-PIERRET EMPLOYER LEARNING TEST"
+PART 1: ALTONJI-PIERRET EMPLOYER LEARNING TEST
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "THEORY:"
+THEORY:
+
+. di "  If employers cannot directly observe ability (AFQT) but learn it over t
+> ime,"
+  If employers cannot directly observe ability (AFQT) but learn it over time,
+
+. di "  then AFQT should predict wages MORE as experience increases."
+  then AFQT should predict wages MORE as experience increases.
+
+. di ""
+
+
+. di "  Human Capital:      AFQT effect is CONSTANT (reflects productivity)"
+  Human Capital:      AFQT effect is CONSTANT (reflects productivity)
+
+. di "  Employer Learning:  AFQT effect GROWS with experience"
+  Employer Learning:  AFQT effect GROWS with experience
+
+. di ""
+
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 1.1: Baseline Mincer regression (no AFQT)
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di "1.1 BASELINE MINCER REGRESSION (No AFQT)"
+1.1 BASELINE MINCER REGRESSION (No AFQT)
+
+. di "----------------------------------------"
+----------------------------------------
+
+. 
+. regress log_pwages pot_exp pot_exp2 educ_years i.year if skill_sample == 1, c
+> luster(taxsimid)
+
+Linear regression                               Number of obs     =    179,609
+                                                F(31, 11527)      =    1138.32
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.3620
+                                                Root MSE          =     1.0827
+
+                          (Std. err. adjusted for 11,528 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     pot_exp |   .0251466   .0031591     7.96   0.000     .0189543     .031339
+    pot_exp2 |  -.0016867   .0000646   -26.10   0.000    -.0018134   -.0015601
+  educ_years |    .011457   .0025642     4.47   0.000     .0064308    .0164833
+             |
+        year |
+       1980  |   .1427512   .0189551     7.53   0.000     .1055961    .1799063
+       1981  |   .3333721   .0197662    16.87   0.000     .2946271    .3721172
+       1982  |      .3869   .0207638    18.63   0.000     .3461995    .4276006
+       1983  |    .486774    .021249    22.91   0.000     .4451224    .5284256
+       1984  |   .6896544    .022162    31.12   0.000     .6462131    .7330958
+       1985  |    .876263   .0233213    37.57   0.000     .8305493    .9219767
+       1986  |   1.110412   .0251688    44.12   0.000     1.061077    1.159747
+       1987  |   1.238732   .0271742    45.58   0.000     1.185466    1.291998
+       1988  |   1.348221   .0294185    45.83   0.000     1.290555    1.405886
+       1989  |   1.466019   .0311435    47.07   0.000     1.404973    1.527066
+       1990  |   1.546414   .0336719    45.93   0.000     1.480411    1.612416
+       1991  |   1.618534   .0356247    45.43   0.000     1.548704    1.688365
+       1992  |   1.674928   .0380107    44.06   0.000      1.60042    1.749435
+       1993  |   1.737356   .0400179    43.41   0.000     1.658914    1.815798
+       1995  |   1.883784   .0442819    42.54   0.000     1.796984    1.970584
+       1997  |   2.053017   .0488132    42.06   0.000     1.957334    2.148699
+       1999  |   2.275139   .0538283    42.27   0.000     2.169626    2.380652
+       2001  |   2.417916   .0582802    41.49   0.000     2.303677    2.532155
+       2003  |   2.586156   .0623794    41.46   0.000     2.463882     2.70843
+       2005  |   2.750259    .067082    41.00   0.000     2.618767    2.881751
+       2007  |   2.946128   .0720453    40.89   0.000     2.804907    3.087349
+       2009  |   3.084516   .0765657    40.29   0.000     2.934435    3.234598
+       2011  |   3.353827   .0837702    40.04   0.000     3.189623    3.518031
+       2013  |   3.556312   .0897051    39.64   0.000     3.380475    3.732149
+       2015  |   3.718438    .094461    39.36   0.000     3.533278    3.903598
+       2017  |   3.915304   .0998044    39.23   0.000     3.719671    4.110938
+       2019  |   4.085113   .1058408    38.60   0.000     3.877647    4.292579
+       2021  |   4.290437   .1119135    38.34   0.000     4.071068    4.509807
+             |
+       _cons |   7.805382   .0363182   214.92   0.000     7.734192    7.876572
+------------------------------------------------------------------------------
+
+. estimates store baseline_mincer
+
+. 
+. di ""
+
+
+. di "Baseline R-squared: " %6.4f e(r2)
+Baseline R-squared: 0.3620
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 1.2: Add AFQT (main effect only)
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "1.2 ADD AFQT (Main Effect Only)"
+1.2 ADD AFQT (Main Effect Only)
+
+. di "-------------------------------"
+-------------------------------
+
+. 
+. regress log_pwages afqt_std pot_exp pot_exp2 educ_years i.year if skill_sampl
+> e == 1, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    179,609
+                                                F(32, 11527)      =    1135.37
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.3960
+                                                Root MSE          =     1.0534
+
+                          (Std. err. adjusted for 11,528 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    afqt_std |   .2700334   .0073498    36.74   0.000     .2556266    .2844403
+     pot_exp |   .0577766    .003087    18.72   0.000     .0517256    .0638275
+    pot_exp2 |  -.0017616   .0000629   -28.02   0.000    -.0018848   -.0016384
+  educ_years |     .01064   .0018956     5.61   0.000     .0069242    .0143558
+             |
+        year |
+       1980  |    .144141   .0188547     7.64   0.000     .1071825    .1810994
+       1981  |   .3213368   .0196737    16.33   0.000     .2827731    .3599006
+       1982  |   .3609198   .0206935    17.44   0.000      .320357    .4014826
+       1983  |   .4499219   .0211284    21.29   0.000     .4085066    .4913371
+       1984  |   .6453877   .0219008    29.47   0.000     .6024585    .6883169
+       1985  |   .8084653    .022831    35.41   0.000     .7637126    .8532179
+       1986  |     1.0086   .0244938    41.18   0.000     .9605882    1.056612
+       1987  |   1.106533   .0261619    42.30   0.000     1.055251    1.157814
+       1988  |    1.18026    .028287    41.72   0.000     1.124813    1.235707
+       1989  |   1.272253   .0298656    42.60   0.000     1.213712    1.330795
+       1990  |    1.32958   .0321219    41.39   0.000     1.266615    1.392544
+       1991  |   1.370664   .0338638    40.48   0.000     1.304285    1.437043
+       1992  |   1.394068   .0360417    38.68   0.000      1.32342    1.464716
+       1993  |   1.427563   .0378246    37.74   0.000     1.353421    1.501706
+       1995  |   1.519511   .0418341    36.32   0.000     1.437509    1.601513
+       1997  |   1.628675   .0458884    35.49   0.000     1.538726    1.718624
+       1999  |   1.789843   .0505578    35.40   0.000     1.690741    1.888945
+       2001  |   1.876846   .0546502    34.34   0.000     1.769723     1.98397
+       2003  |    1.98604   .0584295    33.99   0.000     1.871508    2.100572
+       2005  |    2.09466   .0627949    33.36   0.000     1.971572    2.217749
+       2007  |   2.219116   .0673918    32.93   0.000     2.087017    2.351216
+       2009  |   2.298475   .0715234    32.14   0.000     2.158276    2.438673
+       2011  |    2.48637   .0780925    31.84   0.000     2.333295    2.639444
+       2013  |   2.627341   .0834254    31.49   0.000     2.463813    2.790869
+       2015  |   2.749693    .087582    31.40   0.000     2.578018    2.921369
+       2017  |   2.898269   .0923988    31.37   0.000     2.717151    3.079386
+       2019  |   3.010488   .0978261    30.77   0.000     2.818732    3.202244
+       2021  |   3.162173   .1033698    30.59   0.000      2.95955    3.364795
+             |
+       _cons |   7.728343   .0292585   264.14   0.000     7.670992    7.785695
+------------------------------------------------------------------------------
+
+. estimates store afqt_main
+
+. 
+. di ""
+
+
+. di "AFQT coefficient: " %7.4f _b[afqt_std] " (SE: " %6.4f _se[afqt_std] ")"
+AFQT coefficient:  0.2700 (SE: 0.0073)
+
+. di "R-squared improvement: " %6.4f e(r2) - e(r2)
+R-squared improvement: 0.0000
+
+. di ""
+
+
+. di "Interpretation: A 1 SD increase in AFQT is associated with " ///
+>    %4.1f _b[afqt_std]*100 "% higher wages"
+Interpretation: A 1 SD increase in AFQT is associated with 27.0% higher wages
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 1.3: KEY TEST - AFQT × Experience Interaction
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "1.3 KEY TEST: AFQT × EXPERIENCE INTERACTION"
+1.3 KEY TEST: AFQT × EXPERIENCE INTERACTION
+
+. di "-------------------------------------------"
+-------------------------------------------
+
+. 
+. * Create interaction
+. capture drop afqt_x_exp
+
+. gen afqt_x_exp = afqt_std * pot_exp
+(321,582 missing values generated)
+
+. 
+. regress log_pwages afqt_std pot_exp pot_exp2 afqt_x_exp educ_years i.year ///
+>     if skill_sample == 1, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    179,609
+                                                F(33, 11527)      =    1108.53
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.3962
+                                                Root MSE          =     1.0533
+
+                          (Std. err. adjusted for 11,528 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    afqt_std |   .2457594   .0083949    29.27   0.000     .2293039    .2622149
+     pot_exp |   .0541107   .0031166    17.36   0.000     .0480017    .0602198
+    pot_exp2 |  -.0016408   .0000667   -24.58   0.000    -.0017717     -.00151
+  afqt_x_exp |    .001872   .0004138     4.52   0.000     .0010607    .0026832
+  educ_years |   .0104482   .0019052     5.48   0.000     .0067137    .0141827
+             |
+        year |
+       1980  |   .1439543   .0188495     7.64   0.000     .1070061    .1809025
+       1981  |    .322398   .0196575    16.40   0.000      .283866      .36093
+       1982  |    .363249   .0206615    17.58   0.000     .3227489    .4037491
+       1983  |   .4532864   .0210974    21.49   0.000      .411932    .4946409
+       1984  |   .6498521   .0218723    29.71   0.000     .6069787    .6927255
+       1985  |   .8149628   .0228086    35.73   0.000      .770254    .8596716
+       1986  |   1.017621   .0244686    41.59   0.000     .9696579    1.065583
+       1987  |   1.117748   .0261635    42.72   0.000     1.066463    1.169033
+       1988  |   1.193671   .0283092    42.17   0.000      1.13818    1.249161
+       1989  |   1.287054   .0298648    43.10   0.000     1.228514    1.345594
+       1990  |   1.345539   .0321374    41.87   0.000     1.282545    1.408534
+       1991  |   1.387842   .0338801    40.96   0.000     1.321431    1.454253
+       1992  |   1.412239   .0360304    39.20   0.000     1.341613    1.482865
+       1993  |   1.446443   .0378335    38.23   0.000     1.372283    1.520603
+       1995  |   1.539145   .0418065    36.82   0.000     1.457197    1.621093
+       1997  |   1.648212   .0458591    35.94   0.000      1.55832    1.738103
+       1999  |   1.808321   .0505004    35.81   0.000     1.709331     1.90731
+       2001  |   1.893373    .054601    34.68   0.000     1.786346    2.000401
+       2003  |   1.999644   .0583865    34.25   0.000     1.885197    2.114092
+       2005  |   2.104488    .062775    33.52   0.000     1.981438    2.227538
+       2007  |   2.223261   .0674263    32.97   0.000     2.091094    2.355428
+       2009  |   2.296518    .071648    32.05   0.000     2.156076    2.436961
+       2011  |   2.474125   .0784108    31.55   0.000     2.320427    2.627824
+       2013  |   2.605896    .083939    31.05   0.000     2.441361    2.770431
+       2015  |   2.721094   .0882868    30.82   0.000     2.548037    2.894151
+       2017  |   2.861029   .0933256    30.66   0.000     2.678095    3.043963
+       2019  |   2.962489   .0990365    29.91   0.000     2.768361    3.156618
+       2021  |   3.103757   .1050231    29.55   0.000     2.897894     3.30962
+             |
+       _cons |    7.74014   .0293215   263.97   0.000     7.682665    7.797616
+------------------------------------------------------------------------------
+
+. estimates store afqt_interaction
+
+. 
+. local b_afqt = _b[afqt_std]
+
+. local b_interaction = _b[afqt_x_exp]
+
+. local se_interaction = _se[afqt_x_exp]
+
+. local t_interaction = `b_interaction' / `se_interaction'
+
+. 
+. di ""
+
+
+. di "============================================================"
+============================================================
+
+. di "EMPLOYER LEARNING TEST RESULTS"
+EMPLOYER LEARNING TEST RESULTS
+
+. di "============================================================"
+============================================================
+
+. di ""
+
+
+. di "  AFQT main effect (at exp=0):     " %7.4f `b_afqt'
+  AFQT main effect (at exp=0):      0.2458
+
+. di "  AFQT × Experience interaction:   " %7.4f `b_interaction'
+  AFQT × Experience interaction:    0.0019
+
+. di "  Standard error:                  " %7.4f `se_interaction'
+  Standard error:                   0.0004
+
+. di "  t-statistic:                     " %7.2f `t_interaction'
+  t-statistic:                        4.52
+
+. di ""
+
+
+. 
+. if `b_interaction' > 0 & `t_interaction' > 1.96 {
+.     di "RESULT: EVIDENCE FOR EMPLOYER LEARNING"
+RESULT: EVIDENCE FOR EMPLOYER LEARNING
+.     di "  The effect of AFQT on wages INCREASES with experience."
+  The effect of AFQT on wages INCREASES with experience.
+.     di "  Employers appear to learn workers' true ability over time."
+  Employers appear to learn workers' true ability over time.
+.     di ""
+
+.     di "  At experience = 0:  AFQT effect = " %5.3f `b_afqt'
+  At experience = 0:  AFQT effect = 0.246
+.     di "  At experience = 10: AFQT effect = " %5.3f `b_afqt' + 10*`b_interact
+> ion'
+  At experience = 10: AFQT effect = 0.264
+.     di "  At experience = 20: AFQT effect = " %5.3f `b_afqt' + 20*`b_interact
+> ion'
+  At experience = 20: AFQT effect = 0.283
+. }
+
+. else if `b_interaction' > 0 & `t_interaction' > 1.65 {
+.     di "RESULT: WEAK EVIDENCE FOR EMPLOYER LEARNING (p < 0.10)"
+.     di "  The interaction is positive but marginally significant."
+. }
+
+. else {
+.     di "RESULT: NO STRONG EVIDENCE FOR EMPLOYER LEARNING"
+.     di "  The effect of AFQT does not significantly increase with experience.
+> "
+.     di "  This is more consistent with human capital theory."
+. }
+
+. di ""
+
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 1.4: Extended test - Education × Experience interaction
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "1.4 EDUCATION × EXPERIENCE INTERACTION"
+1.4 EDUCATION × EXPERIENCE INTERACTION
+
+. di "--------------------------------------"
+--------------------------------------
+
+. di ""
+
+
+. di "Signaling theory predicts: Education effect should DECLINE with experienc
+> e"
+Signaling theory predicts: Education effect should DECLINE with experience
+
+. di "  (The diploma matters for getting hired, but experience reveals true abi
+> lity)"
+  (The diploma matters for getting hired, but experience reveals true ability)
+
+. di ""
+
+
+. 
+. capture drop educ_x_exp
+
+. gen educ_x_exp = educ_years * pot_exp
+(309,874 missing values generated)
+
+. 
+. regress log_pwages afqt_std pot_exp pot_exp2 educ_years afqt_x_exp educ_x_exp
+>  i.year ///
+>     if skill_sample == 1, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    179,609
+                                                F(34, 11527)      =    1082.24
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.4008
+                                                Root MSE          =     1.0493
+
+                          (Std. err. adjusted for 11,528 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    afqt_std |   .2431812   .0082721    29.40   0.000     .2269665    .2593959
+     pot_exp |   .0050113   .0044411     1.13   0.259    -.0036941    .0137167
+    pot_exp2 |  -.0008771   .0000823   -10.66   0.000    -.0010384   -.0007159
+  educ_years |   .0085294      .0017     5.02   0.000     .0051971    .0118616
+  afqt_x_exp |   -.000606   .0004296    -1.41   0.158    -.0014481    .0002361
+  educ_x_exp |   .0032554   .0002066    15.76   0.000     .0028505    .0036604
+             |
+        year |
+       1980  |   .1412887    .018832     7.50   0.000     .1043749    .1782026
+       1981  |   .3213994   .0196456    16.36   0.000     .2828907     .359908
+       1982  |   .3633989   .0206478    17.60   0.000     .3229257    .4038722
+       1983  |   .4545288   .0210768    21.57   0.000     .4132148    .4958429
+       1984  |   .6510957   .0218297    29.83   0.000     .6083058    .6938857
+       1985  |    .815615   .0227348    35.88   0.000      .771051     .860179
+       1986  |   1.016581   .0243787    41.70   0.000     .9687947    1.064368
+       1987  |   1.113313   .0260543    42.73   0.000     1.062242    1.164384
+       1988  |   1.183475   .0281875    41.99   0.000     1.128223    1.238727
+       1989  |   1.270703   .0297499    42.71   0.000     1.212388    1.329018
+       1990  |   1.316819   .0320103    41.14   0.000     1.254073    1.379565
+       1991  |   1.349244   .0337598    39.97   0.000     1.283069    1.415419
+       1992  |     1.3621   .0359025    37.94   0.000     1.291725    1.432475
+       1993  |   1.384011    .037727    36.68   0.000      1.31006    1.457963
+       1995  |   1.446251   .0418466    34.56   0.000     1.364224    1.528277
+       1997  |   1.518655   .0461521    32.91   0.000     1.428189    1.609121
+       1999  |   1.631236   .0511853    31.87   0.000     1.530904    1.731568
+       2001  |   1.668503   .0558115    29.90   0.000     1.559103    1.777903
+       2003  |   1.721735     .06017    28.61   0.000     1.603792    1.839679
+       2005  |   1.767334    .065386    27.03   0.000     1.639166    1.895501
+       2007  |   1.835609   .0707306    25.95   0.000     1.696965    1.974253
+       2009  |   1.839299   .0761914    24.14   0.000     1.689951    1.988647
+       2011  |   1.905854   .0849013    22.45   0.000     1.739433    2.072275
+       2013  |   1.942423   .0923674    21.03   0.000     1.761368    2.123479
+       2015  |   1.940743   .0993862    19.53   0.000     1.745929    2.135557
+       2017  |   1.994733   .1064654    18.74   0.000     1.786042    2.203423
+       2019  |    1.99142   .1148566    17.34   0.000     1.766282    2.216559
+       2021  |    2.01976   .1235076    16.35   0.000     1.777664    2.261856
+             |
+       _cons |   7.782551   .0276626   281.34   0.000     7.728327    7.836774
+------------------------------------------------------------------------------
+
+. estimates store full_learning
+
+. 
+. local b_educ_int = _b[educ_x_exp]
+
+. local se_educ_int = _se[educ_x_exp]
+
+. local t_educ_int = `b_educ_int' / `se_educ_int'
+
+. 
+. di "  Education × Experience interaction: " %9.6f `b_educ_int'
+  Education × Experience interaction:  0.003255
+
+. di "  Standard error:                     " %9.6f `se_educ_int'
+  Standard error:                      0.000207
+
+. di "  t-statistic:                        " %7.2f `t_educ_int'
+  t-statistic:                          15.76
+
+. di ""
+
+
+. 
+. if `b_educ_int' < 0 & `t_educ_int' < -1.96 {
+.     di "RESULT: Education returns DECLINE with experience"
+.     di "  Consistent with signaling: credentials matter less as employers lea
+> rn"
+. }
+
+. else {
+.     di "RESULT: Education returns do NOT significantly decline with experienc
+> e"
+RESULT: Education returns do NOT significantly decline with experience
+.     di "  Consistent with human capital: education reflects persistent skills
+> "
+  Consistent with human capital: education reflects persistent skills
+. }
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 1.5: Comparison table
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "1.5 MODEL COMPARISON TABLE"
+1.5 MODEL COMPARISON TABLE
+
+. di "--------------------------"
+--------------------------
+
+. 
+. estimates table baseline_mincer afqt_main afqt_interaction full_learning, ///
+>     keep(afqt_std pot_exp pot_exp2 educ_years afqt_x_exp educ_x_exp) ///
+>     b(%9.4f) se(%9.4f) stats(N r2) ///
+>     title("Employer Learning Test: Model Comparison")
+
+Employer Learning Test: Model Comparison
+
+--------------------------------------------------------------
+    Variable | baselin~r   afqt_main   afqt_in~n   full_le~g  
+-------------+------------------------------------------------
+    afqt_std |                0.2700      0.2458      0.2432  
+             |                0.0073      0.0084      0.0083  
+     pot_exp |    0.0251      0.0578      0.0541      0.0050  
+             |    0.0032      0.0031      0.0031      0.0044  
+    pot_exp2 |   -0.0017     -0.0018     -0.0016     -0.0009  
+             |    0.0001      0.0001      0.0001      0.0001  
+  educ_years |    0.0115      0.0106      0.0104      0.0085  
+             |    0.0026      0.0019      0.0019      0.0017  
+  afqt_x_exp |                            0.0019     -0.0006  
+             |                            0.0004      0.0004  
+  educ_x_exp |                                        0.0033  
+             |                                        0.0002  
+-------------+------------------------------------------------
+           N |    179609      179609      179609      179609  
+          r2 |    0.3620      0.3960      0.3962      0.4008  
+--------------------------------------------------------------
+                                                  Legend: b/se
+
+. 
+. /*===========================================================================
+> ===
+> PART 2: HOURS DECOMPOSITION - RECENT SIGNALING VS CUMULATIVE LEARNING
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 2: HOURS DECOMPOSITION"
+PART 2: HOURS DECOMPOSITION
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "THEORY:"
+THEORY:
+
+. di "  If hours reflect LEARNING-BY-DOING: Cumulative hours should matter most
+> "
+  If hours reflect LEARNING-BY-DOING: Cumulative hours should matter most
+
+. di "  If hours reflect SIGNALING: Recent hours ('face time') should matter"
+  If hours reflect SIGNALING: Recent hours ('face time') should matter
+
+. di ""
+
+
+. di "  Test: Include both cumulative hours and recent hours in regression"
+  Test: Include both cumulative hours and recent hours in regression
+
+. di "        See which dominates, especially in early career"
+        See which dominates, especially in early career
+
+. di ""
+
+
+. di "NOTE: Using recent_hrs_annual for proper cross-period comparisons"
+NOTE: Using recent_hrs_annual for proper cross-period comparisons
+
+. di "      (annualized to account for biennial vs annual survey gaps)"
+      (annualized to account for biennial vs annual survey gaps)
+
+. di ""
+
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 2.1: Cumulative hours only
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di "2.1 CUMULATIVE HOURS ONLY"
+2.1 CUMULATIVE HOURS ONLY
+
+. di "-------------------------"
+-------------------------
+
+. 
+. capture drop log_cumhrs
+
+. gen log_cumhrs = ln(cumhrs) if cumhrs > 0
+(55,511 missing values generated)
+
+. 
+. regress log_pwages log_cumhrs pot_exp pot_exp2 educ_years i.year ///
+>     if skill_sample == 1 & cumhrs > 0, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    179,209
+                                                F(32, 11492)      =    2112.48
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.5677
+                                                Root MSE          =       .886
+
+                          (Std. err. adjusted for 11,493 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   .9888989   .0079392   124.56   0.000     .9733368    1.004461
+     pot_exp |  -.0493817   .0023665   -20.87   0.000    -.0540206   -.0447429
+    pot_exp2 |  -.0003695   .0000577    -6.41   0.000    -.0004826   -.0002565
+  educ_years |  -.0024028    .001543    -1.56   0.119    -.0054273    .0006217
+             |
+        year |
+       1980  |  -.1996078      .0152   -13.13   0.000    -.2294024   -.1698131
+       1981  |  -.2637439   .0161969   -16.28   0.000    -.2954926   -.2319952
+       1982  |  -.3638092   .0167848   -21.67   0.000    -.3967102   -.3309083
+       1983  |  -.3877207   .0171143   -22.65   0.000    -.4212677   -.3541737
+       1984  |  -.4045723   .0181504   -22.29   0.000    -.4401501   -.3689945
+       1985  |  -.3843219   .0194262   -19.78   0.000    -.4224005   -.3462433
+       1986  |  -.2953829   .0209277   -14.11   0.000    -.3364047    -.254361
+       1987  |  -.2524248   .0223603   -11.29   0.000    -.2962548   -.2085948
+       1988  |  -.2200742   .0238912    -9.21   0.000    -.2669049   -.1732434
+       1989  |  -.1760491   .0250288    -7.03   0.000    -.2251097   -.1269884
+       1990  |  -.1697185   .0265708    -6.39   0.000    -.2218017   -.1176352
+       1991  |  -.1594228   .0277181    -5.75   0.000    -.2137551   -.1050905
+       1992  |  -.1498427    .029294    -5.12   0.000    -.2072639   -.0924214
+       1993  |  -.1252377   .0304339    -4.12   0.000    -.1848933    -.065582
+       1995  |  -.0315535   .0331368    -0.95   0.341    -.0965072    .0334002
+       1997  |   .0712145   .0360645     1.97   0.048     .0005219    .1419071
+       1999  |   .2378423   .0392833     6.05   0.000     .1608404    .3148443
+       2001  |   .3132521   .0425378     7.36   0.000     .2298708    .3966335
+       2003  |   .4211812   .0450218     9.36   0.000     .3329308    .5094316
+       2005  |   .5319688   .0485078    10.97   0.000     .4368853    .6270523
+       2007  |   .6652236   .0523123    12.72   0.000     .5626826    .7677645
+       2009  |   .7320026   .0559205    13.09   0.000     .6223888    .8416163
+       2011  |   .9088739   .0616248    14.75   0.000     .7880789    1.029669
+       2013  |   1.026512   .0663004    15.48   0.000     .8965515    1.156472
+       2015  |   1.115018   .0700755    15.91   0.000     .9776581    1.252378
+       2017  |   1.254481   .0743597    16.87   0.000     1.108724    1.400239
+       2019  |   1.344912   .0794636    16.92   0.000      1.18915    1.500674
+       2021  |   1.487804   .0846094    17.58   0.000     1.321956    1.653653
+             |
+       _cons |   .7266343   .0604547    12.02   0.000     .6081328    .8451357
+------------------------------------------------------------------------------
+
+. estimates store cumhrs_only
+
+. 
+. di ""
+
+
+. di "Cumulative hours elasticity: " %6.3f _b[log_cumhrs]
+Cumulative hours elasticity:  0.989
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 2.2: Recent hours only (annualized)
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "2.2 RECENT HOURS ONLY (ANNUALIZED)"
+2.2 RECENT HOURS ONLY (ANNUALIZED)
+
+. di "----------------------------------"
+----------------------------------
+
+. 
+. * Use annualized recent hours for fair comparison
+. capture drop log_recent_hrs_annual
+
+. gen log_recent_hrs_annual = ln(recent_hrs_annual) if recent_hrs_annual > 0
+(273,770 missing values generated)
+
+. 
+. regress log_pwages log_recent_hrs_annual pot_exp pot_exp2 educ_years i.year /
+> //
+>     if skill_sample == 1 & recent_hrs_annual > 0, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    174,607
+                                                F(32, 11468)      =    3343.15
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.6578
+                                                Root MSE          =     .77107
+
+                          (Std. err. adjusted for 11,469 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_recent~l |   1.055132   .0058896   179.15   0.000     1.043587    1.066677
+     pot_exp |   .0104181   .0020655     5.04   0.000     .0063694    .0144668
+    pot_exp2 |  -.0012085   .0000482   -25.07   0.000    -.0013029    -.001114
+  educ_years |   .0083579   .0019314     4.33   0.000      .004572    .0121439
+             |
+        year |
+       1980  |   .0988004   .0132662     7.45   0.000     .0727964    .1248044
+       1981  |   .2206234   .0130875    16.86   0.000     .1949697    .2462771
+       1982  |   .2685597   .0133346    20.14   0.000     .2424216    .2946978
+       1983  |   .3197719   .0136118    23.49   0.000     .2930904    .3464535
+       1984  |   .3982687   .0142047    28.04   0.000      .370425    .4261123
+       1985  |   .4964563   .0151252    32.82   0.000     .4668083    .5261044
+       1986  |   .6501792   .0167559    38.80   0.000     .6173348    .6830236
+       1987  |   .7371707   .0180006    40.95   0.000     .7018865    .7724549
+       1988  |   .8094999   .0195277    41.45   0.000     .7712223    .8477775
+       1989  |   .9183555   .0206228    44.53   0.000     .8779313    .9587797
+       1990  |    1.00554   .0222367    45.22   0.000     .9619522    1.049128
+       1991  |   1.067794   .0236537    45.14   0.000     1.021429     1.11416
+       1992  |   1.121025   .0252654    44.37   0.000       1.0715    1.170549
+       1993  |   1.179312    .026686    44.19   0.000     1.127003    1.231621
+       1995  |   1.306886   .0298806    43.74   0.000     1.248315    1.365457
+       1997  |   1.450991   .0332311    43.66   0.000     1.385853     1.51613
+       1999  |   1.610666   .0369982    43.53   0.000     1.538143    1.683189
+       2001  |   1.774083   .0400597    44.29   0.000      1.69556    1.852607
+       2003  |   1.962596    .043032    45.61   0.000     1.878246    2.046946
+       2005  |    2.09556   .0466523    44.92   0.000     2.004113    2.187006
+       2007  |    2.27336   .0504303    45.08   0.000     2.174508    2.372212
+       2009  |   2.451858   .0541794    45.25   0.000     2.345657    2.558059
+       2011  |   2.626796   .0599577    43.81   0.000     2.509269    2.744323
+       2013  |   2.816556   .0650686    43.29   0.000     2.689011    2.944102
+       2015  |   2.963459   .0688753    43.03   0.000     2.828451    3.098466
+       2017  |   3.129018   .0729765    42.88   0.000     2.985972    3.272064
+       2019  |    3.28684   .0784198    41.91   0.000     3.133123    3.440556
+       2021  |   3.492179   .0832291    41.96   0.000     3.329035    3.655322
+             |
+       _cons |   .6254381   .0474237    13.19   0.000     .5324794    .7183967
+------------------------------------------------------------------------------
+
+. estimates store recent_only
+
+. 
+. di ""
+
+
+. di "Recent hours (annualized) elasticity: " %6.3f _b[log_recent_hrs_annual]
+Recent hours (annualized) elasticity:  1.055
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 2.3: Horse race - both types of hours
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "2.3 HORSE RACE: CUMULATIVE VS RECENT HOURS (ANNUALIZED)"
+2.3 HORSE RACE: CUMULATIVE VS RECENT HOURS (ANNUALIZED)
+
+. di "-------------------------------------------------------"
+-------------------------------------------------------
+
+. 
+. regress log_pwages log_cumhrs log_recent_hrs_annual pot_exp pot_exp2 educ_yea
+> rs i.year ///
+>     if skill_sample == 1 & cumhrs > 0 & recent_hrs_annual > 0, cluster(taxsim
+> id)
+
+Linear regression                               Number of obs     =    174,607
+                                                F(33, 11468)      =    3163.47
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.6889
+                                                Root MSE          =     .73524
+
+                          (Std. err. adjusted for 11,469 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   .4736009   .0077389    61.20   0.000     .4584314    .4887705
+log_recent~l |   .8039946   .0065559   122.64   0.000     .7911439    .8168452
+     pot_exp |  -.0217537   .0019971   -10.89   0.000    -.0256684    -.017839
+    pot_exp2 |  -.0006928   .0000484   -14.32   0.000    -.0007876    -.000598
+  educ_years |    .002492   .0016195     1.54   0.124    -.0006825    .0056664
+             |
+        year |
+       1980  |  -.0543361   .0135966    -4.00   0.000    -.0809878   -.0276844
+       1981  |  -.0312519   .0138182    -2.26   0.024     -.058338   -.0041658
+       1982  |  -.0516028   .0143765    -3.59   0.000    -.0797831   -.0234225
+       1983  |  -.0491482   .0147755    -3.33   0.001    -.0781108   -.0201856
+       1984  |  -.0431192   .0155886    -2.77   0.006    -.0736754   -.0125629
+       1985  |   -.006023   .0167692    -0.36   0.719    -.0388936    .0268476
+       1986  |   .0960568   .0182812     5.25   0.000     .0602226     .131891
+       1987  |   .1533343   .0195407     7.85   0.000     .1150313    .1916374
+       1988  |   .1976345   .0209569     9.43   0.000     .1565554    .2387137
+       1989  |   .2736688   .0220763    12.40   0.000     .2303955    .3169421
+       1990  |   .3256532   .0233737    13.93   0.000     .2798368    .3714697
+       1991  |   .3606599   .0246395    14.64   0.000     .3123622    .4089576
+       1992  |   .3928878   .0260323    15.09   0.000     .3418601    .4439155
+       1993  |   .4333139   .0271586    15.95   0.000     .3800785    .4865494
+       1995  |   .5386221     .02983    18.06   0.000     .4801503     .597094
+       1997  |   .6583012    .032654    20.16   0.000     .5942938    .7223087
+       1999  |   .8050104   .0358345    22.46   0.000     .7347686    .8752522
+       2001  |   .9317583   .0386527    24.11   0.000     .8559924    1.007524
+       2003  |   1.087099   .0411215    26.44   0.000     1.006494    1.167704
+       2005  |   1.202597   .0444381    27.06   0.000     1.115491    1.289703
+       2007  |   1.354799   .0478279    28.33   0.000     1.261048     1.44855
+       2009  |   1.493695   .0512738    29.13   0.000      1.39319    1.594201
+       2011  |   1.647056   .0565714    29.11   0.000     1.536167    1.757946
+       2013  |   1.804664   .0611787    29.50   0.000     1.684743    1.924584
+       2015  |   1.917783   .0645751    29.70   0.000     1.791205    2.044361
+       2017  |   2.059623   .0684748    30.08   0.000     1.925401    2.193846
+       2019  |   2.181523   .0735399    29.66   0.000     2.037372    2.325674
+       2021  |   2.356362   .0781753    30.14   0.000     2.203125    2.509599
+             |
+       _cons |  -1.069134   .0542899   -19.69   0.000    -1.175551   -.9627163
+------------------------------------------------------------------------------
+
+. estimates store hours_horserace
+
+. 
+. local b_cum = _b[log_cumhrs]
+
+. local b_recent = _b[log_recent_hrs_annual]
+
+. 
+. di ""
+
+
+. di "============================================================"
+============================================================
+
+. di "HOURS DECOMPOSITION RESULTS"
+HOURS DECOMPOSITION RESULTS
+
+. di "============================================================"
+============================================================
+
+. di ""
+
+
+. di "  Cumulative hours elasticity:       " %6.3f `b_cum'
+  Cumulative hours elasticity:        0.474
+
+. di "  Recent hours (annual) elasticity:  " %6.3f `b_recent'
+  Recent hours (annual) elasticity:   0.804
+
+. di ""
+
+
+. 
+. if abs(`b_cum') > abs(`b_recent') * 2 {
+.     di "RESULT: CUMULATIVE HOURS DOMINATES"
+.     di "  Consistent with LEARNING-BY-DOING (human capital)"
+.     di "  Total accumulated experience matters most"
+. }
+
+. else if abs(`b_recent') > abs(`b_cum') * 2 {
+.     di "RESULT: RECENT HOURS DOMINATES"
+.     di "  Consistent with SIGNALING"
+.     di "  Current 'face time' matters more than total experience"
+. }
+
+. else {
+.     di "RESULT: BOTH CHANNELS MATTER"
+RESULT: BOTH CHANNELS MATTER
+.     di "  Evidence for both learning-by-doing and signaling"
+  Evidence for both learning-by-doing and signaling
+. }
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 2.4: Does recent hours matter MORE in early career? (Signaling test)
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "2.4 EARLY CAREER INTERACTION"
+2.4 EARLY CAREER INTERACTION
+
+. di "----------------------------"
+----------------------------
+
+. di ""
+
+
+. di "If signaling matters: Recent hours should matter MORE in early career"
+If signaling matters: Recent hours should matter MORE in early career
+
+. di "  (when employers have less information about workers)"
+  (when employers have less information about workers)
+
+. di ""
+
+
+. 
+. capture drop recent_x_early
+
+. gen recent_x_early = log_recent_hrs_annual * early_career
+(368,984 missing values generated)
+
+. 
+. regress log_pwages log_cumhrs log_recent_hrs_annual recent_x_early early_care
+> er ///
+>     pot_exp pot_exp2 educ_years i.year ///
+>     if skill_sample == 1 & cumhrs > 0 & recent_hrs_annual > 0, cluster(taxsim
+> id)
+
+Linear regression                               Number of obs     =    174,607
+                                                F(35, 11468)      =    3014.15
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.6890
+                                                Root MSE          =     .73515
+
+                          (Std. err. adjusted for 11,469 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   .4715647   .0078483    60.08   0.000     .4561806    .4869487
+log_recent~l |   .7975296   .0102588    77.74   0.000     .7774206    .8176386
+recent_x_e~y |   .0109508   .0113182     0.97   0.333    -.0112348    .0331363
+early_career |  -.0305273    .086005    -0.35   0.723    -.1991118    .1380572
+     pot_exp |  -.0180491    .002043    -8.83   0.000    -.0220539   -.0140444
+    pot_exp2 |  -.0007453   .0000485   -15.36   0.000    -.0008404   -.0006502
+  educ_years |    .002585   .0016178     1.60   0.110    -.0005863    .0057562
+             |
+        year |
+       1980  |  -.0537518   .0136059    -3.95   0.000    -.0804217   -.0270819
+       1981  |  -.0315872   .0138242    -2.28   0.022    -.0586849   -.0044894
+       1982  |   -.052883   .0143715    -3.68   0.000    -.0810535   -.0247125
+       1983  |  -.0518844   .0147761    -3.51   0.000    -.0808481   -.0229208
+       1984  |  -.0474552   .0155703    -3.05   0.002    -.0779755   -.0169348
+       1985  |  -.0123793   .0167356    -0.74   0.459     -.045184    .0204253
+       1986  |   .0878849   .0182229     4.82   0.000      .052165    .1236049
+       1987  |   .1451034   .0194549     7.46   0.000     .1069685    .1832383
+       1988  |   .1901681   .0208818     9.11   0.000     .1492362       .2311
+       1989  |   .2683829   .0220138    12.19   0.000     .2252322    .3115337
+       1990  |   .3227718   .0233397    13.83   0.000     .2770219    .3685216
+       1991  |   .3605678   .0246357    14.64   0.000     .3122776    .4088581
+       1992  |    .396336   .0260742    15.20   0.000     .3452262    .4474458
+       1993  |   .4402016   .0272744    16.14   0.000     .3867392     .493664
+       1995  |   .5501499   .0300647    18.30   0.000      .491218    .6090819
+       1997  |   .6705196   .0329152    20.37   0.000     .6060002     .735039
+       1999  |   .8158201   .0360761    22.61   0.000     .7451046    .8865355
+       2001  |   .9405672   .0388703    24.20   0.000     .8643748     1.01676
+       2003  |   1.093278   .0412835    26.48   0.000     1.012356    1.174201
+       2005  |   1.206522   .0445805    27.06   0.000     1.119137    1.293908
+       2007  |    1.35631   .0479459    28.29   0.000     1.262328    1.450292
+       2009  |   1.493544   .0513743    29.07   0.000     1.392842    1.594247
+       2011  |   1.645821   .0566866    29.03   0.000     1.534706    1.756936
+       2013  |   1.802787   .0613005    29.41   0.000     1.682628    1.922947
+       2015  |    1.91563   .0646883    29.61   0.000      1.78883     2.04243
+       2017  |   2.057343   .0686017    29.99   0.000     1.922872    2.191814
+       2019  |   2.179203   .0736738    29.58   0.000      2.03479    2.323616
+       2021  |   2.354083   .0783057    30.06   0.000     2.200591    2.507576
+             |
+       _cons |  -1.061565   .0889217   -11.94   0.000    -1.235867   -.8872636
+------------------------------------------------------------------------------
+
+. estimates store early_career_test
+
+. 
+. local b_interact = _b[recent_x_early]
+
+. local se_interact = _se[recent_x_early]
+
+. 
+. di ""
+
+
+. di "Recent hours × Early career interaction: " %6.4f `b_interact'
+Recent hours × Early career interaction: 0.0110
+
+. di "Standard error:                          " %6.4f `se_interact'
+Standard error:                          0.0113
+
+. di ""
+
+
+. 
+. if `b_interact' > 0 & `b_interact'/`se_interact' > 1.65 {
+.     di "RESULT: Recent hours matter MORE in early career"
+.     di "  Evidence for SIGNALING: 'Face time' is especially valued early on"
+. }
+
+. else {
+.     di "RESULT: No significant early-career premium for recent hours"
+RESULT: No significant early-career premium for recent hours
+.     di "  Consistent with LEARNING-BY-DOING throughout career"
+  Consistent with LEARNING-BY-DOING throughout career
+. }
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 2.5: Hours comparison table
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "2.5 HOURS MODEL COMPARISON"
+2.5 HOURS MODEL COMPARISON
+
+. di "--------------------------"
+--------------------------
+
+. 
+. estimates table cumhrs_only recent_only hours_horserace early_career_test, //
+> /
+>     keep(log_cumhrs log_recent_hrs_annual recent_x_early early_career) ///
+>     b(%9.4f) se(%9.4f) stats(N r2) ///
+>     title("Hours Decomposition: Cumulative vs Recent (Annualized)")
+
+Hours Decomposition: Cumulative vs Recent (Annualized)
+
+--------------------------------------------------------------
+    Variable | cumhrs_~y   recent_~y   hours_h~e   early_c~t  
+-------------+------------------------------------------------
+  log_cumhrs |    0.9889                  0.4736      0.4716  
+             |    0.0079                  0.0077      0.0078  
+log_recent~l |                1.0551      0.8040      0.7975  
+             |                0.0059      0.0066      0.0103  
+recent_x_e~y |                                        0.0110  
+             |                                        0.0113  
+early_career |                                       -0.0305  
+             |                                        0.0860  
+-------------+------------------------------------------------
+           N |    179209      174607      174607      174607  
+          r2 |    0.5677      0.6578      0.6889      0.6890  
+--------------------------------------------------------------
+                                                  Legend: b/se
+
+. 
+. /*===========================================================================
+> ===
+> PART 3: WAGE VARIANCE EVOLUTION
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 3: WAGE VARIANCE OVER THE CAREER"
+PART 3: WAGE VARIANCE OVER THE CAREER
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "THEORY:"
+THEORY:
+
+. di "  Employer Learning predicts:"
+  Employer Learning predicts:
+
+. di "    - Wage variance INCREASES early in careers (as employers sort workers
+> )"
+    - Wage variance INCREASES early in careers (as employers sort workers)
+
+. di "    - Then stabilizes as sorting is complete"
+    - Then stabilizes as sorting is complete
+
+. di ""
+
+
+. di "  Human Capital predicts:"
+  Human Capital predicts:
+
+. di "    - Wage variance relatively CONSTANT (everyone grows similarly)"
+    - Wage variance relatively CONSTANT (everyone grows similarly)
+
+. di ""
+
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 3.1: Calculate variance by experience bin
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di "3.1 WAGE VARIANCE BY EXPERIENCE"
+3.1 WAGE VARIANCE BY EXPERIENCE
+
+. di "-------------------------------"
+-------------------------------
+
+. 
+. preserve
+
+. keep if skill_sample == 1
+(403,947 observations deleted)
+
+. 
+. * Calculate variance statistics by experience bin
+. collapse (mean) mean_log_wage = log_pwages ///
+>          (sd) sd_log_wage = log_pwages ///
+>          (p10) p10_wage = log_pwages ///
+>          (p90) p90_wage = log_pwages ///
+>          (count) n_obs = log_pwages, by(exp_bin)
+
+. 
+. * Calculate variance and interquartile range
+. gen var_log_wage = sd_log_wage^2
+
+. gen iqr_log_wage = p90_wage - p10_wage
+
+. 
+. di ""
+
+
+. di "Wage Dispersion by Experience:"
+Wage Dispersion by Experience:
+
+. di "Exp Bin     | Variance | Std Dev | P90-P10 | N"
+Exp Bin     | Variance | Std Dev | P90-P10 | N
+
+. di "------------|----------|---------|---------|--------"
+------------|----------|---------|---------|--------
+
+. list exp_bin var_log_wage sd_log_wage iqr_log_wage n_obs, clean noobs
+
+      exp_bin   var_lo~e   sd_log~e   iqr_lo~e   n_obs  
+      0-5 yrs   1.624589   1.274594   3.135494   56516  
+     6-10 yrs   1.361788   1.166957   2.667228   35022  
+    11-15 yrs   1.250345   1.118188   2.484907   24070  
+    16-20 yrs   1.235222   1.111405   2.347706   16107  
+    21-25 yrs   1.144784   1.069946   2.233593   14293  
+    26-30 yrs     1.1514   1.073033   2.302585   12805  
+      30+ yrs   1.190797   1.091236   2.302585   20796  
+
+. 
+. * Plot variance evolution
+. twoway (connected var_log_wage exp_bin, lcolor(navy) lwidth(thick) msymbol(ci
+> rcle)) ///
+>        (connected iqr_log_wage exp_bin, lcolor(maroon) lpattern(dash) msymbol
+> (square)), ///
+>     title("Wage Dispersion Over the Career") ///
+>     xtitle("Experience Bin") ///
+>     ytitle("Dispersion Measure") ///
+>     legend(order(1 "Variance" 2 "P90-P10 Gap") pos(11) ring(0)) ///
+>     xlabel(1 "0-5" 2 "6-10" 3 "11-15" 4 "16-20" 5 "21-25" 6 "26-30" 7 "30+")
+
+. graph export "${outdir}\wage_variance_evolution.png", replace width(1200)
+file D:\Stata Data\labor_signaling_project\output\wage_variance_evolution.png w
+> ritten in PNG format
+
+. 
+. restore
+
+. 
+. /*===========================================================================
+> ===
+> PART 4: FIXED EFFECTS VS OLS COMPARISON
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 4: FIXED EFFECTS VS OLS COMPARISON"
+PART 4: FIXED EFFECTS VS OLS COMPARISON
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "THEORY:"
+THEORY:
+
+. di "  If ability selection drives wages: OLS will overestimate experience eff
+> ects"
+  If ability selection drives wages: OLS will overestimate experience effects
+
+. di "  because high-ability workers accumulate more experience."
+  because high-ability workers accumulate more experience.
+
+. di ""
+
+
+. di "  Fixed effects control for time-invariant ability, giving causal effect.
+> "
+  Fixed effects control for time-invariant ability, giving causal effect.
+
+. di ""
+
+
+. di "  Signaling: FE coefficients much SMALLER than OLS (ability was confoundi
+> ng)"
+  Signaling: FE coefficients much SMALLER than OLS (ability was confounding)
+
+. di "  Human Capital: FE and OLS coefficients SIMILAR (experience is causal)"
+  Human Capital: FE and OLS coefficients SIMILAR (experience is causal)
+
+. di ""
+
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 4.1: OLS baseline
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di "4.1 OLS ESTIMATES"
+4.1 OLS ESTIMATES
+
+. di "-----------------"
+-----------------
+
+. 
+. regress log_pwages pot_exp pot_exp2 educ_years i.year ///
+>     if skill_sample == 1, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    179,609
+                                                F(31, 11527)      =    1138.32
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.3620
+                                                Root MSE          =     1.0827
+
+                          (Std. err. adjusted for 11,528 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     pot_exp |   .0251466   .0031591     7.96   0.000     .0189543     .031339
+    pot_exp2 |  -.0016867   .0000646   -26.10   0.000    -.0018134   -.0015601
+  educ_years |    .011457   .0025642     4.47   0.000     .0064308    .0164833
+             |
+        year |
+       1980  |   .1427512   .0189551     7.53   0.000     .1055961    .1799063
+       1981  |   .3333721   .0197662    16.87   0.000     .2946271    .3721172
+       1982  |      .3869   .0207638    18.63   0.000     .3461995    .4276006
+       1983  |    .486774    .021249    22.91   0.000     .4451224    .5284256
+       1984  |   .6896544    .022162    31.12   0.000     .6462131    .7330958
+       1985  |    .876263   .0233213    37.57   0.000     .8305493    .9219767
+       1986  |   1.110412   .0251688    44.12   0.000     1.061077    1.159747
+       1987  |   1.238732   .0271742    45.58   0.000     1.185466    1.291998
+       1988  |   1.348221   .0294185    45.83   0.000     1.290555    1.405886
+       1989  |   1.466019   .0311435    47.07   0.000     1.404973    1.527066
+       1990  |   1.546414   .0336719    45.93   0.000     1.480411    1.612416
+       1991  |   1.618534   .0356247    45.43   0.000     1.548704    1.688365
+       1992  |   1.674928   .0380107    44.06   0.000      1.60042    1.749435
+       1993  |   1.737356   .0400179    43.41   0.000     1.658914    1.815798
+       1995  |   1.883784   .0442819    42.54   0.000     1.796984    1.970584
+       1997  |   2.053017   .0488132    42.06   0.000     1.957334    2.148699
+       1999  |   2.275139   .0538283    42.27   0.000     2.169626    2.380652
+       2001  |   2.417916   .0582802    41.49   0.000     2.303677    2.532155
+       2003  |   2.586156   .0623794    41.46   0.000     2.463882     2.70843
+       2005  |   2.750259    .067082    41.00   0.000     2.618767    2.881751
+       2007  |   2.946128   .0720453    40.89   0.000     2.804907    3.087349
+       2009  |   3.084516   .0765657    40.29   0.000     2.934435    3.234598
+       2011  |   3.353827   .0837702    40.04   0.000     3.189623    3.518031
+       2013  |   3.556312   .0897051    39.64   0.000     3.380475    3.732149
+       2015  |   3.718438    .094461    39.36   0.000     3.533278    3.903598
+       2017  |   3.915304   .0998044    39.23   0.000     3.719671    4.110938
+       2019  |   4.085113   .1058408    38.60   0.000     3.877647    4.292579
+       2021  |   4.290437   .1119135    38.34   0.000     4.071068    4.509807
+             |
+       _cons |   7.805382   .0363182   214.92   0.000     7.734192    7.876572
+------------------------------------------------------------------------------
+
+. estimates store ols_main
+
+. 
+. local b_exp_ols = _b[pot_exp]
+
+. local b_exp2_ols = _b[pot_exp2]
+
+. 
+. di ""
+
+
+. di "OLS Experience coefficient: " %7.4f `b_exp_ols'
+OLS Experience coefficient:  0.0251
+
+. di "OLS Experience² coefficient: " %9.6f `b_exp2_ols'
+OLS Experience² coefficient: -0.001687
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 4.2: Fixed effects
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "4.2 FIXED EFFECTS ESTIMATES"
+4.2 FIXED EFFECTS ESTIMATES
+
+. di "---------------------------"
+---------------------------
+
+. 
+. xtset taxsimid year
+
+Panel variable: taxsimid (strongly balanced)
+ Time variable: year, 1978 to 2023
+         Delta: 1 unit
+
+. xtreg log_pwages pot_exp pot_exp2 i.year ///
+>     if skill_sample == 1, fe cluster(taxsimid)
+
+Fixed-effects (within) regression               Number of obs     =    179,609
+Group variable: taxsimid                        Number of groups  =     11,528
+
+R-squared:                                      Obs per group:
+     Within  = 0.4625                                         min =          1
+     Between = 0.2617                                         avg =       15.6
+     Overall = 0.3471                                         max =         29
+
+                                                F(30, 11527)      =    1168.59
+corr(u_i, Xb) = -0.1302                         Prob > F          =     0.0000
+
+                          (Std. err. adjusted for 11,528 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     pot_exp |  -.0465695   .0069768    -6.67   0.000    -.0602453   -.0328938
+    pot_exp2 |  -.0014274   .0000611   -23.36   0.000    -.0015471   -.0013076
+             |
+        year |
+       1980  |   .1925328   .0176517    10.91   0.000     .1579325    .2271331
+       1981  |   .4632643    .020083    23.07   0.000     .4238982    .5026305
+       1982  |   .6034068   .0232663    25.93   0.000     .5578009    .6490128
+       1983  |   .7995357   .0267122    29.93   0.000     .7471752    .8518962
+       1984  |   1.066611   .0305708    34.89   0.000     1.006687    1.126535
+       1985  |   1.302843   .0351362    37.08   0.000      1.23397    1.371716
+       1986  |   1.583356   .0406114    38.99   0.000      1.50375    1.662961
+       1987  |   1.802531   .0472466    38.15   0.000      1.70992    1.895142
+       1988  |    1.98855   .0546063    36.42   0.000     1.881512    2.095588
+       1989  |   2.166424   .0602465    35.96   0.000     2.048331    2.284518
+       1990  |   2.297949   .0672332    34.18   0.000      2.16616    2.429737
+       1991  |    2.41785   .0726283    33.29   0.000     2.275486    2.560214
+       1992  |   2.534318   .0792953    31.96   0.000     2.378886     2.68975
+       1993  |   2.665565   .0853655    31.23   0.000     2.498234    2.832896
+       1995  |   2.963591   .0981091    30.21   0.000      2.77128    3.155901
+       1997  |   3.259612   .1106936    29.45   0.000     3.042634    3.476591
+       1999  |   3.625387   .1245117    29.12   0.000     3.381323    3.869451
+       2001  |   3.888235   .1370198    28.38   0.000     3.619652    4.156817
+       2003  |   4.160549   .1494336    27.84   0.000     3.867634    4.453464
+       2005  |   4.444268   .1622448    27.39   0.000     4.126241    4.762296
+       2007  |   4.785718   .1773233    26.99   0.000     4.438135    5.133302
+       2009  |   5.028687   .1899096    26.48   0.000     4.656432    5.400942
+       2011  |   5.421238   .2080386    26.06   0.000     5.013447    5.829029
+       2013  |   5.738402   .2228199    25.75   0.000     5.301637    6.175166
+       2015  |   5.974063   .2331518    25.62   0.000     5.517046     6.43108
+       2017  |   6.285337   .2458317    25.57   0.000     5.803465    6.767209
+       2019  |   6.572903   .2603328    25.25   0.000     6.062607      7.0832
+       2021  |   6.892171   .2737891    25.17   0.000     6.355498    7.428844
+             |
+       _cons |   7.854246   .0166304   472.28   0.000     7.821648    7.886845
+-------------+----------------------------------------------------------------
+     sigma_u |  .92987573
+     sigma_e |  .81412796
+         rho |  .56607793   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. estimates store fe_main
+
+. 
+. local b_exp_fe = _b[pot_exp]
+
+. local b_exp2_fe = _b[pot_exp2]
+
+. 
+. di ""
+
+
+. di "FE Experience coefficient: " %7.4f `b_exp_fe'
+FE Experience coefficient: -0.0466
+
+. di "FE Experience² coefficient: " %9.6f `b_exp2_fe'
+FE Experience² coefficient: -0.001427
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 4.3: Comparison
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "4.3 OLS VS FE COMPARISON"
+4.3 OLS VS FE COMPARISON
+
+. di "------------------------"
+------------------------
+
+. 
+. local exp_ratio = `b_exp_fe' / `b_exp_ols'
+
+. local exp2_ratio = `b_exp2_fe' / `b_exp2_ols'
+
+. 
+. di ""
+
+
+. di "============================================================"
+============================================================
+
+. di "FIXED EFFECTS TEST RESULTS"
+FIXED EFFECTS TEST RESULTS
+
+. di "============================================================"
+============================================================
+
+. di ""
+
+
+. di "                           OLS           FE          Ratio"
+                           OLS           FE          Ratio
+
+. di "------------------------------------------------------------"
+------------------------------------------------------------
+
+. di "Experience               " %8.4f `b_exp_ols' "      " %8.4f `b_exp_fe' " 
+>      " %5.2f `exp_ratio'
+Experience                 0.0251       -0.0466      -1.85
+
+. di "Experience²              " %8.5f `b_exp2_ols' "     " %8.5f `b_exp2_fe' "
+>      " %5.2f `exp2_ratio'
+Experience²              -0.00169     -0.00143      0.85
+
+. di ""
+
+
+. 
+. if `exp_ratio' > 0.7 {
+.     di "RESULT: FE ≈ OLS (ratio > 0.7)"
+.     di "  Consistent with HUMAN CAPITAL: Experience effect is mostly causal"
+.     di "  Ability selection accounts for small portion of returns"
+. }
+
+. else if `exp_ratio' < 0.5 {
+.     di "RESULT: FE << OLS (ratio < 0.5)"
+RESULT: FE << OLS (ratio < 0.5)
+.     di "  Consistent with SIGNALING: Much of 'experience return' is ability s
+> election"
+  Consistent with SIGNALING: Much of 'experience return' is ability selection
+.     di "  High-ability workers gain more experience AND earn more"
+  High-ability workers gain more experience AND earn more
+. }
+
+. else {
+.     di "RESULT: FE somewhat smaller than OLS (0.5 < ratio < 0.7)"
+.     di "  Mixed evidence: Some ability selection, but substantial causal retu
+> rns"
+. }
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 4.4: Model comparison table
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "4.4 OLS VS FE MODEL TABLE"
+4.4 OLS VS FE MODEL TABLE
+
+. di "-------------------------"
+-------------------------
+
+. 
+. estimates table ols_main fe_main, ///
+>     keep(pot_exp pot_exp2 educ_years) ///
+>     b(%9.4f) se(%9.4f) stats(N r2) ///
+>     title("OLS vs Fixed Effects: Experience Returns")
+
+OLS vs Fixed Effects: Experience Returns
+
+--------------------------------------
+    Variable | ols_main     fe_main   
+-------------+------------------------
+     pot_exp |    0.0251     -0.0466  
+             |    0.0032      0.0070  
+    pot_exp2 |   -0.0017     -0.0014  
+             |    0.0001      0.0001  
+  educ_years |    0.0115              
+             |    0.0026              
+-------------+------------------------
+           N |    179609      179609  
+          r2 |    0.3620      0.4625  
+--------------------------------------
+                          Legend: b/se
+
+. 
+. /*===========================================================================
+> ===
+> PART 5: SHEEPSKIN EFFECTS
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 5: SHEEPSKIN EFFECTS (Degree Returns)"
+PART 5: SHEEPSKIN EFFECTS (Degree Returns)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "THEORY:"
+THEORY:
+
+. di "  Signaling: Wages jump discretely at degree completion (credential matte
+> rs)"
+  Signaling: Wages jump discretely at degree completion (credential matters)
+
+. di "  Human Capital: Wages rise smoothly with years of schooling"
+  Human Capital: Wages rise smoothly with years of schooling
+
+. di ""
+
+
+. di "  Test: Include both years of education AND degree dummies"
+  Test: Include both years of education AND degree dummies
+
+. di "        If degree dummies are large → Signaling"
+        If degree dummies are large → Signaling
+
+. di ""
+
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 5.1: Continuous education only
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di "5.1 CONTINUOUS EDUCATION ONLY"
+5.1 CONTINUOUS EDUCATION ONLY
+
+. di "-----------------------------"
+-----------------------------
+
+. 
+. regress log_pwages educ_years pot_exp pot_exp2 i.year ///
+>     if skill_sample == 1, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    179,609
+                                                F(31, 11527)      =    1138.32
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.3620
+                                                Root MSE          =     1.0827
+
+                          (Std. err. adjusted for 11,528 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  educ_years |    .011457   .0025642     4.47   0.000     .0064308    .0164833
+     pot_exp |   .0251466   .0031591     7.96   0.000     .0189543     .031339
+    pot_exp2 |  -.0016867   .0000646   -26.10   0.000    -.0018134   -.0015601
+             |
+        year |
+       1980  |   .1427512   .0189551     7.53   0.000     .1055961    .1799063
+       1981  |   .3333721   .0197662    16.87   0.000     .2946271    .3721172
+       1982  |      .3869   .0207638    18.63   0.000     .3461995    .4276006
+       1983  |    .486774    .021249    22.91   0.000     .4451224    .5284256
+       1984  |   .6896544    .022162    31.12   0.000     .6462131    .7330958
+       1985  |    .876263   .0233213    37.57   0.000     .8305493    .9219767
+       1986  |   1.110412   .0251688    44.12   0.000     1.061077    1.159747
+       1987  |   1.238732   .0271742    45.58   0.000     1.185466    1.291998
+       1988  |   1.348221   .0294185    45.83   0.000     1.290555    1.405886
+       1989  |   1.466019   .0311435    47.07   0.000     1.404973    1.527066
+       1990  |   1.546414   .0336719    45.93   0.000     1.480411    1.612416
+       1991  |   1.618534   .0356247    45.43   0.000     1.548704    1.688365
+       1992  |   1.674928   .0380107    44.06   0.000      1.60042    1.749435
+       1993  |   1.737356   .0400179    43.41   0.000     1.658914    1.815798
+       1995  |   1.883784   .0442819    42.54   0.000     1.796984    1.970584
+       1997  |   2.053017   .0488132    42.06   0.000     1.957334    2.148699
+       1999  |   2.275139   .0538283    42.27   0.000     2.169626    2.380652
+       2001  |   2.417916   .0582802    41.49   0.000     2.303677    2.532155
+       2003  |   2.586156   .0623794    41.46   0.000     2.463882     2.70843
+       2005  |   2.750259    .067082    41.00   0.000     2.618767    2.881751
+       2007  |   2.946128   .0720453    40.89   0.000     2.804907    3.087349
+       2009  |   3.084516   .0765657    40.29   0.000     2.934435    3.234598
+       2011  |   3.353827   .0837702    40.04   0.000     3.189623    3.518031
+       2013  |   3.556312   .0897051    39.64   0.000     3.380475    3.732149
+       2015  |   3.718438    .094461    39.36   0.000     3.533278    3.903598
+       2017  |   3.915304   .0998044    39.23   0.000     3.719671    4.110938
+       2019  |   4.085113   .1058408    38.60   0.000     3.877647    4.292579
+       2021  |   4.290437   .1119135    38.34   0.000     4.071068    4.509807
+             |
+       _cons |   7.805382   .0363182   214.92   0.000     7.734192    7.876572
+------------------------------------------------------------------------------
+
+. estimates store educ_continuous
+
+. 
+. local return_per_year = _b[educ_years]
+
+. 
+. di ""
+
+
+. di "Return per year of education: " %5.2f `return_per_year'*100 "%"
+Return per year of education:  1.15%
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 5.2: Degree dummies only (no years)
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "5.2 DEGREE DUMMIES ONLY"
+5.2 DEGREE DUMMIES ONLY
+
+. di "-----------------------"
+-----------------------
+
+. 
+. * Create reference category: less than HS
+. capture drop less_than_hs
+
+. gen less_than_hs = (max_education < 12) if !missing(max_education)
+(690 missing values generated)
+
+. 
+. regress log_pwages hs_diploma some_coll ba_degree grad_degree pot_exp pot_exp
+> 2 i.year ///
+>     if skill_sample == 1, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    179,609
+                                                F(34, 11527)      =    1135.40
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.4012
+                                                Root MSE          =     1.0489
+
+                          (Std. err. adjusted for 11,528 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  hs_diploma |   .4642221    .021894    21.20   0.000     .4213062     .507138
+   some_coll |   .6024444   .0237348    25.38   0.000     .5559201    .6489687
+   ba_degree |   1.140911   .0292137    39.05   0.000     1.083647    1.198175
+ grad_degree |   1.242944   .0339384    36.62   0.000     1.176419    1.309469
+     pot_exp |    .077526   .0032406    23.92   0.000     .0711739    .0838782
+    pot_exp2 |  -.0015547   .0000629   -24.70   0.000     -.001678   -.0014313
+             |
+        year |
+       1980  |   .0636855   .0188641     3.38   0.001     .0267086    .1006624
+       1981  |   .2118261   .0197022    10.75   0.000     .1732065    .2504457
+       1982  |   .2271977   .0208242    10.91   0.000     .1863788    .2680166
+       1983  |   .2815197   .0214573    13.12   0.000     .2394597    .3235797
+       1984  |   .4191017   .0226913    18.47   0.000     .3746228    .4635805
+       1985  |   .5376563   .0239322    22.47   0.000     .4907451    .5845675
+       1986  |   .7018543   .0260221    26.97   0.000     .6508467     .752862
+       1987  |   .7601397   .0281791    26.98   0.000     .7049039    .8153755
+       1988  |   .8023101   .0306774    26.15   0.000     .7421772    .8624431
+       1989  |   .8690457    .032605    26.65   0.000     .8051344    .9329569
+       1990  |   .8835806   .0351416    25.14   0.000     .8146971    .9524642
+       1991  |   .9029556   .0370433    24.38   0.000     .8303445    .9755668
+       1992  |   .9040836   .0393203    22.99   0.000      .827009    .9811581
+       1993  |    .915451    .041347    22.14   0.000     .8344039    .9964982
+       1995  |   .9543387   .0460934    20.70   0.000     .8639878     1.04469
+       1997  |    1.00993   .0507844    19.89   0.000     .9103838    1.109476
+       1999  |   1.112932   .0559353    19.90   0.000     1.003289    1.222574
+       2001  |   1.145727   .0606224    18.90   0.000     1.026897    1.264558
+       2003  |   1.199374   .0647135    18.53   0.000     1.072524    1.326223
+       2005  |   1.252887   .0696504    17.99   0.000      1.11636    1.389414
+       2007  |   1.339804   .0745128    17.98   0.000     1.193746    1.485861
+       2009  |   1.359864   .0793211    17.14   0.000     1.204381    1.515347
+       2011  |    1.45858   .0866234    16.84   0.000     1.288784    1.628377
+       2013  |   1.528881   .0925882    16.51   0.000     1.347392    1.710369
+       2015  |   1.561239    .097441    16.02   0.000     1.370238     1.75224
+       2017  |   1.653188   .1025796    16.12   0.000     1.452115    1.854262
+       2019  |   1.694248   .1086285    15.60   0.000     1.481317    1.907178
+       2021  |   1.779402   .1145434    15.53   0.000     1.554877    2.003926
+             |
+       _cons |   7.480968    .023348   320.41   0.000     7.435202    7.526734
+------------------------------------------------------------------------------
+
+. estimates store educ_degrees
+
+. 
+. di ""
+
+
+. di "Degree premiums (vs. less than HS):"
+Degree premiums (vs. less than HS):
+
+. di "  HS diploma:    " %5.1f _b[hs_diploma]*100 "%"
+  HS diploma:     46.4%
+
+. di "  Some college:  " %5.1f _b[some_coll]*100 "%"
+  Some college:   60.2%
+
+. di "  BA degree:     " %5.1f _b[ba_degree]*100 "%"
+  BA degree:     114.1%
+
+. di "  Graduate:      " %5.1f _b[grad_degree]*100 "%"
+  Graduate:      124.3%
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 5.3: Both years AND degree dummies (key test)
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "5.3 KEY TEST: YEARS + DEGREE DUMMIES"
+5.3 KEY TEST: YEARS + DEGREE DUMMIES
+
+. di "------------------------------------"
+------------------------------------
+
+. 
+. regress log_pwages educ_years hs_diploma ba_degree grad_degree pot_exp pot_ex
+> p2 i.year ///
+>     if skill_sample == 1, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    179,609
+                                                F(34, 11527)      =    1107.50
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.3871
+                                                Root MSE          =     1.0612
+
+                          (Std. err. adjusted for 11,528 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  educ_years |   .0018966   .0020174     0.94   0.347    -.0020579    .0058511
+  hs_diploma |   .0556343   .0146772     3.79   0.000     .0268644    .0844042
+   ba_degree |   .6356869   .0207317    30.66   0.000     .5950493    .6763244
+ grad_degree |   .6639275   .0261667    25.37   0.000     .6126364    .7152187
+     pot_exp |    .050504   .0032127    15.72   0.000     .0442066    .0568014
+    pot_exp2 |  -.0014294   .0000622   -22.96   0.000    -.0015514   -.0013074
+             |
+        year |
+       1980  |   .1168337   .0189801     6.16   0.000     .0796295    .1540379
+       1981  |   .2860331   .0196521    14.55   0.000     .2475116    .3245546
+       1982  |   .3156566   .0206605    15.28   0.000     .2751586    .3561547
+       1983  |   .3922865   .0211236    18.57   0.000     .3508807    .4336923
+       1984  |   .5631738   .0221043    25.48   0.000     .5198456    .6065019
+       1985  |    .708721   .0233534    30.35   0.000     .6629443    .7544977
+       1986  |   .8985046   .0254213    35.34   0.000     .8486745    .9483348
+       1987  |   .9782426   .0276121    35.43   0.000     .9241182    1.032367
+       1988  |   1.049961   .0300307    34.96   0.000     .9910959    1.108827
+       1989  |    1.13911    .031922    35.68   0.000     1.076538    1.201683
+       1990  |   1.193057   .0343676    34.71   0.000     1.125691    1.260423
+       1991  |   1.236122   .0363333    34.02   0.000     1.164902    1.307341
+       1992  |   1.261376   .0386708    32.62   0.000     1.185574    1.337177
+       1993  |   1.293626   .0407573    31.74   0.000     1.213735    1.373517
+       1995  |   1.379756   .0452877    30.47   0.000     1.290984    1.468527
+       1997  |   1.481386   .0500318    29.61   0.000     1.383315    1.579457
+       1999  |   1.632489    .055168    29.59   0.000      1.52435    1.740627
+       2001  |   1.708209   .0598576    28.54   0.000     1.590878     1.82554
+       2003  |   1.804534   .0640381    28.18   0.000     1.679008    1.930059
+       2005  |   1.899913   .0688712    27.59   0.000     1.764914    2.034912
+       2007  |   2.011736   .0740012    27.19   0.000     1.866681    2.156791
+       2009  |   2.071705    .078723    26.32   0.000     1.917395    2.226016
+       2011  |   2.226616    .086011    25.89   0.000      2.05802    2.395212
+       2013  |   2.338355   .0919429    25.43   0.000     2.158132    2.518579
+       2015  |   2.430118   .0967709    25.11   0.000     2.240431    2.619805
+       2017  |   2.554781   .1021425    25.01   0.000     2.354564    2.754998
+       2019  |   2.632266   .1082075    24.33   0.000      2.42016    2.844371
+       2021  |   2.752099      .1144    24.06   0.000     2.527856    2.976343
+             |
+       _cons |   7.842191   .0309679   253.24   0.000     7.781488    7.902893
+------------------------------------------------------------------------------
+
+. estimates store sheepskin_test
+
+. 
+. local b_years = _b[educ_years]
+
+. local b_hs = _b[hs_diploma]
+
+. local b_ba = _b[ba_degree]
+
+. local b_grad = _b[grad_degree]
+
+. 
+. di ""
+
+
+. di "============================================================"
+============================================================
+
+. di "SHEEPSKIN EFFECTS RESULTS"
+SHEEPSKIN EFFECTS RESULTS
+
+. di "============================================================"
+============================================================
+
+. di ""
+
+
+. di "After controlling for years of education:"
+After controlling for years of education:
+
+. di ""
+
+
+. di "  Return per year of education: " %5.2f `b_years'*100 "%"
+  Return per year of education:  0.19%
+
+. di ""
+
+
+. di "  Additional premium for:"
+  Additional premium for:
+
+. di "    HS diploma (12 years):     " %5.1f `b_hs'*100 "%"
+    HS diploma (12 years):       5.6%
+
+. di "    BA degree (16 years):      " %5.1f `b_ba'*100 "%"
+    BA degree (16 years):       63.6%
+
+. di "    Graduate degree (17+ yrs): " %5.1f `b_grad'*100 "%"
+    Graduate degree (17+ yrs):  66.4%
+
+. di ""
+
+
+. 
+. * Interpret sheepskin results
+. local large_sheepskin = 0
+
+. if abs(`b_ba') > 0.05 | abs(`b_hs') > 0.03 {
+.     local large_sheepskin = 1
+. }
+
+. 
+. if `large_sheepskin' == 1 {
+.     di "RESULT: SIGNIFICANT SHEEPSKIN EFFECTS"
+RESULT: SIGNIFICANT SHEEPSKIN EFFECTS
+.     di "  Degree completion matters beyond years of schooling"
+  Degree completion matters beyond years of schooling
+.     di "  Supports SIGNALING: Credentials have independent value"
+  Supports SIGNALING: Credentials have independent value
+. }
+
+. else {
+.     di "RESULT: SMALL SHEEPSKIN EFFECTS"
+.     di "  Years of education explain most of wage premium"
+.     di "  Supports HUMAN CAPITAL: It's the learning, not the diploma"
+. }
+
+. 
+. /*---------------------------------------------------------------------------
+> ---
+> 5.4: Sheepskin model comparison
+> -----------------------------------------------------------------------------
+> -*/
+. 
+. di ""
+
+
+. di "5.4 EDUCATION MODEL COMPARISON"
+5.4 EDUCATION MODEL COMPARISON
+
+. di "------------------------------"
+------------------------------
+
+. 
+. estimates table educ_continuous educ_degrees sheepskin_test, ///
+>     keep(educ_years hs_diploma some_coll ba_degree grad_degree) ///
+>     b(%9.4f) se(%9.4f) stats(N r2) ///
+>     title("Sheepskin Effects: Continuous vs Discrete Education")
+
+Sheepskin Effects: Continuous vs Discrete Education
+
+--------------------------------------------------
+    Variable | educ_co~s   educ_de~s   sheepsk~t  
+-------------+------------------------------------
+  educ_years |    0.0115                  0.0019  
+             |    0.0026                  0.0020  
+  hs_diploma |                0.4642      0.0556  
+             |                0.0219      0.0147  
+   some_coll |                0.6024              
+             |                0.0237              
+   ba_degree |                1.1409      0.6357  
+             |                0.0292      0.0207  
+ grad_degree |                1.2429      0.6639  
+             |                0.0339      0.0262  
+-------------+------------------------------------
+           N |    179609      179609      179609  
+          r2 |    0.3620      0.4012      0.3871  
+--------------------------------------------------
+                                      Legend: b/se
+
+. 
+. /*===========================================================================
+> ===
+> PART 6: COMPREHENSIVE SUMMARY
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "COMPREHENSIVE SUMMARY: SKILL VS SIGNALING"
+COMPREHENSIVE SUMMARY: SKILL VS SIGNALING
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. 
+. di "EVIDENCE SCORECARD"
+EVIDENCE SCORECARD
+
+. di "=================="
+==================
+
+. di ""
+
+
+. di "Test                          | Human Capital | Employer Learning/Signali
+> ng"
+Test                          | Human Capital | Employer Learning/Signaling
+
+. di "------------------------------|---------------|--------------------------
+> ---"
+------------------------------|---------------|-----------------------------
+
+. 
+. * Altonji-Pierret
+. quietly estimates restore afqt_interaction
+
+. local ap_result = "Inconclusive"
+
+. if _b[afqt_x_exp] > 0 & _b[afqt_x_exp]/_se[afqt_x_exp] > 1.96 {
+.     local ap_result = "Signaling ✓"
+. }
+
+. else if _b[afqt_x_exp] <= 0 {
+.     local ap_result = "Human Cap ✓"
+. }
+
+. di "1. AFQT × Experience          |               | `ap_result'"
+1. AFQT × Experience          |               | Signaling ✓
+
+. 
+. * Hours decomposition
+. quietly estimates restore hours_horserace
+
+. local hrs_result = "Mixed"
+
+. if abs(_b[log_cumhrs]) > abs(_b[log_recent_hrs_annual]) * 1.5 {
+.     local hrs_result = "Human Cap ✓"
+. }
+
+. else if abs(_b[log_recent_hrs_annual]) > abs(_b[log_cumhrs]) * 1.5 {
+.     local hrs_result = "Signaling ✓"
+. }
+
+. di "2. Hours decomposition        | `hrs_result'              |"
+2. Hours decomposition        | Signaling ✓              |
+
+. 
+. * FE comparison
+. local fe_result = "Mixed"
+
+. if `exp_ratio' > 0.7 {
+.     local fe_result = "Human Cap ✓"
+. }
+
+. else if `exp_ratio' < 0.5 {
+.     local fe_result = "Signaling ✓"
+. }
+
+. di "3. OLS vs FE (exp coef)       | `fe_result'              |"
+3. OLS vs FE (exp coef)       | Signaling ✓              |
+
+. 
+. * Sheepskin
+. local sheep_result = "Mixed"
+
+. if `large_sheepskin' == 1 {
+.     local sheep_result = "Signaling ✓"
+. }
+
+. else {
+.     local sheep_result = "Human Cap ✓"
+. }
+
+. di "4. Sheepskin effects          |               | `sheep_result'"
+4. Sheepskin effects          |               | Signaling ✓
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "INTERPRETATION GUIDE:"
+INTERPRETATION GUIDE:
+
+. di ""
+
+
+. di "  The evidence suggests that early-career wage growth reflects BOTH:"
+  The evidence suggests that early-career wage growth reflects BOTH:
+
+. di "  - Genuine skill formation (human capital accumulation)"
+  - Genuine skill formation (human capital accumulation)
+
+. di "  - Employer learning about worker ability (signaling/screening)"
+  - Employer learning about worker ability (signaling/screening)
+
+. di ""
+
+
+. di "  Key findings to emphasize in your research:"
+  Key findings to emphasize in your research:
+
+. di "  1. The AFQT × Experience interaction reveals employer learning dynamics
+> "
+  1. The AFQT × Experience interaction reveals employer learning dynamics
+
+. di "  2. Cumulative vs recent hours decomposition shows learning-by-doing vs 
+> face time"
+  2. Cumulative vs recent hours decomposition shows learning-by-doing vs face t
+> ime
+
+. di "  3. Fixed effects help isolate causal effects from ability selection"
+  3. Fixed effects help isolate causal effects from ability selection
+
+. di "  4. Sheepskin effects reveal credential vs skill value of education"
+  4. Sheepskin effects reveal credential vs skill value of education
+
+. di ""
+
+
+. 
+. /*===========================================================================
+> ===
+> PART 7: FORMATTED REGRESSION TABLES (esttab)
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 7a: FORMATTED REGRESSION TABLES (esttab)"
+PART 7a: FORMATTED REGRESSION TABLES (esttab)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * Employer Learning tests (AFQT x Experience)
+. capture noisily esttab baseline_mincer afqt_main afqt_interaction full_learni
+> ng ///
+>     using "${outdir}\SkillSignal_Table1_EmployerLearning.rtf", replace ///
+>     keep(afqt_std pot_exp pot_exp2 afqt_x_exp educ_x_exp educ_years) ///
+>     order(afqt_std pot_exp pot_exp2 afqt_x_exp educ_x_exp educ_years) ///
+>     b(%9.3f) se(%9.3f) star(* 0.10 ** 0.05 *** 0.01) ///
+>     stats(N r2, fmt(%12.0fc %9.3f) labels("Observations" "R-squared")) ///
+>     mtitles("Baseline" "AFQT Main" "AFQT×Exp" "Full Learning") ///
+>     title("Table 1: Employer Learning Tests (AFQT × Experience Interaction)")
+>  ///
+>     note("Year and individual controls included. Std. errors clustered by ind
+> ividual.")
+command esttab is unrecognized
+
+. if _rc != 0 di "WARNING: esttab SkillSignal Table1 failed (_rc=" _rc ")"
+WARNING: esttab SkillSignal Table1 failed (_rc=199)
+
+. 
+. * Hours decomposition (human capital vs signaling)
+. capture noisily esttab cumhrs_only recent_only hours_horserace ///
+>     using "${outdir}\SkillSignal_Table2_Hours.rtf", replace ///
+>     keep(log_cumhrs log_recent_hrs_annual pot_exp pot_exp2 educ_years) ///
+>     b(%9.3f) se(%9.3f) star(* 0.10 ** 0.05 *** 0.01) ///
+>     stats(N r2, fmt(%12.0fc %9.3f) labels("Observations" "R-squared")) ///
+>     mtitles("Cumulative Only" "Recent Only" "Both (Horse Race)") ///
+>     title("Table 2: Hours Decomposition - Cumulative vs Recent Face Time") //
+> /
+>     note("Cumulative hours = stock of experience. Recent hours = signaling/ef
+> fort.")
+command esttab is unrecognized
+
+. if _rc != 0 di "WARNING: esttab SkillSignal Table2 failed (_rc=" _rc ")"
+WARNING: esttab SkillSignal Table2 failed (_rc=199)
+
+. 
+. * OLS vs FE comparison
+. capture noisily esttab ols_main fe_main ///
+>     using "${outdir}\SkillSignal_Table3_OLSvsFE.rtf", replace ///
+>     keep(pot_exp pot_exp2 educ_years) ///
+>     b(%9.3f) se(%9.3f) star(* 0.10 ** 0.05 *** 0.01) ///
+>     stats(N r2, fmt(%12.0fc %9.3f) labels("Observations" "R-squared")) ///
+>     mtitles("OLS" "Fixed Effects") ///
+>     title("Table 3: OLS vs Fixed Effects - Ability Selection Test") ///
+>     note("FE eliminates time-invariant ability bias. Large OLS/FE difference 
+> implies signaling.")
+command esttab is unrecognized
+
+. if _rc != 0 di "WARNING: esttab SkillSignal Table3 failed (_rc=" _rc ")"
+WARNING: esttab SkillSignal Table3 failed (_rc=199)
+
+. 
+. * Sheepskin effects
+. capture noisily esttab educ_continuous educ_degrees sheepskin_test ///
+>     using "${outdir}\SkillSignal_Table4_Sheepskin.rtf", replace ///
+>     keep(educ_years hs_diploma some_coll ba_degree grad_degree) ///
+>     b(%9.3f) se(%9.3f) star(* 0.10 ** 0.05 *** 0.01) ///
+>     stats(N r2, fmt(%12.0fc %9.3f) labels("Observations" "R-squared")) ///
+>     mtitles("Continuous" "Degree Dummies" "Combined") ///
+>     title("Table 4: Sheepskin Effects - Degree vs. Continuous Education") ///
+>     note("Sheepskin = extra returns to completing a degree beyond continuous 
+> years.")
+command esttab is unrecognized
+
+. if _rc != 0 di "WARNING: esttab SkillSignal Table4 failed (_rc=" _rc ")"
+WARNING: esttab SkillSignal Table4 failed (_rc=199)
+
+. 
+. /*===========================================================================
+> ===
+> PART 7b: SAVE RESULTS AND CLEAN UP
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "OUTPUT FILES CREATED"
+OUTPUT FILES CREATED
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Graphs (${outdir}):"
+Graphs (D:\Stata Data\labor_signaling_project\output):
+
+. di "  - wage_variance_evolution.png"
+  - wage_variance_evolution.png
+
+. di ""
+
+
+. di "Tables (${outdir}):"
+Tables (D:\Stata Data\labor_signaling_project\output):
+
+. di "  - SkillSignal_Table1_EmployerLearning.rtf"
+  - SkillSignal_Table1_EmployerLearning.rtf
+
+. di "  - SkillSignal_Table2_Hours.rtf"
+  - SkillSignal_Table2_Hours.rtf
+
+. di "  - SkillSignal_Table3_OLSvsFE.rtf"
+  - SkillSignal_Table3_OLSvsFE.rtf
+
+. di "  - SkillSignal_Table4_Sheepskin.rtf"
+  - SkillSignal_Table4_Sheepskin.rtf
+
+. di ""
+
+
+. di "Log (${outdir}):"
+Log (D:\Stata Data\labor_signaling_project\output):
+
+. di "  - Skill_vs_Signal_log.txt"
+  - Skill_vs_Signal_log.txt
+
+. di ""
+
+
+. 
+. * Clean up temporary variables
+. capture drop afqt_x_exp educ_x_exp recent_x_early log_cumhrs skill_sample les
+> s_than_hs log_recent_hrs_annual
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "SKILL VS SIGNALING ANALYSIS COMPLETE"
+SKILL VS SIGNALING ANALYSIS COMPLETE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "End time: $S_DATE $S_TIME"
+End time: 11 Mar 2026 00:18:55
+
+. di ""
+
+
+. di "Key corrections applied in this analysis:"
+Key corrections applied in this analysis:
+
+. di "  - pot_exp uses current-year education (not lifetime max)"
+  - pot_exp uses current-year education (not lifetime max)
+
+. di "  - recent_hrs_annual used for cross-period comparisons"
+  - recent_hrs_annual used for cross-period comparisons
+
+. di "  - AFQT properly standardized"
+  - AFQT properly standardized
+
+. di "  - Ages are income-year aligned"
+  - Ages are income-year aligned
+
+. di ""
+
+
+. 
+. log close skill_signal_log
+      name:  skill_signal_log
+       log:  D:\Stata Data\labor_signaling_project\output\Skill_vs_Signal_log.t
+> xt
+  log type:  text
+ closed on:  11 Mar 2026, 00:18:55
+-------------------------------------------------------------------------------

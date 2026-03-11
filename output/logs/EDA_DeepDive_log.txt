@@ -1,0 +1,1087 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\EDA_DeepDive_log.txt
+  log type:  text
+ opened on:  11 Mar 2026, 00:18:55
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "COMPREHENSIVE EDA: OCCUPATION × INDUSTRY DEEP DIVE"
+COMPREHENSIVE EDA: OCCUPATION × INDUSTRY DEEP DIVE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "Start time: $S_DATE $S_TIME"
+Start time: 11 Mar 2026 00:18:55
+
+. di ""
+
+
+. 
+. /*===========================================================================
+> ===
+> PART 0: LOAD DATA AND CREATE OCCUPATION/INDUSTRY IN LONG FORMAT
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 0: DATA PREPARATION - CREATING OCC/IND IN LONG FORMAT"
+PART 0: DATA PREPARATION - CREATING OCC/IND IN LONG FORMAT
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * Check if the wide data with occ/ind exists
+. capture confirm file "${datadir}\merged_data_with_occind.dta"
+
+. if _rc != 0 {
+.     di as error "ERROR: ${datadir}\merged_data_with_occind.dta not found!"
+.     di as error ""
+.     di as error "Re-run Data_process.do to generate this file."
+.     di as error ""
+.     exit 601
+. }
+
+. 
+. * Step 1: Load wide-format data with occ/ind variables
+. use "${datadir}\merged_data_with_occind.dta", clear
+
+. 
+. di "Loaded merged_data_with_occind.dta: " _N " observations"
+Loaded merged_data_with_occind.dta: 12686 observations
+
+. 
+. * Verify occ_broad variables exist
+. capture confirm variable occ_broad_1990
+
+. if _rc != 0 {
+.     di as error "ERROR: occ_broad_1990 not found in the data!"
+.     di as error "Make sure you added the save command AFTER the occ_broad var
+> iables are created."
+.     exit 111
+. }
+
+. 
+. di "Verified: occ_broad and ind_broad variables exist"
+Verified: occ_broad and ind_broad variables exist
+
+. 
+. * Keep only ID and occupation/industry broad variables
+. keep taxsimid occ_broad_* ind_broad_*
+
+. 
+. * Reshape to long format
+. reshape long occ_broad_ ind_broad_, i(taxsimid) j(year)
+(j = 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992 1993
+> )
+
+Data                               Wide   ->   Long
+-----------------------------------------------------------------------------
+Number of observations           12,686   ->   190,290     
+Number of variables                  31   ->   4           
+j variable (15 values)                    ->   year
+xij variables:
+occ_broad_1979 occ_broad_1980 ... occ_broad_1993->occ_broad_
+ind_broad_1979 ind_broad_1980 ... ind_broad_1993->ind_broad_
+-----------------------------------------------------------------------------
+
+. 
+. * Rename variables
+. rename occ_broad_ occ_broad
+
+. rename ind_broad_ ind_broad
+
+. 
+. * Label variables
+. label var occ_broad "Broad occupation (1-digit, 1970 Census)"
+
+. label var ind_broad "Broad industry (1-digit, 1970 Census)"
+
+. 
+. * Label values
+. label define occ_broad_lbl 1 "Professional/Technical" 2 "Managers/Admin" ///
+>     3 "Sales" 4 "Clerical" 5 "Craftsmen" 6 "Operatives" ///
+>     7 "Laborers" 8 "Farm Workers" 9 "Service Workers", replace
+
+. label values occ_broad occ_broad_lbl
+
+. 
+. label define ind_broad_lbl 1 "Agriculture" 2 "Mining" 3 "Construction" ///
+>     4 "Manufacturing" 5 "Transport/Utilities" 6 "Trade" ///
+>     7 "Finance/Insurance" 8 "Business Services" 9 "Personal Services" ///
+>     10 "Entertainment" 11 "Professional Services" 12 "Public Admin", replace
+
+. label values ind_broad ind_broad_lbl
+
+. 
+. * Save occupation/industry long data
+. tempfile occ_ind_long
+
+. save `occ_ind_long', replace
+(file
+    C:\Users\yuhao\AppData\Local\Temp\stata_worker_default_2g1vdf_5\ST_92e8_0
+    > 0000b.tmp not found)
+file
+    C:\Users\yuhao\AppData\Local\Temp\stata_worker_default_2g1vdf_5\ST_92e8_0
+    > 0000b.tmp saved as .dta format
+
+. 
+. di "Reshaped occ/ind data: " _N " observations"
+Reshaped occ/ind data: 190290 observations
+
+. 
+. * Step 2: Load the long-format wage data and merge
+. use "nlsy_long_pre_taxsim.dta", clear
+
+. di "Loaded nlsy_long_pre_taxsim.dta: " _N " observations"
+Loaded nlsy_long_pre_taxsim.dta: 583556 observations
+
+. 
+. * Merge with occupation/industry data
+. merge 1:1 taxsimid year using `occ_ind_long', keep(master match) nogen
+(label ind_broad_lbl already defined)
+(label occ_broad_lbl already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       393,266
+        from master                   393,266  
+        from using                          0  
+
+    Matched                           190,290  
+    -----------------------------------------
+
+. 
+. di ""
+
+
+. di "After merging occupation/industry:"
+After merging occupation/industry:
+
+. di "  Total observations: " _N
+  Total observations: 583556
+
+. count if !missing(occ_broad)
+  122,281
+
+. di "  Observations with occupation data: " r(N)
+  Observations with occupation data: 122281
+
+. count if !missing(ind_broad)
+  20,597
+
+. di "  Observations with industry data: " r(N)
+  Observations with industry data: 20597
+
+. 
+. di ""
+
+
+. di "NOTE: Occupation/industry data available for 1979-1993 (1970 Census codes
+> )"
+NOTE: Occupation/industry data available for 1979-1993 (1970 Census codes)
+
+. 
+. * Create occupation × industry cell identifier
+. gen occ_ind_cell = occ_broad * 100 + ind_broad if !missing(occ_broad) & !miss
+> ing(ind_broad)
+(566,286 missing values generated)
+
+. label var occ_ind_cell "Occupation × Industry cell (occ_broad*100 + ind_broad
+> )"
+
+. 
+. * Create log wages
+. capture drop log_pwages
+
+. gen log_pwages = ln(pwages) if pwages > 0
+(381,760 missing values generated)
+
+. label var log_pwages "Log primary wages"
+
+. 
+. * Create log cumulative hours
+. capture drop log_cumhrs
+
+. gen log_cumhrs = ln(cumhrs) if cumhrs > 0
+(55,511 missing values generated)
+
+. label var log_cumhrs "Log cumulative hours"
+
+. 
+. * Create hours per age
+. capture drop hrs_per_age
+
+. gen hrs_per_age = cumhrs / page if page > 0 & cumhrs >= 0
+(306,112 missing values generated)
+
+. label var hrs_per_age "Cumulative hours / Age"
+
+. 
+. capture drop log_hrs_per_age
+
+. gen log_hrs_per_age = ln(hrs_per_age) if hrs_per_age > 0
+(319,308 missing values generated)
+
+. label var log_hrs_per_age "Log(cumulative hours / age)"
+
+. 
+. * Check if pot_exp exists, if not create it
+. capture confirm variable pot_exp
+
+. if _rc != 0 {
+.     * Create potential experience = age - education - 6
+.     gen pot_exp = page - hgc - 6 if !missing(page) & !missing(hgc)
+.     replace pot_exp = 0 if pot_exp < 0
+.     replace pot_exp = page - 18 if missing(pot_exp) & !missing(page)
+.     replace pot_exp = 0 if pot_exp < 0
+.     label var pot_exp "Potential experience (age - education - 6)"
+. }
+
+. 
+. * Create education years variable if needed
+. capture confirm variable educ_years
+
+. if _rc != 0 {
+.     gen educ_years = hgc
+.     label var educ_years "Years of education"
+. }
+
+. 
+. * Create wage sample indicator
+. gen wage_sample = (pwages > 0 & !missing(page) & page >= 16 & page <= 65)
+
+. 
+. di ""
+
+
+. di "Wage sample observations: "
+Wage sample observations: 
+
+. count if wage_sample == 1
+  194,223
+
+. di "  Total: " r(N)
+  Total: 194223
+
+. count if wage_sample == 1 & !missing(occ_ind_cell)
+  13,885
+
+. di "  With occupation × industry data: " r(N)
+  With occupation × industry data: 13885
+
+. 
+. * Save prepared data
+. save "eda_deepdive_data.dta", replace
+file eda_deepdive_data.dta saved
+
+. 
+. /*===========================================================================
+> ===
+> PART 1: OCCUPATION × INDUSTRY CELL SIZE ANALYSIS
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 1: OCCUPATION × INDUSTRY CELL SIZE ANALYSIS"
+PART 1: OCCUPATION × INDUSTRY CELL SIZE ANALYSIS
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. *----------------------------------------------------------------------------
+> --
+. * 1.1: Basic cell counts
+. *----------------------------------------------------------------------------
+> --
+. 
+. di ""
+
+
+. di "1.1 BASIC CELL COUNTS"
+1.1 BASIC CELL COUNTS
+
+. di "---------------------"
+---------------------
+
+. 
+. preserve
+
+. keep if wage_sample == 1 & !missing(occ_ind_cell)
+(569,671 observations deleted)
+
+. 
+. * Count observations per cell
+. bysort occ_ind_cell: gen n_obs = _N
+
+. 
+. * Get unique individuals per cell
+. bysort occ_ind_cell taxsimid: gen first_in_cell = (_n == 1)
+
+. bysort occ_ind_cell: egen n_individuals = total(first_in_cell)
+
+. 
+. * Get mean wage per cell
+. bysort occ_ind_cell: egen mean_wage = mean(pwages)
+
+. 
+. * Keep one row per cell
+. egen cell_tag = tag(occ_ind_cell)
+
+. keep if cell_tag == 1
+(13,780 observations deleted)
+
+. keep occ_ind_cell occ_broad ind_broad n_obs n_individuals mean_wage
+
+. 
+. di ""
+
+
+. di "TOTAL UNIQUE OCCUPATION × INDUSTRY CELLS: " _N
+TOTAL UNIQUE OCCUPATION × INDUSTRY CELLS: 105
+
+. 
+. * Summary of cell sizes
+. di ""
+
+
+. di "CELL SIZE DISTRIBUTION (Observations):"
+CELL SIZE DISTRIBUTION (Observations):
+
+. summarize n_obs, detail
+
+                            n_obs
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%            1              1
+ 5%            2              1
+10%            5              1       Obs                 105
+25%           12              1       Sum of wgt.         105
+
+50%           35                      Mean           132.2381
+                        Largest       Std. dev.      244.3636
+75%          110            756
+90%          431           1149       Variance       59713.57
+95%          541           1291       Skewness       3.180463
+99%         1291           1315       Kurtosis       13.97101
+
+. 
+. di ""
+
+
+. di "CELL SIZE DISTRIBUTION (Unique Individuals):"
+CELL SIZE DISTRIBUTION (Unique Individuals):
+
+. summarize n_individuals, detail
+
+                        n_individuals
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%            1              1
+ 5%            2              1
+10%            5              1       Obs                 105
+25%           10              1       Sum of wgt.         105
+
+50%           27                      Mean           78.20952
+                        Largest       Std. dev.      134.8635
+75%           72            395
+90%          207            556       Variance       18188.17
+95%          329            694       Skewness        3.22742
+99%          694            802       Kurtosis       14.70617
+
+. 
+. * Count cells meeting thresholds
+. di ""
+
+
+. di "CELLS MEETING THRESHOLDS:"
+CELLS MEETING THRESHOLDS:
+
+. count if n_obs >= 30
+  59
+
+. di "  Cells with >= 30 observations: " r(N)
+  Cells with >= 30 observations: 59
+
+. count if n_obs >= 100
+  30
+
+. di "  Cells with >= 100 observations: " r(N)
+  Cells with >= 100 observations: 30
+
+. count if n_obs >= 500
+  6
+
+. di "  Cells with >= 500 observations: " r(N)
+  Cells with >= 500 observations: 6
+
+. count if n_individuals >= 30
+  49
+
+. di "  Cells with >= 30 individuals: " r(N)
+  Cells with >= 30 individuals: 49
+
+. count if n_individuals >= 100
+  21
+
+. di "  Cells with >= 100 individuals: " r(N)
+  Cells with >= 100 individuals: 21
+
+. 
+. * Top 20 cells by observation count
+. gsort -n_obs
+
+. di ""
+
+
+. di "TOP 20 OCCUPATION × INDUSTRY CELLS BY OBSERVATION COUNT:"
+TOP 20 OCCUPATION × INDUSTRY CELLS BY OBSERVATION COUNT:
+
+. list occ_broad ind_broad n_obs n_individuals mean_wage in 1/20, clean noobs
+
+                  occ_broad                        ind_broad   n_obs   n_indi~s
+>    mean_w~e  
+                 Operatives                    Manufacturing    1315        556
+>    11292.88  
+            Service Workers           Wholesale/Retail Trade    1291        802
+>    5238.934  
+           Clerical Workers           Wholesale/Retail Trade    1149        694
+>    7613.288  
+            Service Workers            Professional Services     756        395
+>    6847.803  
+           Clerical Workers            Professional Services     587        318
+>    6995.339  
+              Sales Workers           Wholesale/Retail Trade     541        357
+>    7447.299  
+    Managers/Administrators           Wholesale/Retail Trade     487        207
+>    17941.41  
+                   Laborers           Wholesale/Retail Trade     446        327
+>    7414.695  
+                 Operatives           Wholesale/Retail Trade     445        329
+>    8930.364  
+               Farm Workers   Agriculture/Forestry/Fisheries     433        181
+>    7785.432  
+                  Craftsmen                    Manufacturing     431        226
+>    16869.85  
+     Professional/Technical            Professional Services     429        169
+>    14762.66  
+            Service Workers                Personal Services     403        265
+>    3560.325  
+           Clerical Workers    Finance/Insurance/Real Estate     344        128
+>    11358.49  
+                  Craftsmen                     Construction     330        165
+>    13553.42  
+           Clerical Workers                    Manufacturing     323        168
+>    12389.32  
+           Clerical Workers            Public Administration     257        138
+>    10292.11  
+                   Laborers                    Manufacturing     232        168
+>    10316.06  
+                  Craftsmen           Wholesale/Retail Trade     206        161
+>     11585.6  
+                  Craftsmen         Business/Repair Services     167        103
+>    11076.08  
+
+. 
+. restore
+
+. 
+. *----------------------------------------------------------------------------
+> --
+. * 1.2: Cross-tabulation (Heatmap data)
+. *----------------------------------------------------------------------------
+> --
+. 
+. di ""
+
+
+. di "1.2 OCCUPATION × INDUSTRY CROSS-TABULATION"
+1.2 OCCUPATION × INDUSTRY CROSS-TABULATION
+
+. di "-------------------------------------------"
+-------------------------------------------
+
+. 
+. preserve
+
+. keep if wage_sample == 1 & !missing(occ_broad) & !missing(ind_broad)
+(569,671 observations deleted)
+
+. 
+. di ""
+
+
+. di "OBSERVATION COUNTS BY OCCUPATION × INDUSTRY:"
+OBSERVATION COUNTS BY OCCUPATION × INDUSTRY:
+
+. tab occ_broad ind_broad
+
+     Broad occupation |
+       (1-digit, 1970 |    Broad industry (1-digit, 1970 Census)
+              Census) | Agricultu     Mining  Construct  Manufactu |     Total
+----------------------+--------------------------------------------+----------
+Professional/Technica |        14          5         21        120 |       851 
+Managers/Administrato |         8          0         35         68 |       765 
+        Sales Workers |         3          0          7         66 |       714 
+     Clerical Workers |        31          8         39        323 |     3,074 
+            Craftsmen |        75          9        330        431 |     1,384 
+           Operatives |        73         45        104      1,315 |     2,414 
+             Laborers |        82          5        145        232 |     1,180 
+         Farm Workers |       433          1          6         12 |       473 
+      Service Workers |        29         10         28        104 |     3,030 
+----------------------+--------------------------------------------+----------
+                Total |       748         83        715      2,671 |    13,885 
+
+
+     Broad occupation |
+       (1-digit, 1970 |    Broad industry (1-digit, 1970 Census)
+              Census) | Transport  Wholesale  Finance/I  Business/ |     Total
+----------------------+--------------------------------------------+----------
+Professional/Technica |        28         85         14         29 |       851 
+Managers/Administrato |        25        487         25         35 |       765 
+        Sales Workers |        11        541         21         15 |       714 
+     Clerical Workers |       130      1,149        344        103 |     3,074 
+            Craftsmen |        63        206         14        167 |     1,384 
+           Operatives |       116        445          3         89 |     2,414 
+             Laborers |        63        446          7         45 |     1,180 
+         Farm Workers |         2          9          1          1 |       473 
+      Service Workers |        25      1,291         30        110 |     3,030 
+----------------------+--------------------------------------------+----------
+                Total |       463      4,659        459        594 |    13,885 
+
+
+     Broad occupation |
+       (1-digit, 1970 |    Broad industry (1-digit, 1970 Census)
+              Census) | Personal   Entertain  Professio  Public Ad |     Total
+----------------------+--------------------------------------------+----------
+Professional/Technica |         6         42        429         58 |       851 
+Managers/Administrato |        13         11         35         23 |       765 
+        Sales Workers |         7         12         25          6 |       714 
+     Clerical Workers |        53         50        587        257 |     3,074 
+            Craftsmen |        16          7         36         30 |     1,384 
+           Operatives |        74         18         95         37 |     2,414 
+             Laborers |        34         28         39         54 |     1,180 
+         Farm Workers |         2          1          5          0 |       473 
+      Service Workers |       403        112        756        132 |     3,030 
+----------------------+--------------------------------------------+----------
+                Total |       608        281      2,007        597 |    13,885 
+
+. 
+. di ""
+
+
+. di "MEAN WAGES BY OCCUPATION × INDUSTRY:"
+MEAN WAGES BY OCCUPATION × INDUSTRY:
+
+. table occ_broad ind_broad, stat(mean pwages) nformat(%9.0fc)
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+> -----------------------------------------------------------------------------------------------------------------------------------------
+                                        |                                                                                                                                   Broad industry (1-digit, 197
+> 0 Census)                                                                                                                                
+                                        |  Agriculture/Forestry/Fisheries   Mining   Construction   Manufacturing   Transport/Communication/Utilities   Wholesale/Retail Trade   Finance/Insurance/Real 
+> Estate   Business/Repair Services   Personal Services   Entertainment/Recreation   Professional Services   Public Administration    Total
+----------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+> -----------------------------------------------------------------------------------------------------------------------------------------
+Broad occupation (1-digit, 1970 Census) |                                                                                                                                                               
+>                                                                                                                                          
+  Professional/Technical                |                          13,326    9,992         14,828          21,858                              16,884                    9,054                          
+> 16,182                     14,324               8,754                      6,380                  14,763                  16,455   14,880
+  Managers/Administrators               |                          23,412                  39,673          24,342                              22,230                   17,941                          
+> 16,619                     16,212              13,461                      8,482                  17,760                  22,794   19,505
+  Sales Workers                         |                          21,130                   7,668           6,617                              10,768                    7,447                          
+> 12,608                     12,405               5,396                      5,206                   5,273                   2,800    7,564
+  Clerical Workers                      |                           9,545    4,905         11,107          12,389                              14,136                    7,613                          
+> 11,358                      7,367               5,533                      5,165                   6,995                  10,292    8,889
+  Craftsmen                             |                          10,406   19,997         13,553          16,870                              18,585                   11,586                          
+> 12,882                     11,076               8,519                     10,514                   8,760                  10,104   13,815
+  Operatives                            |                          12,225   17,271         12,884          11,293                              19,462                    8,930                          
+> 26,000                     14,268               7,833                      6,446                   6,666                   9,701   11,237
+  Laborers                              |                           7,968   12,466          8,332          10,316                               8,279                    7,415                          
+>  8,223                      6,300               4,567                      6,233                   3,370                  10,853    8,080
+  Farm Workers                          |                           7,785   13,000          5,250           8,678                               5,100                    8,956                          
+>  1,170                        100               2,500                      1,100                   3,590                            7,687
+  Service Workers                       |                           6,242   12,561          6,766           8,572                              17,361                    5,239                          
+>  7,295                      7,703               3,560                      3,819                   6,848                  12,915    6,071
+  Total                                 |                           8,839   15,028         13,187          12,814                              15,937                    8,327                          
+> 11,656                     10,401               4,720                      5,249                   8,703                  11,882    9,948
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+> -----------------------------------------------------------------------------------------------------------------------------------------
+
+. 
+. restore
+
+. 
+. *----------------------------------------------------------------------------
+> --
+. * 1.3: Cell counts by year
+. *----------------------------------------------------------------------------
+> --
+. 
+. di ""
+
+
+. di "1.3 CELL REPRESENTATION OVER TIME"
+1.3 CELL REPRESENTATION OVER TIME
+
+. di "----------------------------------"
+----------------------------------
+
+. 
+. preserve
+
+. keep if wage_sample == 1 & !missing(occ_ind_cell)
+(569,671 observations deleted)
+
+. 
+. * Count years represented per cell
+. bysort occ_ind_cell year: gen year_tag = (_n == 1)
+
+. bysort occ_ind_cell: egen n_years = total(year_tag)
+
+. bysort occ_ind_cell: gen n_obs = _N
+
+. 
+. * Keep one row per cell
+. egen cell_tag = tag(occ_ind_cell)
+
+. keep if cell_tag == 1
+(13,780 observations deleted)
+
+. 
+. di ""
+
+
+. di "YEARS REPRESENTED PER CELL:"
+YEARS REPRESENTED PER CELL:
+
+. summarize n_years, detail
+
+                           n_years
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%            1              1
+ 5%            2              1
+10%            4              1       Obs                 105
+25%            7              1       Sum of wgt.         105
+
+50%           12                      Mean           10.30476
+                        Largest       Std. dev.      4.455169
+75%           15             15
+90%           15             15       Variance       19.84853
+95%           15             15       Skewness       -.547849
+99%           15             15       Kurtosis       2.041576
+
+. 
+. count if n_years >= 10
+  63
+
+. di "Cells with >= 10 years of data: " r(N)
+Cells with >= 10 years of data: 63
+
+. 
+. restore
+
+. 
+. *----------------------------------------------------------------------------
+> --
+. * 1.4: Create histograms
+. *----------------------------------------------------------------------------
+> --
+. 
+. di ""
+
+
+. di "1.4 CREATING HISTOGRAMS"
+1.4 CREATING HISTOGRAMS
+
+. di "-----------------------"
+-----------------------
+
+. 
+. preserve
+
+. keep if wage_sample == 1 & !missing(occ_ind_cell)
+(569,671 observations deleted)
+
+. 
+. bysort occ_ind_cell: gen n_obs = _N
+
+. bysort occ_ind_cell taxsimid: gen first_in_cell = (_n == 1)
+
+. bysort occ_ind_cell: egen n_individuals = total(first_in_cell)
+
+. 
+. egen cell_tag = tag(occ_ind_cell)
+
+. keep if cell_tag == 1
+(13,780 observations deleted)
+
+. 
+. local ncells = _N
+
+. 
+. histogram n_obs, bin(30) ///
+>     title("Distribution of Observations per Occupation × Industry Cell") ///
+>     xtitle("Number of Observations") ytitle("Number of Cells") ///
+>     note("N = `ncells' cells")
+(bin=30, start=1, width=43.8)
+
+. graph export "${outdir}\hist_obs_per_cell.png", replace
+file D:\Stata Data\labor_signaling_project\output\hist_obs_per_cell.png written
+>  in PNG format
+
+. 
+. histogram n_individuals, bin(30) ///
+>     title("Distribution of Unique Individuals per Occupation × Industry Cell"
+> ) ///
+>     xtitle("Number of Unique Individuals") ytitle("Number of Cells") ///
+>     note("N = `ncells' cells")
+(bin=30, start=1, width=26.7)
+
+. graph export "${outdir}\hist_individuals_per_cell.png", replace
+file D:\Stata Data\labor_signaling_project\output\hist_individuals_per_cell.png
+>  written in PNG format
+
+. 
+. restore
+
+. 
+. /*===========================================================================
+> ===
+> PART 2: DISTRIBUTIONAL WAGE MOMENTS BY OCCUPATION × INDUSTRY
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 2: DISTRIBUTIONAL WAGE MOMENTS BY OCCUPATION × INDUSTRY"
+PART 2: DISTRIBUTIONAL WAGE MOMENTS BY OCCUPATION × INDUSTRY
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. preserve
+
+. keep if wage_sample == 1 & !missing(occ_ind_cell) & !missing(log_pwages)
+(569,671 observations deleted)
+
+. 
+. collapse (count) n_obs=pwages ///
+>          (mean) mean_wage=pwages mean_log_wage=log_pwages ///
+>          (median) median_wage=pwages median_log_wage=log_pwages ///
+>          (sd) sd_log_wage=log_pwages ///
+>          (p10) p10_log_wage=log_pwages ///
+>          (p25) p25_log_wage=log_pwages ///
+>          (p75) p75_log_wage=log_pwages ///
+>          (p90) p90_log_wage=log_pwages, ///
+>          by(occ_ind_cell occ_broad ind_broad)
+
+. 
+. * Calculate inequality measures
+. gen p90_p10 = p90_log_wage - p10_log_wage
+
+. gen p75_p25 = p75_log_wage - p25_log_wage
+
+. gen mean_median_gap = mean_log_wage - median_log_wage
+
+. 
+. label var p90_p10 "P90-P10 log wage gap"
+
+. label var p75_p25 "P75-P25 log wage gap"
+
+. label var mean_median_gap "Mean-Median log wage gap"
+
+. 
+. keep if n_obs >= 30
+(46 observations deleted)
+
+. 
+. local ncells = _N
+
+. di ""
+
+
+. di "DISTRIBUTIONAL MOMENTS FOR CELLS WITH >= 30 OBS (N = `ncells' cells)"
+DISTRIBUTIONAL MOMENTS FOR CELLS WITH >= 30 OBS (N = 59 cells)
+
+. 
+. di ""
+
+
+. di "SUMMARY OF WAGE INEQUALITY ACROSS CELLS:"
+SUMMARY OF WAGE INEQUALITY ACROSS CELLS:
+
+. summarize mean_wage sd_log_wage p90_p10 p75_p25, detail
+
+                        (mean) pwages
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%     3369.769       3369.769
+ 5%     3819.339       3560.325
+10%     5238.934       3819.339       Obs                  59
+25%     7366.602           4567       Sum of wgt.          59
+
+50%     9701.081                      Mean           11061.26
+                        Largest       Std. dev.      5997.211
+75%     13553.42       19461.74
+90%     17941.41       21858.17       Variance       3.60e+07
+95%     21858.17       24341.72       Skewness       2.131811
+99%     39673.14       39673.14       Kurtosis       10.17279
+
+                       (sd) log_pwages
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%     .6059362       .6059362
+ 5%     .8445938       .8120909
+10%     .8698704       .8445938       Obs                  59
+25%     .9648625       .8449466       Sum of wgt.          59
+
+50%     1.070938                      Mean           1.102643
+                        Largest       Std. dev.      .1892543
+75%     1.220394        1.46069
+90%     1.429631       1.463308       Variance       .0358172
+95%     1.463308       1.472755       Skewness       .2405477
+99%     1.543809       1.543809       Kurtosis       2.968146
+
+                    P90-P10 log wage gap
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%     1.172388       1.172388
+ 5%     1.791759       1.735732
+10%      1.94591       1.791759       Obs                  59
+25%     2.322996       1.817078       Sum of wgt.          59
+
+50%     2.639058                      Mean           2.721269
+                        Largest       Std. dev.      .5944311
+75%     3.036554       3.806662
+90%     3.706636       3.825011       Variance       .3533483
+95%     3.825011       3.869324       Skewness       .1242634
+99%     4.008811       4.008811       Kurtosis       2.919516
+
+                    P75-P25 log wage gap
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%     .4402285       .4402285
+ 5%     .8472986       .8266783
+10%     .9028587       .8472986       Obs                  59
+25%     1.072268       .8560638       Sum of wgt.          59
+
+50%     1.280934                      Mean           1.348816
+                        Largest       Std. dev.      .3915474
+75%     1.609438       2.014903
+90%      1.89712       2.079441       Variance       .1533094
+95%     2.079441       2.135546       Skewness       .5265829
+99%     2.519354       2.519354       Kurtosis       3.237205
+
+. 
+. di ""
+
+
+. di "TOP 10 CELLS BY WAGE INEQUALITY (P90-P10):"
+TOP 10 CELLS BY WAGE INEQUALITY (P90-P10):
+
+. gsort -p90_p10
+
+. list occ_broad ind_broad n_obs mean_wage p90_p10 in 1/10, clean noobs
+
+                 occ_broad                           ind_broad   n_obs     mean
+> _wage    p90_p10  
+           Service Workers               Public Administration     132   12915.
+> 39394   4.008811  
+                Operatives   Transport/Communication/Utilities     116   19461.
+> 74138   3.869324  
+                 Craftsmen               Professional Services      36   8760.3
+> 61111   3.825011  
+           Service Workers                   Personal Services     403   3560.3
+> 25062   3.806662  
+             Sales Workers                       Manufacturing      66   6616.9
+> 24242    3.73667  
+                  Laborers               Public Administration      54   10853.
+> 05556   3.706636  
+                Operatives      Agriculture/Forestry/Fisheries      73   12225.
+> 08219   3.589577  
+                  Laborers            Business/Repair Services      45   6300.2
+> 22222   3.401197  
+                  Laborers                   Personal Services      34         
+>  4567   3.401197  
+    Professional/Technical            Entertainment/Recreation      42   6380.4
+> 04762   3.367295  
+
+. 
+. di ""
+
+
+. di "TOP 10 CELLS BY MEAN WAGE:"
+TOP 10 CELLS BY MEAN WAGE:
+
+. gsort -mean_wage
+
+. list occ_broad ind_broad n_obs mean_wage p90_p10 in 1/10, clean noobs
+
+                  occ_broad                           ind_broad   n_obs     mea
+> n_wage    p90_p10  
+    Managers/Administrators                        Construction      35   39673
+> .14286   1.172388  
+    Managers/Administrators                       Manufacturing      68   24341
+> .72059    1.94591  
+     Professional/Technical                       Manufacturing     120   21858
+> .16667   2.914508  
+                 Operatives   Transport/Communication/Utilities     116   19461
+> .74138   3.869324  
+                  Craftsmen   Transport/Communication/Utilities      63   18585
+> .14286   2.346574  
+    Managers/Administrators              Wholesale/Retail Trade     487   17941
+> .41068   1.817078  
+    Managers/Administrators               Professional Services      35       1
+> 7759.8   1.735732  
+                 Operatives                              Mining      45   17271
+> .46667   1.791759  
+                  Craftsmen                       Manufacturing     431   16869
+> .85383   1.841153  
+     Professional/Technical               Public Administration      58   16454
+> .56897   2.823882  
+
+. 
+. save "occ_ind_wage_moments.dta", replace
+file occ_ind_wage_moments.dta saved
+
+. 
+. restore
+
+. 
+. *----------------------------------------------------------------------------
+> --
+. * 2.2: Box plots of log wages for top cells
+. *----------------------------------------------------------------------------
+> --
+. 
+. di ""
+
+
+. di "2.2 CREATING BOX PLOTS"
+2.2 CREATING BOX PLOTS
+
+. di "----------------------"
+----------------------
+
+. 
+. preserve
+
+. keep if wage_sample == 1 & !missing(occ_ind_cell)
+(569,671 observations deleted)
+
+. 
+. bysort occ_ind_cell: gen cell_obs = _N
+
+. egen cell_tag = tag(occ_ind_cell)
+
+. gsort -cell_obs occ_ind_cell
+
+. gen temp_rank = sum(cell_tag)
+
+. bysort occ_ind_cell: egen cell_rank = min(temp_rank)
+
+. keep if cell_rank <= 10
+(6,004 observations deleted)
+
+. 
+. gen cell_str = "O" + string(occ_broad) + "×I" + string(ind_broad)
+
+. 
+. graph box log_pwages, over(cell_str, sort(1) descending label(angle(45) labsi
+> ze(small))) ///
+>     title("Log Wage Distribution") ///
+>     subtitle("Top 10 Occupation × Industry Cells") ///
+>     ytitle("Log Wages")
+
+. graph export "${outdir}\boxplot_wages_top_cells.png", replace
+file D:\Stata Data\labor_signaling_project\output\boxplot_wages_top_cells.png w
+> ritten in PNG format
+
+. 
+. restore
+
+. 
+. /*===========================================================================
+> ===
+> PART 3: NONPARAMETRIC WAGE PROFILES BY EXPERIENCE
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 3: NONPARAMETRIC WAGE PROFILES BY EXPERIENCE"
+PART 3: NONPARAMETRIC WAGE PROFILES BY EXPERIENCE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. *----------------------------------------------------------------------------
+> --
+. * 3.1: Overall wage-experience profile
+. *----------------------------------------------------------------------------
+> --
+. 
+. di ""
+
+
+. di "3.1 OVERALL WAGE-EXPERIENCE PROFILE"
+3.1 OVERALL WAGE-EXPERIENCE PROFILE
+
+. di "------------------------------------"
+------------------------------------
+
+. 
+. preserve
+
+. keep if wage_sample == 1 & pot_exp >= 0 & pot_exp <= 40 & !missing(log_pwages
+> )
+(392,623 observations deleted)
+
+. 
+. gen exp_bin = floor(pot_exp / 2) * 2
+variable exp_bin already defined
+r(110);
+
+end of do-file
+r(110);
+r(110);
