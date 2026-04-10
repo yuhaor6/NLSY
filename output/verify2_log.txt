@@ -1,0 +1,175 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\verify2_log.txt
+  log type:  text
+ opened on:   9 Mar 2026, 22:40:11
+
+. di "Start: $S_DATE $S_TIME"
+Start:  9 Mar 2026 22:40:11
+
+. 
+. use "${datadir}\analysis_annual.dta", clear
+
+. 
+. * Run annual main
+. ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t spline1-spline9 i.year_t married single ///
+>     [aweight=income_weight], cluster(taxsimid)
+(sum of wgt is   6.5852e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     31,832
+                                                  Wald chi2(24)   =    1006.58
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.1307
+                                                  Root MSE        =     .45346
+
+                           (Std. err. adjusted for 7,223 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |  -.1734079   .1235282    -1.40   0.160    -.4155188    .0687031
+log_income_t |  -.5868745    .129912    -4.52   0.000    -.8414974   -.3322516
+     spline1 |   .2885552   .2701225     1.07   0.285    -.2408751    .8179855
+     spline2 |  -.2113008   .2704571    -0.78   0.435     -.741387    .3187854
+     spline3 |   .4702111   .2412204     1.95   0.051    -.0025721    .9429944
+     spline4 |  -.3002127   .2519226    -1.19   0.233    -.7939719    .1935465
+     spline5 |   .1420621   .2136782     0.66   0.506    -.2767395    .5608636
+     spline6 |  -.0239037   .1815727    -0.13   0.895    -.3797796    .3319721
+     spline7 |  -.1275914   .1737925    -0.73   0.463    -.4682183    .2130356
+     spline8 |   .4969802   .1576822     3.15   0.002     .1879288    .8060315
+     spline9 |  -.5665562   .1246266    -4.55   0.000    -.8108199   -.3222925
+             |
+      year_t |
+       1979  |  -.0079901   .0771468    -0.10   0.918     -.159195    .1432149
+       1980  |    .080378   .0796163     1.01   0.313    -.0756671    .2364231
+       1981  |   .1492201   .0815914     1.83   0.067    -.0106961    .3091363
+       1982  |   .3210112   .0817546     3.93   0.000     .1607752    .4812472
+       1983  |   .3823053   .0824988     4.63   0.000     .2206106    .5440001
+       1984  |   .4121909   .0823482     5.01   0.000     .2507915    .5735903
+       1985  |   .4299652   .0820533     5.24   0.000     .2691437    .5907866
+       1986  |    .411729   .0817438     5.04   0.000     .2515141    .5719439
+       1987  |   .4149947   .0828147     5.01   0.000     .2526808    .5773085
+       1988  |   .4260441   .0830307     5.13   0.000      .263307    .5887813
+       1989  |   .4104017   .0832722     4.93   0.000     .2471912    .5736121
+       1990  |   .4244758   .0832704     5.10   0.000     .2612688    .5876828
+             |
+     married |   .0681183   .0090235     7.55   0.000     .0504326    .0858039
+      single |          0  (omitted)
+       _cons |   5.390056   1.157175     4.66   0.000     3.122036    7.658077
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 1979.year_t 1980.year_t 1981.year_t
+            1982.year_t 1983.year_t 1984.year_t 1985.year_t 1986.year_t
+            1987.year_t 1988.year_t 1989.year_t 1990.year_t married
+            log_ntr_instrument
+
+. estimates store annual_main
+
+. di "=== After annual_main store: ==="
+=== After annual_main store: ===
+
+. estimates dir
+
+-------------------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-----------------------------------------------------------------
+ annual_main | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+-------------------------------------------------------------------------------
+
+. 
+. * Run annual_pre_erta
+. capture noisily ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t i.year_t married single ///
+>     [aweight=income_weight] if year_t <= 1980, cluster(taxsimid)
+(sum of wgt is   3.0734e+07)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =      2,684
+                                                  Wald chi2(5)    =      55.22
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0019
+                                                  Root MSE        =      .8941
+
+                           (Std. err. adjusted for 1,817 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .3319187   .3576747     0.93   0.353    -.3691108    1.032948
+log_income_t |  -.6284189   .0885523    -7.10   0.000    -.8019782   -.4548596
+             |
+      year_t |
+       1979  |  -.0068393   .0806729    -0.08   0.932    -.1649553    .1512766
+       1980  |   .1030551   .0849253     1.21   0.225    -.0633955    .2695056
+             |
+     married |   .0619382   .0461033     1.34   0.179    -.0284226    .1522991
+      single |          0  (omitted)
+       _cons |   5.810561   .7954506     7.30   0.000     4.251507    7.369616
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 1979.year_t 1980.year_t married log_ntr_instrument
+
+. di "_rc = " _rc
+_rc = 0
+
+. if _rc == 0 {
+.     estimates store annual_pre_erta
+.     di "annual_pre_erta stored"
+annual_pre_erta stored
+. }
+
+. else {
+.     di "WARNING: annual_pre_erta NOT stored, _rc = " _rc
+. }
+
+. di "=== After annual_pre_erta (should show 2 estimates): ==="
+=== After annual_pre_erta (should show 2 estimates): ===
+
+. estimates dir
+
+-------------------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-----------------------------------------------------------------
+ annual_main | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+annual_pre~a | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+-------------------------------------------------------------------------------
+
+. 
+. * Load biennial data (does this clear estimates?)
+. use "${datadir}\analysis_biennial.dta", clear
+
+. di "=== After use analysis_biennial (estimates should persist): ==="
+=== After use analysis_biennial (estimates should persist): ===
+
+. estimates dir
+
+-------------------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-----------------------------------------------------------------
+ annual_main | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+annual_pre~a | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+-------------------------------------------------------------------------------
+
+. 
+. di "End: $S_DATE $S_TIME"
+End:  9 Mar 2026 22:40:12
+
+. log close
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\verify2_log.txt
+  log type:  text
+ closed on:   9 Mar 2026, 22:40:12
+-------------------------------------------------------------------------------

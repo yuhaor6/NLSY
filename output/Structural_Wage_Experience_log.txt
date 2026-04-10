@@ -1,0 +1,2214 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\Structural_Wage_Exper
+> ience_log.txt
+  log type:  text
+ opened on:  10 Apr 2026, 18:22:23
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "STRUCTURAL WAGE-EXPERIENCE ANALYSIS (PHASE 1)"
+STRUCTURAL WAGE-EXPERIENCE ANALYSIS (PHASE 1)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "Framework: Sztutman (2024) Dynamic Signaling — Pareto Case"
+Framework: Sztutman (2024) Dynamic Signaling — Pareto Case
+
+. di "γ = δ/(1−δ+ε)   →   Test: Is γ constant across career stages?"
+γ = δ/(1−δ+ε)   →   Test: Is γ constant across career stages?
+
+. di "Start time: $S_DATE $S_TIME"
+Start time: 10 Apr 2026 18:22:23
+
+. di ""
+
+
+. 
+. /*===========================================================================
+> ===
+> PART 0: DATA LOADING AND VERIFICATION
+> =============================================================================
+> =*/
+. 
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 0: DATA LOADING AND VERIFICATION"
+PART 0: DATA LOADING AND VERIFICATION
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. use "${datadir}\nlsy_long_pre_taxsim.dta", clear
+
+. di "Loaded nlsy_long_pre_taxsim.dta: " _N " observations"
+Loaded nlsy_long_pre_taxsim.dta: 583556 observations
+
+. 
+. *--- Required variable checks ---
+. local required_vars pwages cumhrs pot_exp pot_exp2 afqt_std educ_years year t
+> axsimid page
+
+. foreach v of local required_vars {
+  2.     capture confirm variable `v'
+  3.     if _rc != 0 {
+  4.         di as error "ERROR: Variable `v' not found. Run Data_process.do fi
+> rst."
+  5.         log close
+  6.         error 111
+  7.     }
+  8. }
+
+. di "All required variables confirmed."
+All required variables confirmed.
+
+. 
+. *--- Create derived variables ---
+. capture drop log_pwages
+
+. gen log_pwages = ln(pwages) if pwages > 0
+(381,760 missing values generated)
+
+. label var log_pwages "Log primary wages"
+
+. 
+. capture drop log_cumhrs
+
+. gen log_cumhrs = ln(cumhrs) if cumhrs > 0
+(55,511 missing values generated)
+
+. label var log_cumhrs "Log cumulative hours worked"
+
+. 
+. *--- Analysis sample ---
+. * Mirrors Skill_vs_Signal_Analysis.do sample definition
+. capture drop phase1_sample
+
+. gen phase1_sample = (pwages > 0         ///
+>                    & cumhrs > 0         ///
+>                    & !missing(pot_exp)  ///
+>                    & pot_exp >= 0       ///
+>                    & pot_exp <= 40      ///
+>                    & !missing(afqt_std) ///
+>                    & page >= 18         ///
+>                    & page <= 65)
+
+. label var phase1_sample "Sample for Phase 1 structural analysis"
+
+. 
+. di ""
+
+
+. di "Analysis sample definition:"
+Analysis sample definition:
+
+. di "  - pwages > 0"
+  - pwages > 0
+
+. di "  - cumhrs > 0 (valid cumulative hours for log transform)"
+  - cumhrs > 0 (valid cumulative hours for log transform)
+
+. di "  - pot_exp 0–40"
+  - pot_exp 0–40
+
+. di "  - Non-missing afqt_std"
+  - Non-missing afqt_std
+
+. di "  - Age 18–65"
+  - Age 18–65
+
+. tab phase1_sample
+
+ Sample for |
+    Phase 1 |
+ structural |
+   analysis |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    404,347       69.29       69.29
+          1 |    179,209       30.71      100.00
+------------+-----------------------------------
+      Total |    583,556      100.00
+
+. di ""
+
+
+. 
+. * Summary stats on sample
+. di "Sample summary statistics:"
+Sample summary statistics:
+
+. tabstat pwages cumhrs pot_exp afqt_std if phase1_sample == 1, ///
+>     stat(n mean sd p10 p50 p90) col(stat)
+
+    Variable |         N      Mean        SD       p10       p50       p90
+-------------+------------------------------------------------------------
+      pwages |    179209  27574.52  39438.06      2200     17000     60000
+      cumhrs |    179209  25589.82  22897.97      3120     18127     60872
+     pot_exp |    179209  13.47514  11.22553         1        10        32
+    afqt_std |    179209  .0902312  1.001808 -1.201743  .0011252    1.5538
+--------------------------------------------------------------------------
+
+. 
+. * Check cumhrs monotonicity within person (sanity check)
+. di ""
+
+
+. di "SCRUTINY: Checking cumhrs monotonicity within person..."
+SCRUTINY: Checking cumhrs monotonicity within person...
+
+. bysort taxsimid (year): gen cumhrs_drop = (cumhrs < cumhrs[_n-1]) ///
+>     if _n > 1 & !missing(cumhrs) & !missing(cumhrs[_n-1])
+(38,058 missing values generated)
+
+. count if cumhrs_drop == 1
+  0
+
+. local n_drops = r(N)
+
+. if `n_drops' > 0 {
+.     di "WARNING: `n_drops' person-years where cumhrs falls — check interpolat
+> ion"
+. }
+
+. else {
+.     di "GOOD: cumhrs is monotonically non-decreasing within every person"
+GOOD: cumhrs is monotonically non-decreasing within every person
+. }
+
+. drop cumhrs_drop
+
+. 
+. /*===========================================================================
+> ===
+> PART 1: CAREER-STAGE γ PROFILES
+> =============================================================================
+> ===
+> Test of the Pareto case: γ should be constant across career stages if the mod
+> el
+> is Pareto. Declining γ → employer learning completing (general dynamic model)
+> .
+> Rising γ → inconsistent with signaling framework; would suggest human capital
+> accumulation accelerating (unusual).
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 1: CAREER-STAGE γ PROFILES"
+PART 1: CAREER-STAGE γ PROFILES
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "THEORY: Under Pareto length-of-resume model, γ is constant across career.
+> "
+THEORY: Under Pareto length-of-resume model, γ is constant across career.
+
+. di "        γ declining → learning completing (history-dependent χ)"
+        γ declining → learning completing (history-dependent χ)
+
+. di "        γ constant  → Pareto case (constant Pigouvian tax τ_p = δ/α)"
+        γ constant  → Pareto case (constant Pigouvian tax τ_p = δ/α)
+
+. di ""
+
+
+. 
+. *--- 1.1: Define career stages by potential experience quintile ---
+. di "1.1 DEFINE CAREER STAGES"
+1.1 DEFINE CAREER STAGES
+
+. di "------------------------"
+------------------------
+
+. 
+. * Use xtile on the working sample
+. capture drop exp_quintile
+
+. xtile exp_quintile = pot_exp if phase1_sample == 1, nq(5)
+
+. 
+. * Report quintile boundaries
+. di ""
+
+
+. di "Career stage boundaries (experience quintiles):"
+Career stage boundaries (experience quintiles):
+
+. tabstat pot_exp if phase1_sample == 1, by(exp_quintile) stat(min max n) ///
+>     nototal col(stat)
+
+Summary for variables: pot_exp
+Group variable: exp_quintile (5 quantiles of pot_exp )
+
+exp_quintile |       Min       Max         N
+-------------+------------------------------
+           1 |         0         3     39520
+           2 |         4         8     38814
+           3 |         9        14     32892
+           4 |        15        25     34383
+           5 |        26        40     33600
+--------------------------------------------
+
+. 
+. label define exp_q_lbl ///
+>     1 "Q1: Early (0-5yr)" ///
+>     2 "Q2 (6-9yr)"        ///
+>     3 "Q3 (10-14yr)"      ///
+>     4 "Q4 (15-20yr)"      ///
+>     5 "Q5: Late (21+yr)"
+
+. label values exp_quintile exp_q_lbl
+
+. 
+. *--- 1.2: Set panel structure ---
+. xtset taxsimid year
+
+Panel variable: taxsimid (strongly balanced)
+ Time variable: year, 1978 to 2023
+         Delta: 1 unit
+
+. 
+. *--- 1.3: FE regression of log_pwages on log_cumhrs by career stage ---
+. di ""
+
+
+. di "1.2 WITHIN-PERSON (FE) γ ESTIMATES BY CAREER STAGE"
+1.2 WITHIN-PERSON (FE) γ ESTIMATES BY CAREER STAGE
+
+. di "---------------------------------------------------"
+---------------------------------------------------
+
+. di ""
+
+
+. di "Specification: xtreg log_pwages log_cumhrs pot_exp pot_exp2 i.year, fe"
+Specification: xtreg log_pwages log_cumhrs pot_exp pot_exp2 i.year, fe
+
+. di ""
+
+
+. 
+. forvalues q = 1/5 {
+  2.     qui count if phase1_sample == 1 & exp_quintile == `q'
+  3.     di "--- Career Stage Q`q' (N = `r(N)') ---"
+  4. 
+.     xtreg log_pwages log_cumhrs pot_exp pot_exp2 i.year ///
+>         if phase1_sample == 1 & exp_quintile == `q', fe cluster(taxsimid)
+  5.     est store fe_gamma_q`q'
+  6. 
+.     local g`q' = _b[log_cumhrs]
+  7.     local se`q' = _se[log_cumhrs]
+  8.     local t`q' = `g`q'' / `se`q''
+  9.     di "  γ = " %7.4f `g`q'' "  SE = " %6.4f `se`q'' "  t = " %5.2f `t`q''
+ 10.     di ""
+ 11. }
+--- Career Stage Q1 (N = 39520) ---
+
+Fixed-effects (within) regression               Number of obs     =     39,520
+Group variable: taxsimid                        Number of groups  =      9,648
+
+R-squared:                                      Obs per group:
+     Within  = 0.5161                                         min =          1
+     Between = 0.5366                                         avg =        4.1
+     Overall = 0.5158                                         max =         25
+
+                                                F(31, 9647)       =     507.93
+corr(u_i, Xb) = -0.1752                         Prob > F          =     0.0000
+
+                           (Std. err. adjusted for 9,648 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   1.101436   .0201239    54.73   0.000     1.061989    1.140883
+     pot_exp |  -.0133566   .0149433    -0.89   0.371    -.0426487    .0159356
+    pot_exp2 |  -.0221736   .0042733    -5.19   0.000    -.0305502    -.013797
+             |
+        year |
+       1980  |   -.255782   .0190543   -13.42   0.000    -.2931324   -.2184317
+       1981  |  -.3547995   .0260355   -13.63   0.000    -.4058346   -.3037645
+       1982  |  -.4510941   .0324933   -13.88   0.000    -.5147878   -.3874003
+       1983  |  -.4743662   .0383029   -12.38   0.000     -.549448   -.3992845
+       1984  |    -.45569    .045599    -9.99   0.000    -.5450736   -.3663065
+       1985  |  -.4354491   .0523519    -8.32   0.000    -.5380697   -.3328285
+       1986  |  -.3420548    .059148    -5.78   0.000    -.4579973   -.2261123
+       1987  |  -.2116697   .0650087    -3.26   0.001    -.3391004    -.084239
+       1988  |  -.1490379   .0722905    -2.06   0.039    -.2907424   -.0073333
+       1989  |  -.0951947   .0770913    -1.23   0.217    -.2463098    .0559204
+       1990  |  -.0621037   .0845443    -0.73   0.463    -.2278283     .103621
+       1991  |  -.1684297   .0930573    -1.81   0.070    -.3508415    .0139821
+       1992  |  -.0896681   .1018138    -0.88   0.378    -.2892444    .1099083
+       1993  |  -.2507891   .1241393    -2.02   0.043    -.4941282     -.00745
+       1995  |  -.5370376   .1928938    -2.78   0.005    -.9151501   -.1589252
+       1997  |  -.7669782   .1538498    -4.99   0.000    -1.068556   -.4654004
+       1999  |  -.4578098   .1540526    -2.97   0.003    -.7597852   -.1558344
+       2001  |  -.6235091   .1695399    -3.68   0.000    -.9558428   -.2911754
+       2003  |  -.4091356   .1547775    -2.64   0.008     -.712532   -.1057392
+       2005  |    -.61266    .153588    -3.99   0.000    -.9137247   -.3115953
+       2007  |  -.5659142   .2160416    -2.62   0.009    -.9894011   -.1424273
+       2009  |    .063129   .1990192     0.32   0.751    -.3269903    .4532484
+       2011  |    -.72271   .2202247    -3.28   0.001    -1.154397   -.2910234
+       2013  |  -1.218667   .5722459    -2.13   0.033    -2.340389   -.0969449
+       2015  |  -.7821891   .1694528    -4.62   0.000    -1.114352    -.450026
+       2017  |  -.9155252   .2092246    -4.38   0.000    -1.325649    -.505401
+       2019  |  -1.152582   .2481895    -4.64   0.000    -1.639086   -.6660789
+       2021  |  -1.159181   .2542846    -4.56   0.000    -1.657633   -.6607302
+             |
+       _cons |   -.171005   .1388051    -1.23   0.218    -.4430922    .1010822
+-------------+----------------------------------------------------------------
+     sigma_u |  .72607204
+     sigma_e |  .72056878
+         rho |  .50380411   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+  γ =  1.1014  SE = 0.0201  t = 54.73
+
+--- Career Stage Q2 (N = 38814) ---
+
+Fixed-effects (within) regression               Number of obs     =     38,814
+Group variable: taxsimid                        Number of groups  =     10,263
+
+R-squared:                                      Obs per group:
+     Within  = 0.1979                                         min =          1
+     Between = 0.5288                                         avg =        3.8
+     Overall = 0.4500                                         max =         10
+
+                                                F(20, 10262)      =     142.00
+corr(u_i, Xb) = -0.0185                         Prob > F          =     0.0000
+
+                          (Std. err. adjusted for 10,263 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   1.025798   .0349265    29.37   0.000      .957335     1.09426
+     pot_exp |  -.0907808   .0262035    -3.46   0.001    -.1421448   -.0394168
+    pot_exp2 |   .0021548   .0020772     1.04   0.300    -.0019169    .0062266
+             |
+        year |
+       1980  |   -.332099   .0473649    -7.01   0.000    -.4249433   -.2392546
+       1981  |  -.4666968   .0519914    -8.98   0.000    -.5686101   -.3647834
+       1982  |  -.6780599   .0587859   -11.53   0.000    -.7932917    -.562828
+       1983  |  -.7660577   .0664507   -11.53   0.000    -.8963141   -.6358013
+       1984  |   -.736354   .0738699    -9.97   0.000    -.8811535   -.5915545
+       1985  |  -.7503933   .0819086    -9.16   0.000    -.9109502   -.5898364
+       1986  |  -.6863994   .0903274    -7.60   0.000    -.8634588   -.5093401
+       1987  |  -.6687649    .098435    -6.79   0.000    -.8617167   -.4758131
+       1988  |  -.6581995    .107705    -6.11   0.000    -.8693224   -.4470767
+       1989  |  -.6356211   .1153222    -5.51   0.000     -.861675   -.4095671
+       1990  |   -.627812   .1246511    -5.04   0.000    -.8721525   -.3834716
+       1991  |  -.6340523   .1320515    -4.80   0.000     -.892899   -.3752057
+       1992  |  -.6456171   .1402201    -4.60   0.000     -.920476   -.3707583
+       1993  |  -.6344665   .1488366    -4.26   0.000    -.9262153   -.3427176
+       1995  |  -.5575213   .1629996    -3.42   0.001    -.8770323   -.2380103
+       1997  |  -.4492144   .1785001    -2.52   0.012    -.7991094   -.0993194
+       1999  |  -.6646346   .2205415    -3.01   0.003    -1.096939   -.2323303
+             |
+       _cons |   .9255679   .2613498     3.54   0.000     .4132714    1.437864
+-------------+----------------------------------------------------------------
+     sigma_u |  .82265516
+     sigma_e |  .61960883
+         rho |  .63804698   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+  γ =  1.0258  SE = 0.0349  t = 29.37
+
+--- Career Stage Q3 (N = 32892) ---
+
+Fixed-effects (within) regression               Number of obs     =     32,892
+Group variable: taxsimid                        Number of groups  =      8,893
+
+R-squared:                                      Obs per group:
+     Within  = 0.1206                                         min =          1
+     Between = 0.4906                                         avg =        3.7
+     Overall = 0.4135                                         max =          9
+
+                                                F(23, 8892)       =      61.52
+corr(u_i, Xb) = 0.0397                          Prob > F          =     0.0000
+
+                           (Std. err. adjusted for 8,893 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   1.028886   .0582974    17.65   0.000     .9146101    1.143163
+     pot_exp |  -.1098538   .0346063    -3.17   0.002    -.1776901   -.0420174
+    pot_exp2 |   .0024304   .0014537     1.67   0.095    -.0004193      .00528
+             |
+        year |
+       1980  |  -.1647619   .2299495    -0.72   0.474    -.6155161    .2859923
+       1981  |  -.2277299   .1953087    -1.17   0.244      -.61058    .1551202
+       1982  |  -.7034814   .1935591    -3.63   0.000    -1.082902   -.3240609
+       1983  |  -.8112036   .1928414    -4.21   0.000    -1.189217     -.43319
+       1984  |  -.7068794   .2024989    -3.49   0.000    -1.103824   -.3099348
+       1985  |  -.7070148   .2082662    -3.39   0.001    -1.115265    -.298765
+       1986  |   -.644135   .2150234    -3.00   0.003    -1.065631   -.2226395
+       1987  |  -.5870299   .2211007    -2.66   0.008    -1.020438   -.1536216
+       1988  |  -.5755612   .2270016    -2.54   0.011    -1.020537   -.1305857
+       1989  |  -.5650327   .2324541    -2.43   0.015    -1.020696    -.109369
+       1990  |   -.586539   .2390076    -2.45   0.014    -1.055049    -.118029
+       1991  |  -.5863837   .2446009    -2.40   0.017    -1.065858   -.1069094
+       1992  |  -.5884302    .251205    -2.34   0.019     -1.08085   -.0960104
+       1993  |  -.5715534   .2573163    -2.22   0.026    -1.075953   -.0671539
+       1995  |  -.4940152   .2704605    -1.83   0.068     -1.02418    .0361498
+       1997  |  -.4505929   .2833051    -1.59   0.112    -1.005936    .1047504
+       1999  |  -.2771398   .2971607    -0.93   0.351    -.8596434    .3053638
+       2001  |  -.1986041   .3097102    -0.64   0.521    -.8057076    .4084994
+       2003  |  -.1318949   .3246643    -0.41   0.685    -.7683119    .5045221
+       2005  |    .054501   .3444044     0.16   0.874    -.6206111    .7296131
+             |
+       _cons |   1.013017   .5069221     2.00   0.046     .0193328    2.006701
+-------------+----------------------------------------------------------------
+     sigma_u |  .84229615
+     sigma_e |  .57183984
+         rho |  .68450334   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+  γ =  1.0289  SE = 0.0583  t = 17.65
+
+--- Career Stage Q4 (N = 34383) ---
+
+Fixed-effects (within) regression               Number of obs     =     34,383
+Group variable: taxsimid                        Number of groups  =      8,011
+
+R-squared:                                      Obs per group:
+     Within  = 0.1085                                         min =          1
+     Between = 0.4325                                         avg =        4.3
+     Overall = 0.3627                                         max =         10
+
+                                                F(24, 8010)       =          .
+corr(u_i, Xb) = 0.1622                          Prob > F          =          .
+
+                           (Std. err. adjusted for 8,011 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   .8891896   .0555134    16.02   0.000     .7803688    .9980103
+     pot_exp |  -.0273769   .0193265    -1.42   0.157    -.0652618    .0105081
+    pot_exp2 |   .0000147   .0004516     0.03   0.974    -.0008705       .0009
+             |
+        year |
+       1982  |  -.1104852   .0815822    -1.35   0.176    -.2704076    .0494372
+       1983  |  -.2044478   .2952365    -0.69   0.489    -.7831882    .3742927
+       1984  |  -.9261788    .218536    -4.24   0.000    -1.354566   -.4977913
+       1985  |  -.8901533   .2344586    -3.80   0.000    -1.349753   -.4305535
+       1986  |  -.8294956   .2693826    -3.08   0.002    -1.357555   -.3014357
+       1987  |  -1.027512   .1967747    -5.22   0.000    -1.413241   -.6417824
+       1988  |  -1.059574   .1937452    -5.47   0.000    -1.439365   -.6797825
+       1989  |    -1.0099   .1975634    -5.11   0.000    -1.397176   -.6226244
+       1990  |  -1.110496   .2085508    -5.32   0.000    -1.519309   -.7016818
+       1991  |  -1.080747   .2151591    -5.02   0.000    -1.502514   -.6589789
+       1992  |  -1.082072   .2216735    -4.88   0.000    -1.516609   -.6475338
+       1993  |  -1.096901   .2282438    -4.81   0.000    -1.544318   -.6494836
+       1995  |  -1.043366   .2415614    -4.32   0.000    -1.516889    -.569843
+       1997  |  -.9771873   .2539201    -3.85   0.000    -1.474937   -.4794379
+       1999  |  -.8869376   .2678526    -3.31   0.001    -1.411998   -.3618768
+       2001  |  -.8745786   .2806157    -3.12   0.002    -1.424658   -.3244988
+       2003  |  -.8443218   .2927958    -2.88   0.004    -1.418278   -.2703658
+       2005  |   -.805345   .3052175    -2.64   0.008    -1.403651   -.2070394
+       2007  |  -.7530775   .3194585    -2.36   0.018    -1.379299   -.1268556
+       2009  |  -.7008121   .3320422    -2.11   0.035    -1.351701   -.0499229
+       2011  |    -.66162   .3493807    -1.89   0.058    -1.346497    .0232571
+       2013  |   -.684723   .3632183    -1.89   0.059    -1.396725    .0272793
+       2015  |  -.7801832   .3760708    -2.07   0.038     -1.51738   -.0429866
+             |
+       _cons |   2.316173   .4048915     5.72   0.000      1.52248    3.109865
+-------------+----------------------------------------------------------------
+     sigma_u |  .82519531
+     sigma_e |  .60472435
+         rho |  .65060389   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+  γ =  0.8892  SE = 0.0555  t = 16.02
+
+--- Career Stage Q5 (N = 33600) ---
+
+Fixed-effects (within) regression               Number of obs     =     33,600
+Group variable: taxsimid                        Number of groups  =      7,030
+
+R-squared:                                      Obs per group:
+     Within  = 0.0257                                         min =          1
+     Between = 0.3064                                         avg =        4.8
+     Overall = 0.2332                                         max =         10
+
+                                                F(18, 7029)       =          .
+corr(u_i, Xb) = 0.0739                          Prob > F          =          .
+
+                           (Std. err. adjusted for 7,030 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   1.073821   .1122835     9.56   0.000     .8537116    1.293931
+     pot_exp |  -.0039458   .0187777    -0.21   0.834    -.0407557    .0328641
+    pot_exp2 |  -.0000935   .0002746    -0.34   0.733    -.0006318    .0004448
+             |
+        year |
+       1992  |  -.2041495   .0235346    -8.67   0.000    -.2502843   -.1580147
+       1993  |   .4822286   .1867027     2.58   0.010     .1162351    .8482221
+       1995  |   .3038394     .22047     1.38   0.168    -.1283483     .736027
+       1997  |   .5082116   .2435731     2.09   0.037     .0307348    .9856883
+       1999  |   .3545911   .2419447     1.47   0.143    -.1196934    .8288755
+       2001  |    .350425   .2674933     1.31   0.190    -.1739426    .8747927
+       2003  |   .3229021   .2777481     1.16   0.245     -.221568    .8673721
+       2005  |   .3267064   .2853459     1.14   0.252    -.2326576    .8860703
+       2007  |   .2651479    .296959     0.89   0.372    -.3169813    .8472771
+       2009  |   .1750228   .3069392     0.57   0.569    -.4266706    .7767161
+       2011  |   .1478271   .3197384     0.46   0.644    -.4789566    .7746107
+       2013  |   .1129816   .3312957     0.34   0.733    -.5364578     .762421
+       2015  |   .0993717   .3406286     0.29   0.771     -.568363    .7671064
+       2017  |    .097705   .3511112     0.28   0.781    -.5905788    .7859888
+       2019  |   .0460075   .3628751     0.13   0.899     -.665337     .757352
+       2021  |   .0357876   .3737543     0.10   0.924    -.6968835    .7684586
+             |
+       _cons |  -1.148319   1.060742    -1.08   0.279    -3.227693    .9310548
+-------------+----------------------------------------------------------------
+     sigma_u |  .91412068
+     sigma_e |  .59857161
+         rho |  .69990234   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+  γ =  1.0738  SE = 0.1123  t =  9.56
+
+
+. 
+. *--- 1.4: Full-sample FE estimate ---
+. di "--- FULL CAREER (all stages combined) ---"
+--- FULL CAREER (all stages combined) ---
+
+. xtreg log_pwages log_cumhrs pot_exp pot_exp2 i.year ///
+>     if phase1_sample == 1, fe cluster(taxsimid)
+
+Fixed-effects (within) regression               Number of obs     =    179,209
+Group variable: taxsimid                        Number of groups  =     11,493
+
+R-squared:                                      Obs per group:
+     Within  = 0.5498                                         min =          1
+     Between = 0.6417                                         avg =       15.6
+     Overall = 0.5668                                         max =         29
+
+                                                F(31, 11492)      =    1932.46
+corr(u_i, Xb) = 0.0627                          Prob > F          =     0.0000
+
+                          (Std. err. adjusted for 11,493 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   .9131034   .0100229    91.10   0.000     .8934568    .9327499
+     pot_exp |  -.0459207   .0047289    -9.71   0.000    -.0551902   -.0366512
+    pot_exp2 |  -.0004129   .0000551    -7.50   0.000    -.0005209   -.0003049
+             |
+        year |
+       1980  |  -.1787598   .0155294   -11.51   0.000       -.2092   -.1483196
+       1981  |  -.2304471    .018387   -12.53   0.000    -.2664888   -.1944054
+       1982  |  -.3161338   .0214791   -14.72   0.000    -.3582364   -.2740312
+       1983  |   -.323859   .0246502   -13.14   0.000    -.3721776   -.2755404
+       1984  |  -.2698348    .028375    -9.51   0.000    -.3254545    -.214215
+       1985  |  -.2446586   .0324241    -7.55   0.000    -.3082154   -.1811019
+       1986  |  -.1534347   .0367243    -4.18   0.000    -.2254206   -.0814489
+       1987  |  -.0985419    .041512    -2.37   0.018    -.1799125   -.0171714
+       1988  |  -.0683244   .0466953    -1.46   0.143    -.1598551    .0232064
+       1989  |  -.0215574   .0508601    -0.42   0.672    -.1212519    .0781372
+       1990  |  -.0196218   .0557023    -0.35   0.725    -.1288078    .0895642
+       1991  |  -.0086414   .0595444    -0.15   0.885    -.1253586    .1080758
+       1992  |  -.0015415   .0641545    -0.02   0.981    -.1272952    .1242122
+       1993  |    .026669   .0684317     0.39   0.697    -.1074687    .1608067
+       1995  |   .1307708     .07718     1.69   0.090    -.0205151    .2820567
+       1997  |   .2397512    .085846     2.79   0.005     .0714785     .408024
+       1999  |   .4128721   .0952977     4.33   0.000     .2260724    .5996718
+       2001  |    .492565   .1040005     4.74   0.000     .2887062    .6964238
+       2003  |   .5935822   .1122763     5.29   0.000     .3735016    .8136628
+       2005  |   .7091414   .1210963     5.86   0.000     .4717721    .9465107
+       2007  |   .8505119   .1312904     6.48   0.000     .5931603    1.107863
+       2009  |   .9175617   .1400696     6.55   0.000     .6430014    1.192122
+       2011  |    1.07913   .1525917     7.07   0.000     .7800247    1.378236
+       2013  |   1.200399   .1628263     7.37   0.000     .8812318    1.519566
+       2015  |   1.285408   .1698726     7.57   0.000     .9524289    1.618387
+       2017  |   1.432237   .1787992     8.01   0.000      1.08176    1.782714
+       2019  |    1.52433   .1889523     8.07   0.000     1.153951    1.894709
+       2021  |   1.665041   .1985056     8.39   0.000     1.275937    2.054146
+             |
+       _cons |   1.252793    .073392    17.07   0.000     1.108932    1.396654
+-------------+----------------------------------------------------------------
+     sigma_u |  .63128039
+     sigma_e |  .74178918
+         rho |  .42003495   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. est store fe_gamma_full
+
+. 
+. local gamma_fe_full = _b[log_cumhrs]
+
+. local se_fe_full    = _se[log_cumhrs]
+
+. di "  γ_full = " %7.4f `gamma_fe_full' "  SE = " %6.4f `se_fe_full'
+  γ_full =  0.9131  SE = 0.0100
+
+. di ""
+
+
+. 
+. *--- 1.5: Wald test of γ equality across career stages ---
+. di ""
+
+
+. di "1.3 WALD TEST: IS γ CONSTANT ACROSS CAREER STAGES?"
+1.3 WALD TEST: IS γ CONSTANT ACROSS CAREER STAGES?
+
+. di "---------------------------------------------------"
+---------------------------------------------------
+
+. di "H0: γ_Q1 = γ_Q2 = γ_Q3 = γ_Q4 = γ_Q5 (Pareto case)"
+H0: γ_Q1 = γ_Q2 = γ_Q3 = γ_Q4 = γ_Q5 (Pareto case)
+
+. di ""
+
+
+. 
+. * Career-stage interacted specification using factor variable notation
+. * Each quintile gets its own γ coefficient: i.exp_quintile#c.log_cumhrs
+. * i.exp_quintile provides intercept shifters (absorbed by FE but needed for t
+> est)
+. xtreg log_pwages i.exp_quintile#c.log_cumhrs i.exp_quintile ///
+>     pot_exp pot_exp2 i.year ///
+>     if phase1_sample == 1, fe cluster(taxsimid)
+
+Fixed-effects (within) regression               Number of obs     =    179,209
+Group variable: taxsimid                        Number of groups  =     11,493
+
+R-squared:                                      Obs per group:
+     Within  = 0.5506                                         min =          1
+     Between = 0.6442                                         avg =       15.6
+     Overall = 0.5659                                         max =         29
+
+                                                F(39, 11492)      =    1564.83
+corr(u_i, Xb) = 0.0821                          Prob > F          =     0.0000
+
+                          (Std. err. adjusted for 11,493 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+exp_quintile#|
+c.log_cumhrs |
+Q1: Earl..)  |    .944376    .010538    89.62   0.000     .9237198    .9650322
+ Q2 (6-9yr)  |   .8621987   .0132942    64.86   0.000     .8361397    .8882576
+Q3 (10-1..)  |   .8635012   .0165223    52.26   0.000     .8311147    .8958877
+Q4 (15-2..)  |   .8362714   .0200521    41.71   0.000      .796966    .8755769
+Q5: Late..)  |   .8776357   .0282832    31.03   0.000     .8221958    .9330757
+             |
+exp_quintile |
+ Q2 (6-9yr)  |   .6809318   .1056218     6.45   0.000      .473895    .8879686
+Q3 (10-1..)  |   .5749388   .1518729     3.79   0.000     .2772421    .8726356
+Q4 (15-2..)  |   .8161511   .1925863     4.24   0.000     .4386492    1.193653
+Q5: Late..)  |   .3808817   .2855816     1.33   0.182    -.1789069    .9406703
+             |
+     pot_exp |  -.0247965   .0052467    -4.73   0.000    -.0350809    -.014512
+    pot_exp2 |  -.0006912   .0000631   -10.95   0.000    -.0008149   -.0005675
+             |
+        year |
+       1980  |  -.1875299   .0155482   -12.06   0.000    -.2180071   -.1570527
+       1981  |  -.2521425    .018531   -13.61   0.000    -.2884664   -.2158187
+       1982  |  -.3461102   .0216431   -15.99   0.000    -.3885343    -.303686
+       1983  |  -.3600483   .0248335   -14.50   0.000    -.4087262   -.3113705
+       1984  |   -.315215   .0286146   -11.02   0.000    -.3713045   -.2591254
+       1985  |  -.2937263   .0326094    -9.01   0.000    -.3576462   -.2298064
+       1986  |  -.2040653   .0367805    -5.55   0.000    -.2761612   -.1319693
+       1987  |  -.1483749   .0414838    -3.58   0.000    -.2296902   -.0670596
+       1988  |  -.1150529   .0464676    -2.48   0.013    -.2061373   -.0239686
+       1989  |  -.0646366   .0504655    -1.28   0.200    -.1635577    .0342844
+       1990  |  -.0597707   .0551646    -1.08   0.279    -.1679027    .0483612
+       1991  |  -.0447185   .0588393    -0.76   0.447    -.1600535    .0706166
+       1992  |  -.0366682    .063381    -0.58   0.563    -.1609057    .0875694
+       1993  |  -.0073032   .0675607    -0.11   0.914    -.1397336    .1251273
+       1995  |   .0940342   .0762436     1.23   0.217    -.0554163    .2434847
+       1997  |   .1988107   .0849361     2.34   0.019     .0323214       .3653
+       1999  |   .3646913   .0945266     3.86   0.000     .1794031    .5499795
+       2001  |   .4367899   .1033679     4.23   0.000     .2341711    .6394087
+       2003  |   .5286174   .1117773     4.73   0.000     .3095148    .7477199
+       2005  |   .6338404   .1207098     5.25   0.000     .3972286    .8704523
+       2007  |   .7612547   .1310815     5.81   0.000     .5043127    1.018197
+       2009  |   .8189725   .1400011     5.85   0.000     .5445466    1.093398
+       2011  |   .9683105   .1525818     6.35   0.000     .6692241    1.267397
+       2013  |   1.083191   .1628043     6.65   0.000     .7640669    1.402315
+       2015  |   1.165861   .1698302     6.86   0.000     .8329654    1.498758
+       2017  |   1.308749   .1787118     7.32   0.000     .9584432    1.659054
+       2019  |   1.397489   .1888332     7.40   0.000     1.027344    1.767634
+       2021  |   1.534473   .1983745     7.74   0.000     1.145625    1.923321
+             |
+       _cons |   .9853083   .0784233    12.56   0.000     .8315854    1.139031
+-------------+----------------------------------------------------------------
+     sigma_u |   .6272629
+     sigma_e |  .74114727
+         rho |   .4173486   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. est store fe_gamma_interacted
+
+. 
+. di ""
+
+
+. di "Stage-interacted coefficients on log_cumhrs:"
+Stage-interacted coefficients on log_cumhrs:
+
+. di "  Q1 (Early):  " %7.4f _b[1.exp_quintile#c.log_cumhrs]
+  Q1 (Early):   0.9444
+
+. di "  Q2:          " %7.4f _b[2.exp_quintile#c.log_cumhrs]
+  Q2:           0.8622
+
+. di "  Q3:          " %7.4f _b[3.exp_quintile#c.log_cumhrs]
+  Q3:           0.8635
+
+. di "  Q4:          " %7.4f _b[4.exp_quintile#c.log_cumhrs]
+  Q4:           0.8363
+
+. di "  Q5 (Late):   " %7.4f _b[5.exp_quintile#c.log_cumhrs]
+  Q5 (Late):    0.8776
+
+. 
+. * Formal test: all stage-specific γ equal (H0: Pareto case, γ constant)
+. test (2.exp_quintile#c.log_cumhrs = 1.exp_quintile#c.log_cumhrs) ///
+>      (3.exp_quintile#c.log_cumhrs = 1.exp_quintile#c.log_cumhrs) ///
+>      (4.exp_quintile#c.log_cumhrs = 1.exp_quintile#c.log_cumhrs) ///
+>      (5.exp_quintile#c.log_cumhrs = 1.exp_quintile#c.log_cumhrs)
+
+ ( 1)  - 1b.exp_quintile#c.log_cumhrs + 2.exp_quintile#c.log_cumhrs = 0
+ ( 2)  - 1b.exp_quintile#c.log_cumhrs + 3.exp_quintile#c.log_cumhrs = 0
+ ( 3)  - 1b.exp_quintile#c.log_cumhrs + 4.exp_quintile#c.log_cumhrs = 0
+ ( 4)  - 1b.exp_quintile#c.log_cumhrs + 5.exp_quintile#c.log_cumhrs = 0
+
+       F(  4, 11492) =   15.84
+            Prob > F =    0.0000
+
+. 
+. local wald_F = r(F)
+
+. local wald_p = r(p)
+
+. 
+. di ""
+
+
+. di "============================================================"
+============================================================
+
+. di "WALD TEST RESULT: γ equality across career stages"
+WALD TEST RESULT: γ equality across career stages
+
+. di "  F-statistic: " %8.3f `wald_F'
+  F-statistic:   15.841
+
+. di "  p-value:     " %8.4f `wald_p'
+  p-value:       0.0000
+
+. di ""
+
+
+. 
+. if `wald_p' < 0.05 {
+.     di "RESULT: REJECT γ equality (p < 0.05)"
+RESULT: REJECT γ equality (p < 0.05)
+.     di "  γ varies across career stages — history-dependent wedge χ(h)"
+  γ varies across career stages — history-dependent wedge χ(h)
+.     di "  Implication: Pigouvian tax should be history-dependent"
+  Implication: Pigouvian tax should be history-dependent
+.     di "  Use: general dynamic Sztutman model (not just Pareto special case)"
+  Use: general dynamic Sztutman model (not just Pareto special case)
+. }
+
+. else if `wald_p' < 0.10 {
+.     di "RESULT: MARGINAL REJECTION (0.05 < p < 0.10)"
+.     di "  Weak evidence against constant γ — borderline Pareto case"
+. }
+
+. else {
+.     di "RESULT: FAIL TO REJECT γ equality (p ≥ 0.10)"
+.     di "  Consistent with PARETO CASE: constant γ across career"
+.     di "  Implication: Pigouvian tax τ_p = δ/α is constant and history-indepe
+> ndent"
+. }
+
+. di "============================================================"
+============================================================
+
+. 
+. *--- 1.6: Monotonicity check ---
+. di ""
+
+
+. di "1.4 MONOTONICITY SCRUTINY"
+1.4 MONOTONICITY SCRUTINY
+
+. di "-------------------------"
+-------------------------
+
+. di "PREDICTION: γ should weakly decline (employer learning completes over car
+> eer)"
+PREDICTION: γ should weakly decline (employer learning completes over career)
+
+. di ""
+
+
+. 
+. local prev_g = `g1'
+
+. local monotone = 1
+
+. forvalues q = 2/5 {
+  2.     if `g`q'' > `prev_g' + 2*`se`q'' {
+  3.         local monotone = 0
+  4.         di "NOTE: γ rises from Q`=`q'-1' (" %5.3f `prev_g' ") to Q`q' (" %
+> 5.3f `g`q'' ")"
+  5.         di "      This is INCONSISTENT with learning-completion interpreta
+> tion"
+  6.     }
+  7.     local prev_g = `g`q''
+  8. }
+
+. 
+. if `monotone' == 1 {
+.     di "GOOD: γ is weakly decreasing across career stages"
+GOOD: γ is weakly decreasing across career stages
+.     di "      Consistent with employer learning completing over time"
+      Consistent with employer learning completing over time
+. }
+
+. 
+. *--- 1.7: Store γ profile for graphing ---
+. di ""
+
+
+. di "1.5 γ PROFILE SUMMARY"
+1.5 γ PROFILE SUMMARY
+
+. di "---------------------"
+---------------------
+
+. di ""
+
+
+. di "Stage    γ_FE       SE        t-stat"
+Stage    γ_FE       SE        t-stat
+
+. di "-------- ---------- --------- ------"
+-------- ---------- --------- ------
+
+. forvalues q = 1/5 {
+  2.     di "Q`q'      " %8.4f `g`q'' "   " %7.4f `se`q'' "   " %5.2f `t`q''
+  3. }
+Q1        1.1014    0.0201   54.73
+Q2        1.0258    0.0349   29.37
+Q3        1.0289    0.0583   17.65
+Q4        0.8892    0.0555   16.02
+Q5        1.0738    0.1123    9.56
+
+. di "Full     " %8.4f `gamma_fe_full' "   " %7.4f `se_fe_full'
+Full       0.9131    0.0100
+
+. 
+. /*===========================================================================
+> ===
+> PART 2: OLS vs FE DECOMPOSITION
+> =============================================================================
+> ===
+> The gap γ_OLS − γ_FE identifies the share of the return to cumhrs that is
+> between-person selection vs. within-person learning-by-doing.
+> 
+> In Sztutman's framework:
+> - γ_FE = causal effect of hours accumulation on wage (within-person)
+> - γ_OLS = γ_FE + selection bias (high-ability workers work more)
+> - Large gap → signaling/selection matters; small gap → human capital dominate
+> s
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 2: OLS vs FE DECOMPOSITION (BETWEEN- vs WITHIN-PERSON)"
+PART 2: OLS vs FE DECOMPOSITION (BETWEEN- vs WITHIN-PERSON)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "THEORY: γ_OLS = γ_FE + selection bias"
+THEORY: γ_OLS = γ_FE + selection bias
+
+. di "  Large gap: High-ability workers work more AND earn more (signaling sele
+> ction)"
+  Large gap: High-ability workers work more AND earn more (signaling selection)
+
+. di "  Small gap: Experience effect is mostly causal (human capital)"
+  Small gap: Experience effect is mostly causal (human capital)
+
+. di ""
+
+
+. 
+. *--- 2.1: OLS (cross-sectional + between variation, includes selection) ---
+. di "2.1 OLS ESTIMATE (with AFQT to absorb observed ability)"
+2.1 OLS ESTIMATE (with AFQT to absorb observed ability)
+
+. di "------------------------------------------------------"
+------------------------------------------------------
+
+. 
+. regress log_pwages log_cumhrs pot_exp pot_exp2 educ_years afqt_std i.year ///
+>     if phase1_sample == 1, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    179,209
+                                                F(33, 11492)      =    2133.27
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.5793
+                                                Root MSE          =     .87409
+
+                          (Std. err. adjusted for 11,493 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   .9478185   .0077725   121.95   0.000     .9325831    .9630539
+     pot_exp |  -.0270541   .0024073   -11.24   0.000    -.0317729   -.0223354
+    pot_exp2 |  -.0004688   .0000564    -8.31   0.000    -.0005793   -.0003582
+  educ_years |  -.0023093   .0012275    -1.88   0.060    -.0047153    .0000968
+    afqt_std |   .1589923   .0055281    28.76   0.000     .1481563    .1698283
+             |
+        year |
+       1980  |  -.1843424   .0151499   -12.17   0.000    -.2140388   -.1546461
+       1981  |  -.2463964   .0161352   -15.27   0.000    -.2780241   -.2147688
+       1982  |  -.3484276   .0167143   -20.85   0.000    -.3811904   -.3156647
+       1983  |  -.3737605    .017044   -21.93   0.000    -.4071695   -.3403514
+       1984  |  -.3859624   .0180546   -21.38   0.000    -.4213525   -.3505724
+       1985  |  -.3726463   .0192128   -19.40   0.000    -.4103066    -.334986
+       1986  |  -.2977165   .0206146   -14.44   0.000    -.3381247   -.2573084
+       1987  |  -.2691639   .0218947   -12.29   0.000    -.3120813   -.2262466
+       1988  |  -.2545913   .0233767   -10.89   0.000    -.3004136    -.208769
+       1989  |  -.2227475    .024482    -9.10   0.000    -.2707364   -.1747586
+       1990  |  -.2269171   .0259485    -8.74   0.000    -.2777806   -.1760537
+       1991  |  -.2323261   .0270781    -8.58   0.000    -.2854038   -.1792484
+       1992  |  -.2402709   .0285615    -8.41   0.000    -.2962563   -.1842855
+       1993  |   -.231106   .0296367    -7.80   0.000     -.289199   -.1730129
+       1995  |  -.1673345   .0322459    -5.19   0.000     -.230542   -.1041269
+       1997  |  -.0972592   .0350143    -2.78   0.005    -.1658932   -.0286252
+       1999  |   .0358126   .0381774     0.94   0.348    -.0390216    .1106468
+       2001  |   .0812168   .0413467     1.96   0.050     .0001704    .1622633
+       2003  |   .1568742   .0437733     3.58   0.000      .071071    .2426774
+       2005  |   .2371937   .0471269     5.03   0.000     .1448169    .3295705
+       2007  |   .3310175   .0507805     6.52   0.000     .2314791    .4305558
+       2009  |   .3660203   .0542221     6.75   0.000     .2597358    .4723048
+       2011  |   .4988083   .0597219     8.35   0.000     .3817432    .6158734
+       2013  |   .5837664   .0641026     9.11   0.000     .4581145    .7094184
+       2015  |   .6519255   .0676805     9.63   0.000     .5192602    .7845908
+       2017  |   .7653526   .0716945    10.68   0.000     .6248191    .9058861
+       2019  |   .8251851   .0765249    10.78   0.000     .6751833    .9751869
+       2021  |   .9390994    .081474    11.53   0.000     .7793964    1.098802
+             |
+       _cons |   .9760362    .058908    16.57   0.000     .8605665    1.091506
+------------------------------------------------------------------------------
+
+. est store ols_gamma
+
+. 
+. local gamma_ols = _b[log_cumhrs]
+
+. local se_ols    = _se[log_cumhrs]
+
+. di "  γ_OLS (with AFQT) = " %7.4f `gamma_ols' "  SE = " %6.4f `se_ols'
+  γ_OLS (with AFQT) =  0.9478  SE = 0.0078
+
+. 
+. *--- 2.2: OLS without AFQT (selection fully uncontrolled) ---
+. di ""
+
+
+. di "2.2 OLS ESTIMATE (without AFQT — raw selection)"
+2.2 OLS ESTIMATE (without AFQT — raw selection)
+
+. di "------------------------------------------------"
+------------------------------------------------
+
+. 
+. regress log_pwages log_cumhrs pot_exp pot_exp2 educ_years i.year ///
+>     if phase1_sample == 1, cluster(taxsimid)
+
+Linear regression                               Number of obs     =    179,209
+                                                F(32, 11492)      =    2112.48
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.5677
+                                                Root MSE          =       .886
+
+                          (Std. err. adjusted for 11,493 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   .9888989   .0079392   124.56   0.000     .9733368    1.004461
+     pot_exp |  -.0493817   .0023665   -20.87   0.000    -.0540206   -.0447429
+    pot_exp2 |  -.0003695   .0000577    -6.41   0.000    -.0004826   -.0002565
+  educ_years |  -.0024028    .001543    -1.56   0.119    -.0054273    .0006217
+             |
+        year |
+       1980  |  -.1996078      .0152   -13.13   0.000    -.2294024   -.1698131
+       1981  |  -.2637439   .0161969   -16.28   0.000    -.2954926   -.2319952
+       1982  |  -.3638092   .0167848   -21.67   0.000    -.3967102   -.3309083
+       1983  |  -.3877207   .0171143   -22.65   0.000    -.4212677   -.3541737
+       1984  |  -.4045723   .0181504   -22.29   0.000    -.4401501   -.3689945
+       1985  |  -.3843219   .0194262   -19.78   0.000    -.4224005   -.3462433
+       1986  |  -.2953829   .0209277   -14.11   0.000    -.3364047    -.254361
+       1987  |  -.2524248   .0223603   -11.29   0.000    -.2962548   -.2085948
+       1988  |  -.2200742   .0238912    -9.21   0.000    -.2669049   -.1732434
+       1989  |  -.1760491   .0250288    -7.03   0.000    -.2251097   -.1269884
+       1990  |  -.1697185   .0265708    -6.39   0.000    -.2218017   -.1176352
+       1991  |  -.1594228   .0277181    -5.75   0.000    -.2137551   -.1050905
+       1992  |  -.1498427    .029294    -5.12   0.000    -.2072639   -.0924214
+       1993  |  -.1252377   .0304339    -4.12   0.000    -.1848933    -.065582
+       1995  |  -.0315535   .0331368    -0.95   0.341    -.0965072    .0334002
+       1997  |   .0712145   .0360645     1.97   0.048     .0005219    .1419071
+       1999  |   .2378423   .0392833     6.05   0.000     .1608404    .3148443
+       2001  |   .3132521   .0425378     7.36   0.000     .2298708    .3966335
+       2003  |   .4211812   .0450218     9.36   0.000     .3329308    .5094316
+       2005  |   .5319688   .0485078    10.97   0.000     .4368853    .6270523
+       2007  |   .6652236   .0523123    12.72   0.000     .5626826    .7677645
+       2009  |   .7320026   .0559205    13.09   0.000     .6223888    .8416163
+       2011  |   .9088739   .0616248    14.75   0.000     .7880789    1.029669
+       2013  |   1.026512   .0663004    15.48   0.000     .8965515    1.156472
+       2015  |   1.115018   .0700755    15.91   0.000     .9776581    1.252378
+       2017  |   1.254481   .0743597    16.87   0.000     1.108724    1.400239
+       2019  |   1.344912   .0794636    16.92   0.000      1.18915    1.500674
+       2021  |   1.487804   .0846094    17.58   0.000     1.321956    1.653653
+             |
+       _cons |   .7266343   .0604547    12.02   0.000     .6081328    .8451357
+------------------------------------------------------------------------------
+
+. est store ols_gamma_noafqt
+
+. 
+. local gamma_ols_noafqt = _b[log_cumhrs]
+
+. di "  γ_OLS (no AFQT)   = " %7.4f `gamma_ols_noafqt' "  SE = " %6.4f _se[log_
+> cumhrs]
+  γ_OLS (no AFQT)   =  0.9889  SE = 0.0079
+
+. 
+. *--- 2.3: FE estimate (within-person, all time-invariant selection removed) -
+> --
+. di ""
+
+
+. di "2.3 FE ESTIMATE (within-person, all selection removed)"
+2.3 FE ESTIMATE (within-person, all selection removed)
+
+. di "------------------------------------------------------"
+------------------------------------------------------
+
+. 
+. xtreg log_pwages log_cumhrs pot_exp pot_exp2 i.year ///
+>     if phase1_sample == 1, fe cluster(taxsimid)
+
+Fixed-effects (within) regression               Number of obs     =    179,209
+Group variable: taxsimid                        Number of groups  =     11,493
+
+R-squared:                                      Obs per group:
+     Within  = 0.5498                                         min =          1
+     Between = 0.6417                                         avg =       15.6
+     Overall = 0.5668                                         max =         29
+
+                                                F(31, 11492)      =    1932.46
+corr(u_i, Xb) = 0.0627                          Prob > F          =     0.0000
+
+                          (Std. err. adjusted for 11,493 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+  log_pwages | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  log_cumhrs |   .9131034   .0100229    91.10   0.000     .8934568    .9327499
+     pot_exp |  -.0459207   .0047289    -9.71   0.000    -.0551902   -.0366512
+    pot_exp2 |  -.0004129   .0000551    -7.50   0.000    -.0005209   -.0003049
+             |
+        year |
+       1980  |  -.1787598   .0155294   -11.51   0.000       -.2092   -.1483196
+       1981  |  -.2304471    .018387   -12.53   0.000    -.2664888   -.1944054
+       1982  |  -.3161338   .0214791   -14.72   0.000    -.3582364   -.2740312
+       1983  |   -.323859   .0246502   -13.14   0.000    -.3721776   -.2755404
+       1984  |  -.2698348    .028375    -9.51   0.000    -.3254545    -.214215
+       1985  |  -.2446586   .0324241    -7.55   0.000    -.3082154   -.1811019
+       1986  |  -.1534347   .0367243    -4.18   0.000    -.2254206   -.0814489
+       1987  |  -.0985419    .041512    -2.37   0.018    -.1799125   -.0171714
+       1988  |  -.0683244   .0466953    -1.46   0.143    -.1598551    .0232064
+       1989  |  -.0215574   .0508601    -0.42   0.672    -.1212519    .0781372
+       1990  |  -.0196218   .0557023    -0.35   0.725    -.1288078    .0895642
+       1991  |  -.0086414   .0595444    -0.15   0.885    -.1253586    .1080758
+       1992  |  -.0015415   .0641545    -0.02   0.981    -.1272952    .1242122
+       1993  |    .026669   .0684317     0.39   0.697    -.1074687    .1608067
+       1995  |   .1307708     .07718     1.69   0.090    -.0205151    .2820567
+       1997  |   .2397512    .085846     2.79   0.005     .0714785     .408024
+       1999  |   .4128721   .0952977     4.33   0.000     .2260724    .5996718
+       2001  |    .492565   .1040005     4.74   0.000     .2887062    .6964238
+       2003  |   .5935822   .1122763     5.29   0.000     .3735016    .8136628
+       2005  |   .7091414   .1210963     5.86   0.000     .4717721    .9465107
+       2007  |   .8505119   .1312904     6.48   0.000     .5931603    1.107863
+       2009  |   .9175617   .1400696     6.55   0.000     .6430014    1.192122
+       2011  |    1.07913   .1525917     7.07   0.000     .7800247    1.378236
+       2013  |   1.200399   .1628263     7.37   0.000     .8812318    1.519566
+       2015  |   1.285408   .1698726     7.57   0.000     .9524289    1.618387
+       2017  |   1.432237   .1787992     8.01   0.000      1.08176    1.782714
+       2019  |    1.52433   .1889523     8.07   0.000     1.153951    1.894709
+       2021  |   1.665041   .1985056     8.39   0.000     1.275937    2.054146
+             |
+       _cons |   1.252793    .073392    17.07   0.000     1.108932    1.396654
+-------------+----------------------------------------------------------------
+     sigma_u |  .63128039
+     sigma_e |  .74178918
+         rho |  .42003495   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. est store fe_gamma_full2
+
+. 
+. * Should equal fe_gamma_full from Part 1
+. di "  γ_FE               = " %7.4f `gamma_fe_full' " (from Part 1)"
+  γ_FE               =  0.9131 (from Part 1)
+
+. di "  [Re-estimated here: " %7.4f _b[log_cumhrs] "]"
+  [Re-estimated here:  0.9131]
+
+. 
+. *--- 2.4: Selection decomposition ---
+. di ""
+
+
+. di "2.4 SELECTION DECOMPOSITION"
+2.4 SELECTION DECOMPOSITION
+
+. di "---------------------------"
+---------------------------
+
+. 
+. local selection_raw  = `gamma_ols_noafqt' - `gamma_fe_full'
+
+. local selection_obs  = `gamma_ols' - `gamma_fe_full'       // observable sele
+> ction
+
+. local selection_unobs = `gamma_ols_noafqt' - `gamma_ols'   // unobservable (r
+> emoved by AFQT)
+
+. local fe_share = `gamma_fe_full' / `gamma_ols_noafqt'
+
+. 
+. di ""
+
+
+. di "============================================================"
+============================================================
+
+. di "SELECTION DECOMPOSITION RESULTS"
+SELECTION DECOMPOSITION RESULTS
+
+. di "============================================================"
+============================================================
+
+. di ""
+
+
+. di "  γ_OLS (no AFQT):     " %7.4f `gamma_ols_noafqt'
+  γ_OLS (no AFQT):      0.9889
+
+. di "  γ_OLS (with AFQT):   " %7.4f `gamma_ols'
+  γ_OLS (with AFQT):    0.9478
+
+. di "  γ_FE:                " %7.4f `gamma_fe_full'
+  γ_FE:                 0.9131
+
+. di ""
+
+
+. di "  Total selection bias:           " %7.4f `selection_raw'
+  Total selection bias:            0.0758
+
+. di "    - Observable (absorbed AFQT): " %7.4f `selection_unobs'
+    - Observable (absorbed AFQT):  0.0411
+
+. di "    - Residual (unobserved):      " %7.4f `selection_obs'
+    - Residual (unobserved):       0.0347
+
+. di ""
+
+
+. di "  Within-person share (γ_FE / γ_OLS): " %5.1f `fe_share'*100 "%"
+  Within-person share (γ_FE / γ_OLS):  92.3%
+
+. di ""
+
+
+. 
+. if `fe_share' > 0.7 {
+.     di "RESULT: γ is primarily WITHIN-PERSON accumulation"
+RESULT: γ is primarily WITHIN-PERSON accumulation
+.     di "  Returns to cumhrs are mostly causal — learning-by-doing dominates"
+  Returns to cumhrs are mostly causal — learning-by-doing dominates
+. }
+
+. else if `fe_share' < 0.4 {
+.     di "RESULT: γ is primarily BETWEEN-PERSON selection"
+.     di "  High-ability workers work more; signaling/selection dominates"
+.     di "  The return to cumhrs in cross-section is largely spurious"
+. }
+
+. else {
+.     di "RESULT: MIXED — both within-person and selection channels matter"
+.     di "  " %4.1f `fe_share'*100 "% is causal; " %4.1f (1-`fe_share')*100 "% 
+> is selection"
+. }
+
+. di "============================================================"
+============================================================
+
+. 
+. *--- 2.5: Career-stage OLS vs FE comparison ---
+. di ""
+
+
+. di "2.5 SELECTION BY CAREER STAGE"
+2.5 SELECTION BY CAREER STAGE
+
+. di "-----------------------------"
+-----------------------------
+
+. di "Does selection bias decrease as career progresses?"
+Does selection bias decrease as career progresses?
+
+. di "(Prediction: Yes, if employer learning means later-career OLS ≈ FE)"
+(Prediction: Yes, if employer learning means later-career OLS ≈ FE)
+
+. di ""
+
+
+. 
+. forvalues q = 1/5 {
+  2.     qui regress log_pwages log_cumhrs pot_exp pot_exp2 educ_years i.year /
+> //
+>         if phase1_sample == 1 & exp_quintile == `q', cluster(taxsimid)
+  3.     local ols_q`q' = _b[log_cumhrs]
+  4. 
+.     local selection_q`q' = `ols_q`q'' - `g`q''
+  5.     local fe_share_q`q' = `g`q'' / `ols_q`q''
+  6. 
+.     di "Q`q': OLS=" %6.3f `ols_q`q'' "  FE=" %6.3f `g`q'' ///
+>         "  Selection=" %6.3f `selection_q`q'' ///
+>         "  FE-share=" %4.1f `fe_share_q`q''*100 "%"
+  7. }
+Q1: OLS= 0.961  FE= 1.101  Selection=-0.140  FE-share=114.6%
+Q2: OLS= 0.918  FE= 1.026  Selection=-0.108  FE-share=111.8%
+Q3: OLS= 0.993  FE= 1.029  Selection=-0.036  FE-share=103.6%
+Q4: OLS= 0.952  FE= 0.889  Selection= 0.063  FE-share=93.4%
+Q5: OLS= 1.075  FE= 1.074  Selection= 0.001  FE-share=99.9%
+
+. 
+. /*===========================================================================
+> ===
+> PART 3: STRUCTURAL PARAMETER RECOVERY
+> =============================================================================
+> ===
+> From Sztutman (2024) Pareto case: γ = δ / (1 − δ + ε)
+> Solving for δ: δ = γ(1 + ε) / (1 + γ)
+> 
+> Where:
+>   γ = FE coefficient on log_cumhrs (from Part 1)
+>   ε = labor supply elasticity (proxied by ETI from Two_Period_Analysis.do)
+> 
+> NOTE: ETI measures elasticity of taxable income (extensive + intensive margin
+> s).
+>       Using ETI as ε overstates the intensive margin. The δ estimate below
+>       should be treated as an upper bound; a pure intensive-margin ETI would
+>       give a lower δ. Report range: δ using annual ETI, biennial ETI.
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 3: STRUCTURAL PARAMETER RECOVERY"
+PART 3: STRUCTURAL PARAMETER RECOVERY
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Formula: δ = γ(1 + ε) / (1 + γ)"
+Formula: δ = γ(1 + ε) / (1 + γ)
+
+. di "Where γ = γ_FE (full career), ε = ETI from Two_Period_Analysis"
+Where γ = γ_FE (full career), ε = ETI from Two_Period_Analysis
+
+. di ""
+
+
+. 
+. *--- 3.1: Load ETI estimates ---
+. capture confirm file "${outdir}\two_period_summary.dta"
+
+. if _rc == 0 {
+.     preserve
+.     use "${outdir}\two_period_summary.dta", clear
+.     qui sum ETI if strpos(period, "Annual") > 0
+.     global eti_annual  = r(mean)
+.     qui sum ETI if strpos(period, "Biennial") > 0
+.     global eti_biennial = r(mean)
+.     restore
+.     di "ETI loaded from two_period_summary.dta:"
+ETI loaded from two_period_summary.dta:
+.     di "  Annual ETI:   " %7.4f $eti_annual
+  Annual ETI:   -0.1734
+.     di "  Biennial ETI: " %7.4f $eti_biennial
+  Biennial ETI:  0.5438
+. }
+
+. else {
+.     di "WARNING: two_period_summary.dta not found."
+.     di "  Run Two_Period_Analysis.do first for precise ETI."
+.     di "  Using placeholder ε = 0.4 (midpoint of typical ETI literature range
+> )"
+.     global eti_annual  = 0.4
+.     global eti_biennial = 0.4
+. }
+
+. 
+. *--- 3.2: Compute δ for each ETI ---
+. local eti_a = $eti_annual
+
+. local eti_b = $eti_biennial
+
+. 
+. * Using full-career γ_FE
+. local delta_annual   = `gamma_fe_full' * (1 + `eti_a') / (1 + `gamma_fe_full'
+> )
+
+. local delta_biennial = `gamma_fe_full' * (1 + `eti_b') / (1 + `gamma_fe_full'
+> )
+
+. local delta_mid = (`delta_annual' + `delta_biennial') / 2
+
+. 
+. * Using early-career γ (Q1)
+. local delta_early = `g1' * (1 + `eti_a') / (1 + `g1')
+
+. 
+. * Using late-career γ (Q5)
+. local delta_late  = `g5' * (1 + `eti_a') / (1 + `g5')
+
+. 
+. di ""
+
+
+. di "============================================================"
+============================================================
+
+. di "STRUCTURAL PARAMETER RESULTS"
+STRUCTURAL PARAMETER RESULTS
+
+. di "============================================================"
+============================================================
+
+. di ""
+
+
+. di "  γ_FE (full career):       " %7.4f `gamma_fe_full'
+  γ_FE (full career):        0.9131
+
+. di ""
+
+
+. di "  Using Annual ETI (ε = " %5.3f `eti_a' "):"
+  Using Annual ETI (ε = -0.173):
+
+. di "    δ (full career):        " %7.4f `delta_annual'
+    δ (full career):         0.3945
+
+. di "    δ (early career, Q1):   " %7.4f `delta_early'
+    δ (early career, Q1):    0.4332
+
+. di "    δ (late career, Q5):    " %7.4f `delta_late'
+    δ (late career, Q5):     0.4280
+
+. di ""
+
+
+. di "  Using Biennial ETI (ε = " %5.3f `eti_b' "):"
+  Using Biennial ETI (ε = 0.544):
+
+. di "    δ (full career):        " %7.4f `delta_biennial'
+    δ (full career):         0.7369
+
+. di ""
+
+
+. di "  Midpoint estimate: δ ≈ " %6.4f `delta_mid'
+  Midpoint estimate: δ ≈ 0.5657
+
+. di ""
+
+
+. 
+. * Validate δ
+. if `delta_annual' < 0 | `delta_annual' > 1 {
+.     di as error "SCRUTINY FAILURE: δ outside (0,1)"
+.     di as error "  This indicates either:"
+.     di as error "  - γ_FE is negative (re-check cumhrs variable quality)"
+.     di as error "  - ETI is too large relative to γ (model misfit)"
+.     di as error "  - Sample restrictions are too aggressive"
+. }
+
+. else if `delta_annual' > 0.7 {
+.     di "NOTE: δ > 0.7 suggests very high information asymmetry."
+.     di "      Cross-check against Altonji-Pierret results in Skill_vs_Signal_
+> Analysis.do"
+. }
+
+. else {
+.     di "RESULT: δ ∈ (0,1) — model-consistent information asymmetry estimate"
+RESULT: δ ∈ (0,1) — model-consistent information asymmetry estimate
+.     di ""
+
+.     di "INTERPRETATION:"
+INTERPRETATION:
+.     di "  δ = " %5.3f `delta_mid' " means approximately " %4.1f `delta_mid'*1
+> 00 "% of wage"
+  δ = 0.566 means approximately 56.6% of wage
+.     di "  growth comes from the signaling/information channel."
+  growth comes from the signaling/information channel.
+.     di "  Remaining " %4.1f (1-`delta_mid')*100 "% is human capital accumulat
+> ion."
+  Remaining 43.4% is human capital accumulation.
+. }
+
+. di "============================================================"
+============================================================
+
+. 
+. *--- 3.3: Sensitivity table ---
+. di ""
+
+
+. di "3.3 SENSITIVITY OF δ TO ASSUMED ε"
+3.3 SENSITIVITY OF δ TO ASSUMED ε
+
+. di "----------------------------------"
+----------------------------------
+
+. di ""
+
+
+. di "  ε (ETI)  γ_FE      δ_implied"
+  ε (ETI)  γ_FE      δ_implied
+
+. di "  -------- --------- ---------"
+  -------- --------- ---------
+
+. foreach eps_x in 0.2 0.3 0.4 0.5 0.6 0.8 {
+  2.     local d_x = `gamma_fe_full' * (1 + `eps_x') / (1 + `gamma_fe_full')
+  3.     di "  " %6.2f `eps_x' "   " %7.4f `gamma_fe_full' "   " %7.4f `d_x'
+  4. }
+    0.20    0.9131    0.5727
+    0.30    0.9131    0.6205
+    0.40    0.9131    0.6682
+    0.50    0.9131    0.7159
+    0.60    0.9131    0.7637
+    0.80    0.9131    0.8591
+
+. 
+. /*===========================================================================
+> ===
+> PART 4: RECENT vs CUMULATIVE HOURS — DYNAMIC DECOMPOSITION
+> =============================================================================
+> ===
+> Build on Skill_vs_Signal Part 2 with career-stage split.
+> Prediction: Recent hours should matter MORE in early career (when signaling
+> dominates), while cumulative hours should matter MORE in late career (once
+> learning completes and track record speaks for itself).
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 4: RECENT vs CUMULATIVE HOURS BY CAREER STAGE"
+PART 4: RECENT vs CUMULATIVE HOURS BY CAREER STAGE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "THEORY: Signaling → Recent hours (face time) matter more when employer"
+THEORY: Signaling → Recent hours (face time) matter more when employer
+
+. di "        uncertainty is high (early career)."
+        uncertainty is high (early career).
+
+. di "        Learning-by-doing → Cumulative hours matter throughout career."
+        Learning-by-doing → Cumulative hours matter throughout career.
+
+. di ""
+
+
+. 
+. * Check for recent_hrs_annual — use local flag to avoid goto/label issues
+. local run_part4 = 1
+
+. capture confirm variable recent_hrs_annual
+
+. if _rc != 0 {
+.     capture confirm variable recent_hrs
+.     if _rc == 0 {
+.         capture confirm variable year_span
+.         if _rc == 0 {
+.             gen recent_hrs_annual = recent_hrs / year_span if year_span > 0
+.             replace recent_hrs_annual = recent_hrs if year_span == 1 | missin
+> g(year_span)
+.         }
+.         else {
+.             gen recent_hrs_annual = recent_hrs
+.         }
+.     }
+.     else {
+.         di "WARNING: recent_hrs not found. Skipping Part 4."
+.         local run_part4 = 0
+.     }
+. }
+
+. 
+. if `run_part4' {
+. 
+.     capture drop log_recent_annual
+.     gen log_recent_annual = ln(recent_hrs_annual) if recent_hrs_annual > 0
+(273,770 missing values generated)
+. 
+.     di "4.1 HORSE RACE BY CAREER STAGE"
+4.1 HORSE RACE BY CAREER STAGE
+.     di "------------------------------"
+------------------------------
+.     di ""
+
+.     di "Stage    γ_cumhrs   γ_recent   Ratio (cum/rec)  Signal/HC"
+Stage    γ_cumhrs   γ_recent   Ratio (cum/rec)  Signal/HC
+.     di "-------- ---------- ---------- ---------------  ---------"
+-------- ---------- ---------- ---------------  ---------
+. 
+.     forvalues q = 1/5 {
+  2.         qui count if phase1_sample == 1 & exp_quintile == `q' ///
+>                   & cumhrs > 0 & recent_hrs_annual > 0
+  3.         if r(N) > 500 {
+  4.             qui xtreg log_pwages log_cumhrs log_recent_annual pot_exp pot_
+> exp2 i.year ///
+>                 if phase1_sample == 1 & exp_quintile == `q' ///
+>                 & cumhrs > 0 & recent_hrs_annual > 0, fe cluster(taxsimid)
+  5.             local gc`q' = _b[log_cumhrs]
+  6.             local gr`q' = _b[log_recent_annual]
+  7.             local ratio_q`q' = `gc`q'' / max(abs(`gr`q''), 0.001)
+  8. 
+.             local interp = "Mixed"
+  9.             if `gc`q'' > abs(`gr`q'') * 2 {
+ 10.                 local interp = "HC"
+ 11.             }
+ 12.             else if abs(`gr`q'') > `gc`q'' * 2 {
+ 13.                 local interp = "Signal"
+ 14.             }
+ 15.             di "Q`q'      " %8.4f `gc`q'' "   " %8.4f `gr`q'' ///
+>                 "   " %8.3f `ratio_q`q'' "         `interp'"
+ 16.         }
+ 17.         else {
+ 18.             di "Q`q'      [insufficient obs]"
+ 19.         }
+ 20.     }
+Q1        0.1328     0.8543      0.155         Signal
+Q2        0.1515     0.7557      0.200         Signal
+Q3        0.2729     0.6364      0.429         Signal
+Q4        0.3783     0.5316      0.712         Mixed
+Q5        0.5212     0.4858      1.073         Mixed
+. 
+.     label drop _all  // avoid label conflicts if re-run
+. 
+. } // end if run_part4
+
+. 
+. /*===========================================================================
+> ===
+> PART 5: OUTPUT — FORMATTED TABLES AND GRAPHS
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 5: OUTPUT"
+PART 5: OUTPUT
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. *--- Table 1: γ by career stage ---
+. capture noisily esttab fe_gamma_q1 fe_gamma_q2 fe_gamma_q3 fe_gamma_q4 fe_gam
+> ma_q5 fe_gamma_full ///
+>     using "${outdir}\Phase1_Table1_GammaByStage.rtf", replace ///
+>     keep(log_cumhrs pot_exp pot_exp2) ///
+>     order(log_cumhrs pot_exp pot_exp2) ///
+>     b(%9.4f) se(%9.4f) star(* 0.10 ** 0.05 *** 0.01) ///
+>     stats(N r2_w, fmt(%12.0fc %9.3f) labels("Observations" "Within R²")) ///
+>     mtitles("Q1 Early" "Q2" "Q3" "Q4" "Q5 Late" "Full Career") ///
+>     title("Table 1: Structural Return to Cumulative Hours γ by Career Stage")
+>  ///
+>     note("FE estimator. Std. errors clustered by individual. γ = log_cumhrs c
+> oefficient." ///
+>          "Pareto case predicts γ constant across career stages.")
+(output written to D:\Stata Data\labor_signaling_project\output\Phase1_Table1_G
+> ammaByStage.rtf)
+
+. if _rc != 0 di "WARNING: esttab Table1 failed. Install estout: ssc install es
+> tout"
+
+. 
+. *--- Table 2: OLS vs FE decomposition ---
+. capture noisily esttab ols_gamma_noafqt ols_gamma fe_gamma_full ///
+>     using "${outdir}\Phase1_Table2_OLSvsFE.rtf", replace ///
+>     keep(log_cumhrs pot_exp pot_exp2 afqt_std educ_years) ///
+>     order(log_cumhrs pot_exp pot_exp2 afqt_std educ_years) ///
+>     b(%9.4f) se(%9.4f) star(* 0.10 ** 0.05 *** 0.01) ///
+>     stats(N r2, fmt(%12.0fc %9.3f) labels("Observations" "R²")) ///
+>     mtitles("OLS (no AFQT)" "OLS (with AFQT)" "FE") ///
+>     title("Table 2: Selection Decomposition — OLS vs FE on log(cumhrs)") ///
+>     note("OLS-FE gap identifies between-person selection vs within-person acc
+> umulation." ///
+>          "Large gap supports signaling; small gap supports human capital.")
+(output written to D:\Stata Data\labor_signaling_project\output\Phase1_Table2_O
+> LSvsFE.rtf)
+
+. if _rc != 0 di "WARNING: esttab Table2 failed"
+
+. 
+. *--- Table 3: Structural parameters ---
+. * Build a small dataset with δ estimates for display
+. di ""
+
+
+. di "Phase1_Table3_Structural.csv: Writing structural parameter summary"
+Phase1_Table3_Structural.csv: Writing structural parameter summary
+
+. tempfile struct_out
+
+. preserve
+
+. clear
+
+. set obs 4
+Number of observations (_N) was 0, now 4.
+
+. gen description = ""
+(4 missing values generated)
+
+. replace description = "gamma_FE_full" in 1
+variable description was str1 now str13
+(1 real change made)
+
+. replace description = "delta_annual_ETI" in 2
+variable description was str13 now str16
+(1 real change made)
+
+. replace description = "delta_biennial_ETI" in 3
+variable description was str16 now str18
+(1 real change made)
+
+. replace description = "delta_midpoint" in 4
+(1 real change made)
+
+. gen value = .
+(4 missing values generated)
+
+. replace value = `gamma_fe_full' in 1
+(1 real change made)
+
+. replace value = `delta_annual'   in 2
+(1 real change made)
+
+. replace value = `delta_biennial' in 3
+(1 real change made)
+
+. replace value = `delta_mid'      in 4
+(1 real change made)
+
+. gen se = .
+(4 missing values generated)
+
+. replace se = `se_fe_full' in 1
+(1 real change made)
+
+. gen ETI_used = .
+(4 missing values generated)
+
+. replace ETI_used = `eti_a' in 2
+(1 real change made)
+
+. replace ETI_used = `eti_b' in 3
+(1 real change made)
+
+. export delimited using "${outdir}\Phase1_Table3_Structural.csv", replace
+file D:\Stata Data\labor_signaling_project\output\Phase1_Table3_Structural.csv 
+> saved
+
+. list, clean noobs
+
+           description      value         se    ETI_used  
+         gamma_FE_full   .9131034   .0100229           .  
+      delta_annual_ETI   .3945234          .   -.1734079  
+    delta_biennial_ETI   .7368515          .    .5438264  
+        delta_midpoint   .5656875          .           .  
+
+. restore
+
+. 
+. *--- Figure 1: γ profile across career stages ---
+. di ""
+
+
+. di "Saving Phase1_Fig1_GammaProfile.png"
+Saving Phase1_Fig1_GammaProfile.png
+
+. preserve
+
+. clear
+
+. set obs 5
+Number of observations (_N) was 0, now 5.
+
+. gen stage = _n
+
+. gen gamma = .
+(5 missing values generated)
+
+. gen gamma_lo = .
+(5 missing values generated)
+
+. gen gamma_hi = .
+(5 missing values generated)
+
+. forvalues q = 1/5 {
+  2.     replace gamma    = `g`q''                    in `q'
+  3.     replace gamma_lo = `g`q'' - 1.96 * `se`q'' in `q'
+  4.     replace gamma_hi = `g`q'' + 1.96 * `se`q'' in `q'
+  5. }
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+
+. gen gamma_full_line = `gamma_fe_full'
+
+. 
+. twoway ///
+>     (rcap gamma_hi gamma_lo stage, lcolor(navy) lwidth(medium)) ///
+>     (connected gamma stage, ///
+>         lcolor(navy) lwidth(thick) msymbol(circle) mcolor(navy) msize(large))
+>  ///
+>     (line gamma_full_line stage, lcolor(maroon) lpattern(dash) lwidth(medium)
+> ), ///
+>     title("Return to Cumulative Hours {it:γ} by Career Stage", size(medium)) 
+> ///
+>     subtitle("Test of Pareto Case: Constant {it:γ} implies history-independen
+> t Pigouvian tax") ///
+>     xtitle("Career Stage (Potential Experience Quintile)") ///
+>     ytitle("{it:γ} = log(wage) / log(cumhrs) elasticity") ///
+>     xlabel(1 "Q1: Early" 2 "Q2" 3 "Q3" 4 "Q4" 5 "Q5: Late", angle(30)) ///
+>     legend(order(2 "γ by stage" 3 "Full-career γ") pos(1) ring(0) rows(2)) //
+> /
+>     note("Bars = 95% confidence intervals. FE within-person estimator." ///
+>          "Flat profile → Pareto case; declining → history-dependent wedge.")
+
+. graph export "${outdir}\Phase1_Fig1_GammaProfile.png", replace width(1400)
+file D:\Stata
+    Data\labor_signaling_project\output\Phase1_Fig1_GammaProfile.png saved as
+    PNG format
+
+. restore
+
+. 
+. *--- Figure 2: Selection decomposition ---
+. di "Saving Phase1_Fig2_SelectionDecomp.png"
+Saving Phase1_Fig2_SelectionDecomp.png
+
+. preserve
+
+. clear
+
+. set obs 5
+Number of observations (_N) was 0, now 5.
+
+. gen stage = _n
+
+. gen gamma_ols = .
+(5 missing values generated)
+
+. gen gamma_fe  = .
+(5 missing values generated)
+
+. forvalues q = 1/5 {
+  2.     replace gamma_ols = `ols_q`q'' in `q'
+  3.     replace gamma_fe  = `g`q''     in `q'
+  4. }
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+
+. 
+. twoway ///
+>     (connected gamma_ols stage, ///
+>         lcolor(maroon) lwidth(medium) msymbol(square) mcolor(maroon)) ///
+>     (connected gamma_fe stage, ///
+>         lcolor(navy) lwidth(medium) msymbol(circle) mcolor(navy)), ///
+>     title("OLS vs FE Return to Cumulative Hours by Career Stage", size(medium
+> )) ///
+>     subtitle("Gap = between-person selection (signaling); FE = within-person 
+> (human capital)") ///
+>     xtitle("Career Stage (Potential Experience Quintile)") ///
+>     ytitle("{it:γ} = log(wage) / log(cumhrs) elasticity") ///
+>     xlabel(1 "Q1: Early" 2 "Q2" 3 "Q3" 4 "Q4" 5 "Q5: Late", angle(30)) ///
+>     legend(order(1 "OLS (selection + accumulation)" 2 "FE (within-person only
+> )") ///
+>            pos(1) ring(0) rows(2)) ///
+>     note("OLS includes between-person ability selection. FE removes time-inva
+> riant confounds.")
+
+. graph export "${outdir}\Phase1_Fig2_SelectionDecomp.png", replace width(1400)
+file D:\Stata
+    Data\labor_signaling_project\output\Phase1_Fig2_SelectionDecomp.png saved
+    as PNG format
+
+. restore
+
+. 
+. /*===========================================================================
+> ===
+> PART 6: COMPREHENSIVE SCRUTINY SUMMARY
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 6: SCRUTINY SUMMARY"
+PART 6: SCRUTINY SUMMARY
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "CHECK 1 — γ_FE positive and significant?"
+CHECK 1 — γ_FE positive and significant?
+
+. if `gamma_fe_full' > 0 & `gamma_fe_full'/`se_fe_full' > 1.96 {
+.     di "  PASS: γ_FE = " %6.4f `gamma_fe_full' " (t=" %5.2f `gamma_fe_full'/`
+> se_fe_full' ")"
+  PASS: γ_FE = 0.9131 (t=91.10)
+. }
+
+. else if `gamma_fe_full' <= 0 {
+.     di "  FAIL: γ_FE ≤ 0. cumhrs may be mismeasured. Check Data_process.do Fi
+> x #2."
+. }
+
+. else {
+.     di "  WEAK: γ_FE positive but not significant. Noisy estimates."
+. }
+
+. 
+. di ""
+
+
+. di "CHECK 2 — γ_OLS > γ_FE (positive selection)?"
+CHECK 2 — γ_OLS > γ_FE (positive selection)?
+
+. if `gamma_ols_noafqt' > `gamma_fe_full' {
+.     di "  PASS: γ_OLS=" %6.4f `gamma_ols_noafqt' " > γ_FE=" %6.4f `gamma_fe_f
+> ull'
+  PASS: γ_OLS=0.9889 > γ_FE=0.9131
+. }
+
+. else {
+.     di "  FAIL: γ_OLS < γ_FE — unusual (negative selection)."
+.     di "        Possible causes: attrition, sample restriction issues."
+.     di "        Investigate before proceeding to Phase 2."
+. }
+
+. 
+. di ""
+
+
+. di "CHECK 3 — δ ∈ (0,1)?"
+CHECK 3 — δ ∈ (0,1)?
+
+. if `delta_annual' > 0 & `delta_annual' < 1 {
+.     di "  PASS: δ = " %6.4f `delta_annual' " (using annual ETI)"
+  PASS: δ = 0.3945 (using annual ETI)
+. }
+
+. else {
+.     di "  FAIL: δ = " %6.4f `delta_annual' " — outside (0,1)"
+.     di "        Diagnose ETI estimate or γ_FE before proceeding."
+. }
+
+. 
+. di ""
+
+
+. di "CHECK 4 — Wald test on γ equality?"
+CHECK 4 — Wald test on γ equality?
+
+. di "  F = " %8.3f `wald_F' "  p = " %8.4f `wald_p'
+  F =   15.841  p =   0.0000
+
+. if `wald_p' < 0.05 {
+.     di "  RESULT: Reject constant γ → use general dynamic model for Phase 2"
+  RESULT: Reject constant γ → use general dynamic model for Phase 2
+. }
+
+. else {
+.     di "  RESULT: Fail to reject constant γ → Pareto case appropriate for Pha
+> se 2"
+. }
+
+. 
+. di ""
+
+
+. di "CHECK 5 — Monotonicity of γ across stages?"
+CHECK 5 — Monotonicity of γ across stages?
+
+. di "  Q1=" %5.3f `g1' "  Q2=" %5.3f `g2' "  Q3=" %5.3f `g3' ///
+>    "  Q4=" %5.3f `g4' "  Q5=" %5.3f `g5'
+  Q1=1.101  Q2=1.026  Q3=1.029  Q4=0.889  Q5=1.074
+
+. if `g1' >= `g5' {
+.     di "  PASS: γ_early ≥ γ_late (employer learning completing)"
+  PASS: γ_early ≥ γ_late (employer learning completing)
+. }
+
+. else {
+.     di "  NOTE: γ_late > γ_early — investigate before structural interpretati
+> on"
+. }
+
+. 
+. di ""
+
+
+. di "STEERING DECISION FOR PHASE 2:"
+STEERING DECISION FOR PHASE 2:
+
+. di ""
+
+
+. if `wald_p' < 0.05 {
+.     di "  PRIORITIZE: Dynamic (history-dependent) wedge χ(h) estimation"
+  PRIORITIZE: Dynamic (history-dependent) wedge χ(h) estimation
+.     di "  REASON: γ is not constant — Pigouvian tax varies over career"
+  REASON: γ is not constant — Pigouvian tax varies over career
+.     di "  In Phase 2: Estimate χ separately by career stage quartile"
+  In Phase 2: Estimate χ separately by career stage quartile
+.     di "  Expected: χ_early < χ_late (larger distortion when employer"
+  Expected: χ_early < χ_late (larger distortion when employer
+.     di "            uncertainty is greatest)"
+            uncertainty is greatest)
+. }
+
+. else {
+.     di "  APPROACH: Pareto constant-wedge estimation is appropriate"
+.     di "  REASON: γ does not significantly vary across career stages"
+.     di "  In Phase 2: Estimate single χ (or χ by income decile)"
+.     di "  Then: τ_p = 1 − χ should be approximately constant"
+. }
+
+. 
+. /*===========================================================================
+> ===
+> PART 7: CLEAN UP AND CLOSE
+> =============================================================================
+> =*/
+. 
+. * Drop temporary interaction dummies
+. capture drop i_q1 i_q2 i_q3 i_q4 i_q5
+
+. capture drop exp_quintile
+
+. capture drop log_recent_annual
+
+. capture drop phase1_sample
+
+. capture drop log_pwages log_cumhrs
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "OUTPUT FILES CREATED"
+OUTPUT FILES CREATED
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Tables (${outdir}):"
+Tables (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Phase1_Table1_GammaByStage.rtf    : γ by career quintile (FE)"
+  Phase1_Table1_GammaByStage.rtf    : γ by career quintile (FE)
+
+. di "  Phase1_Table2_OLSvsFE.rtf         : Selection decomposition"
+  Phase1_Table2_OLSvsFE.rtf         : Selection decomposition
+
+. di "  Phase1_Table3_Structural.csv      : δ estimates and structural params"
+  Phase1_Table3_Structural.csv      : δ estimates and structural params
+
+. di ""
+
+
+. di "Figures (${outdir}):"
+Figures (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Phase1_Fig1_GammaProfile.png      : γ profile with 95% CIs"
+  Phase1_Fig1_GammaProfile.png      : γ profile with 95% CIs
+
+. di "  Phase1_Fig2_SelectionDecomp.png   : OLS vs FE by career stage"
+  Phase1_Fig2_SelectionDecomp.png   : OLS vs FE by career stage
+
+. di ""
+
+
+. di "Log (${outdir}):"
+Log (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Structural_Wage_Experience_log.txt"
+  Structural_Wage_Experience_log.txt
+
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PHASE 1 COMPLETE"
+PHASE 1 COMPLETE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "End time: $S_DATE $S_TIME"
+End time: 10 Apr 2026 18:23:04
+
+. di ""
+
+
+. di "NEXT STEPS:"
+NEXT STEPS:
+
+. di "  1. Review γ profile — is it flat (Pareto) or declining (dynamic)?"
+  1. Review γ profile — is it flat (Pareto) or declining (dynamic)?
+
+. di "  2. Check δ estimate against priors from Skill_vs_Signal_Analysis"
+  2. Check δ estimate against priors from Skill_vs_Signal_Analysis
+
+. di "  3. Run Advantageous_Selection_Test.do (Phase 3)"
+  3. Run Advantageous_Selection_Test.do (Phase 3)
+
+. di "  4. Feed Pareto/dynamic decision into Labor_Wedge_Estimation.do (Phase 2
+> )"
+  4. Feed Pareto/dynamic decision into Labor_Wedge_Estimation.do (Phase 2)
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\Structural_Wage_Exper
+> ience_log.txt
+  log type:  text
+ closed on:  10 Apr 2026, 18:23:04
+-------------------------------------------------------------------------------

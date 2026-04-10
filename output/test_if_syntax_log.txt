@@ -1,0 +1,77 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\test_if_syntax_log.tx
+> t
+  log type:  text
+ opened on:   9 Mar 2026, 22:41:58
+
+. 
+. sysuse auto, clear
+(1978 automobile data)
+
+. 
+. * Test 1: single-line if { }
+. capture noisily regress price mpg
+
+      Source |       SS           df       MS      Number of obs   =        74
+-------------+----------------------------------   F(1, 72)        =     20.26
+       Model |   139449474         1   139449474   Prob > F        =    0.0000
+    Residual |   495615923        72  6883554.48   R-squared       =    0.2196
+-------------+----------------------------------   Adj R-squared   =    0.2087
+       Total |   635065396        73  8699525.97   Root MSE        =    2623.7
+
+------------------------------------------------------------------------------
+       price | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         mpg |  -238.8943   53.07669    -4.50   0.000    -344.7008   -133.0879
+       _cons |   11253.06   1170.813     9.61   0.000     8919.088    13587.03
+------------------------------------------------------------------------------
+
+. di "_rc = " _rc
+_rc = 0
+
+. if _rc == 0 { estimates store test1_single }
+. di "=== After test1 (single line): ==="
+=== After test1 (single line): ===
+. estimates dir
+. 
+. * Test 2: multi-line if { }
+. capture noisily regress price mpg weight
+
+      Source |       SS           df       MS      Number of obs   =        74
+-------------+----------------------------------   F(2, 71)        =     14.74
+       Model |   186321280         2  93160639.9   Prob > F        =    0.0000
+    Residual |   448744116        71  6320339.67   R-squared       =    0.2934
+-------------+----------------------------------   Adj R-squared   =    0.2735
+       Total |   635065396        73  8699525.97   Root MSE        =      2514
+
+------------------------------------------------------------------------------
+       price | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         mpg |  -49.51222   86.15604    -0.57   0.567    -221.3025     122.278
+      weight |   1.746559   .6413538     2.72   0.008      .467736    3.025382
+       _cons |   1946.069    3597.05     0.54   0.590    -5226.245    9118.382
+------------------------------------------------------------------------------
+. di "_rc = " _rc
+_rc = 0
+. if _rc == 0 {
+.     estimates store test2_multi
+. }
+. di "=== After test2 (multi line): ==="
+=== After test2 (multi line): ===
+. estimates dir
+
+----------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+--------------------------------------------------
+ test2_multi | regress       price          3  Linear regression
+----------------------------------------------------------------
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\test_if_syntax_log.tx
+> t
+  log type:  text
+ closed on:   9 Mar 2026, 22:41:59
+-------------------------------------------------------------------------------

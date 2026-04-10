@@ -1,0 +1,121 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\check_vars2_log.txt
+  log type:  text
+ opened on:   9 Mar 2026, 22:37:17
+
+. 
+. use "${datadir}\analysis_annual.dta", clear
+
+. di "88 variables in analysis_annual.dta:"
+88 variables in analysis_annual.dta:
+
+. describe
+
+Contains data from D:\Stata Data\labor_signaling_project\data\analysis_annual.d
+> ta
+ Observations:        31,832                  
+    Variables:            88                  24 Feb 2026 02:42
+-------------------------------------------------------------------------------
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+-------------------------------------------------------------------------------
+taxsimid        float   %8.0g                 R0000100
+year_t          float   %8.0g                 
+pui_t           long    %8.0g                 
+page_t          float   %9.0g                 
+depx_t          byte    %8.0g                 
+pwages_t        long    %12.0g                
+swages_t        long    %12.0g                
+psemp_t         long    %12.0g                
+ssemp_t         long    %12.0g                
+sui_t           long    %8.0g                 
+gssi_t          long    %8.0g                 
+transfers_t     float   %9.0g                 
+nonprop_t       float   %9.0g                 
+pensions_t      float   %9.0g                 
+rentpaid_t      float   %9.0g                 
+mstat_t         byte    %8.0g                 
+tax_fed_t       float   %9.0g                 Federal Income Tax
+tax_st_t        byte    %8.0g                 State Income Tax
+mtr_fed_t       float   %9.0g                 IIT marginal rate
+mtr_st_t        byte    %8.0g                 state marginal rate
+mtr_fed_t3      float   %9.0g                 
+mtr_st_t3       float   %9.0g                 
+tax_fed_t3      float   %9.0g                 
+tax_st_t3       float   %9.0g                 
+pwages_t3       float   %9.0g                 
+swages_t3       float   %9.0g                 
+psemp_t3        float   %9.0g                 
+ssemp_t3        float   %9.0g                 
+pui_t3          float   %9.0g                 
+sui_t3          float   %9.0g                 
+gssi_t3         float   %9.0g                 
+transfers_t3    float   %9.0g                 
+nonprop_t3      float   %9.0g                 
+pensions_t3     float   %9.0g                 
+rentpaid_t3     float   %9.0g                 
+mstat_t3        float   %9.0g                 
+page_t3         float   %9.0g                 
+depx_t3         float   %9.0g                 
+year_t3         float   %9.0g                 
+cpi_t           float   %8.0g                 
+cpi_t3          float   %8.0g                 
+inflation_fac~r float   %9.0g                 
+pwages_inflated float   %9.0g                 
+swages_inflated float   %9.0g                 
+psemp_inflated  float   %9.0g                 
+ssemp_inflated  float   %9.0g                 
+pui_inflated    float   %9.0g                 
+sui_inflated    float   %9.0g                 
+gssi_inflated   float   %9.0g                 
+transfers_inf~d float   %9.0g                 
+nonprop_infla~d float   %9.0g                 
+pensions_infl~d float   %9.0g                 
+rentpaid_infl~d float   %9.0g                 
+tax_fed_predi~d float   %9.0g                 Federal Income Tax
+tax_st_predic~d byte    %8.0g                 State Income Tax
+mtr_fed_predi~d float   %9.0g                 IIT marginal rate
+mtr_st_predic~d byte    %8.0g                 state marginal rate
+broad_income_t  float   %9.0g                 
+broad_income_t3 float   %9.0g                 
+real_income_t   float   %9.0g                 
+log_income_t    float   %9.0g                 
+log_income_t3   float   %9.0g                 
+log_income_ch~e float   %9.0g                 
+mtr_t           float   %9.0g                 
+mtr_end         float   %9.0g                 
+mtr_predicted   float   %9.0g                 
+ntr_t           float   %9.0g                 
+ntr_end         float   %9.0g                 
+ntr_predicted   float   %9.0g                 
+log_ntr_t       float   %9.0g                 
+log_ntr_end     float   %9.0g                 
+log_ntr_predi~d float   %9.0g                 
+log_ntr_change  float   %9.0g                 
+log_ntr_instr~t float   %9.0g                 
+income_weight   float   %9.0g                 
+married         float   %9.0g                 
+single          float   %9.0g                 
+age_t           float   %9.0g                 
+age_group       float   %9.0g      age_lbl_ann
+                                              
+spline1         float   %9.0g                 
+spline2         float   %9.0g                 
+spline3         float   %9.0g                 
+spline4         float   %9.0g                 
+spline5         float   %9.0g                 
+spline6         float   %9.0g                 
+spline7         float   %9.0g                 
+spline8         float   %9.0g                 
+spline9         float   %9.0g                 
+-------------------------------------------------------------------------------
+Sorted by: taxsimid  year_t
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\check_vars2_log.txt
+  log type:  text
+ closed on:   9 Mar 2026, 22:37:17
+-------------------------------------------------------------------------------

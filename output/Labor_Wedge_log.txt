@@ -1,0 +1,1668 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\Labor_Wedge_log.txt
+  log type:  text
+ opened on:  10 Apr 2026, 18:24:58
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "LABOR WEDGE ESTIMATION (PHASE 2)"
+LABOR WEDGE ESTIMATION (PHASE 2)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "χ(y) = 1 + ε^w_r / η^P_r"
+χ(y) = 1 + ε^w_r / η^P_r
+
+. di "Pigouvian correction: τ_p(y) = 1 − χ(y)"
+Pigouvian correction: τ_p(y) = 1 − χ(y)
+
+. di "Start time: $S_DATE $S_TIME"
+Start time: 10 Apr 2026 18:24:58
+
+. di ""
+
+
+. 
+. /*===========================================================================
+> ===
+> PART 0: VERIFY INPUTS
+> =============================================================================
+> =*/
+. 
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 0: VERIFY INPUTS"
+PART 0: VERIFY INPUTS
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. foreach f in "analysis_annual" "analysis_biennial" "nlsy_long_pre_taxsim" {
+  2.     capture confirm file "${datadir}\\`f'.dta"
+  3.     if _rc != 0 {
+  4.         di as error "ERROR: `f'.dta not found."
+  5.         if "`f'" == "analysis_annual" | "`f'" == "analysis_biennial" {
+  6.             di as error "  Run Two_Period_Analysis.do first."
+  7.         }
+  8.         log close
+  9.         error 601
+ 10.     }
+ 11. }
+
+. di "All required input files confirmed."
+All required input files confirmed.
+
+. di ""
+
+
+. 
+. use "${datadir}\BLS_CPI.dta", clear
+
+. qui sum CPI if year == 1984
+
+. global cpi_1984 = r(mean)
+
+. 
+. /*===========================================================================
+> ===
+> PART 1: INTENSIVE MARGIN — WAGE ELASTICITY ε^w_r BY INCOME DECILE
+> =============================================================================
+> ===
+> This is the core Two_Period_Analysis ETI, broken out by income decile.
+> The ETI (ε^w_r) measures how wages respond to changes in the net-of-tax rate.
+> We estimate separately for:
+>   (a) Annual period 1978-1993 (young workers, ages 17-35)
+>   (b) Biennial period 1995-2019 (prime/late workers, ages 31-62)
+> =============================================================================
+> =*/
+. 
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 1: INTENSIVE WAGE ELASTICITY ε^w_r BY INCOME DECILE AND PERIOD"
+PART 1: INTENSIVE WAGE ELASTICITY ε^w_r BY INCOME DECILE AND PERIOD
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. *--- 1.1: Annual period ---
+. di ""
+
+
+. di "1.1 ANNUAL PERIOD (1978-1993): ε^w_r"
+1.1 ANNUAL PERIOD (1978-1993): ε^w_r
+
+. di "-------------------------------------"
+-------------------------------------
+
+. 
+. use "${datadir}\analysis_annual.dta", clear
+
+. di "Loaded analysis_annual.dta: " _N " obs"
+Loaded analysis_annual.dta: 31832 obs
+
+. 
+. * Assign income deciles by baseline income
+. xtile inc_decile = log_income_t, nq(10)
+
+. label var inc_decile "Income decile (log income at base year)"
+
+. 
+. * Assign career stage quartiles
+. xtile career_q = age_t, nq(4)
+
+. label var career_q "Career stage (age quartile)"
+
+. 
+. * Full-sample ETI (intensive margin = ε^w_r)
+. di ""
+
+
+. di "Full-sample ε^w_r (intensive wage elasticity):"
+Full-sample ε^w_r (intensive wage elasticity):
+
+. ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t spline1-spline9 married i.year_t ///
+>     [aweight=income_weight], cluster(taxsimid)
+(sum of wgt is   6.5852e+08)
+
+Instrumental-variables 2SLS regression            Number of obs   =     31,832
+                                                  Wald chi2(24)   =    1006.58
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.1307
+                                                  Root MSE        =     .45346
+
+                           (Std. err. adjusted for 7,223 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |  -.1734079   .1235282    -1.40   0.160    -.4155188    .0687031
+log_income_t |  -.5868745    .129912    -4.52   0.000    -.8414974   -.3322516
+     spline1 |   .2885552   .2701225     1.07   0.285    -.2408751    .8179855
+     spline2 |  -.2113008   .2704571    -0.78   0.435     -.741387    .3187854
+     spline3 |   .4702111   .2412204     1.95   0.051    -.0025721    .9429944
+     spline4 |  -.3002127   .2519226    -1.19   0.233    -.7939719    .1935465
+     spline5 |   .1420621   .2136782     0.66   0.506    -.2767395    .5608636
+     spline6 |  -.0239037   .1815727    -0.13   0.895    -.3797796    .3319721
+     spline7 |  -.1275914   .1737925    -0.73   0.463    -.4682183    .2130356
+     spline8 |   .4969802   .1576822     3.15   0.002     .1879288    .8060315
+     spline9 |  -.5665562   .1246266    -4.55   0.000    -.8108199   -.3222925
+     married |   .0681183   .0090235     7.55   0.000     .0504326    .0858039
+             |
+      year_t |
+       1979  |  -.0079901   .0771468    -0.10   0.918     -.159195    .1432149
+       1980  |    .080378   .0796163     1.01   0.313    -.0756671    .2364231
+       1981  |   .1492201   .0815914     1.83   0.067    -.0106961    .3091363
+       1982  |   .3210112   .0817546     3.93   0.000     .1607752    .4812472
+       1983  |   .3823053   .0824988     4.63   0.000     .2206106    .5440001
+       1984  |   .4121909   .0823482     5.01   0.000     .2507915    .5735903
+       1985  |   .4299652   .0820533     5.24   0.000     .2691437    .5907866
+       1986  |    .411729   .0817438     5.04   0.000     .2515141    .5719439
+       1987  |   .4149947   .0828147     5.01   0.000     .2526808    .5773085
+       1988  |   .4260441   .0830307     5.13   0.000      .263307    .5887813
+       1989  |   .4104017   .0832722     4.93   0.000     .2471912    .5736121
+       1990  |   .4244758   .0832704     5.10   0.000     .2612688    .5876828
+             |
+       _cons |   5.390056   1.157175     4.66   0.000     3.122036    7.658077
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 married 1979.year_t 1980.year_t
+            1981.year_t 1982.year_t 1983.year_t 1984.year_t 1985.year_t
+            1986.year_t 1987.year_t 1988.year_t 1989.year_t 1990.year_t
+            log_ntr_instrument
+
+. est store eps_annual_full
+
+. 
+. scalar eps_w_annual = _b[log_ntr_change]
+
+. scalar se_eps_annual = _se[log_ntr_change]
+
+. 
+. di "  ε^w_r (annual) = " %7.4f eps_w_annual ///
+>    "  SE = " %6.4f se_eps_annual
+  ε^w_r (annual) = -0.1734  SE = 0.1235
+
+. 
+. * First-stage F-stat (critical for validity)
+. qui regress log_ntr_change log_ntr_instrument ///
+>     log_income_t spline1-spline9 married i.year_t ///
+>     [aweight=income_weight], cluster(taxsimid)
+
+. qui test log_ntr_instrument
+
+. scalar F_annual = r(F)
+
+. di "  First-stage F = " %7.2f F_annual
+  First-stage F = 1349.36
+
+. if F_annual < 10 {
+.     di as error "  WARNING: Weak instrument (F < 10). IV estimates unreliable
+> ."
+. }
+
+. else {
+.     di "  GOOD: F-stat > 10"
+  GOOD: F-stat > 10
+. }
+
+. 
+. * By income decile
+. di ""
+
+
+. di "ε^w_r by income decile (annual period):"
+ε^w_r by income decile (annual period):
+
+. di "Decile  ε^w_r     SE        t     N"
+Decile  ε^w_r     SE        t     N
+
+. di "------  --------- --------- ----- ----"
+------  --------- --------- ----- ----
+
+. 
+. forvalues d = 1/10 {
+  2.     qui count if inc_decile == `d'
+  3.     local n_d = r(N)
+  4.     if `n_d' >= 50 {
+  5.         qui ivregress 2sls log_income_change ///
+>             (log_ntr_change = log_ntr_instrument) ///
+>             log_income_t spline1-spline9 married i.year_t ///
+>             if inc_decile == `d' [aweight=income_weight], robust
+  6.         scalar eps_d`d'_ann = _b[log_ntr_change]
+  7.         scalar se_d`d'_ann  = _se[log_ntr_change]
+  8.         est store eps_ann_d`d'
+  9.         di "  D" %02.0f `d' "    " %7.4f eps_d`d'_ann ///
+>            "   " %7.4f se_d`d'_ann ///
+>            "   " %5.2f eps_d`d'_ann/se_d`d'_ann ///
+>            "   " %5.0f `n_d'
+ 10.     }
+ 11.     else {
+ 12.         di "  D" %02.0f `d' "    [< 50 obs, skipped]"
+ 13.         scalar eps_d`d'_ann = .
+ 14.         scalar se_d`d'_ann = .
+ 15.     }
+ 16. }
+  D01     0.0679    0.2392    0.28    3184
+  D02     0.2468    0.3327    0.74    3185
+  D03    -0.2808    0.2796   -1.00    3856
+  D04     0.6188    0.9711    0.64    2584
+  D05    -0.4339    0.5034   -0.86    3107
+  D06    -2.4517    0.9280   -2.64    3955
+  D07    -0.0690    1.1170   -0.06    2772
+  D08    -0.3361    0.5106   -0.66    3069
+  D09    -0.0211    0.5803   -0.04    3095
+  D10    -0.5234    0.3727   -1.40    3025
+
+. 
+. * By career stage (age quartile)
+. di ""
+
+
+. di "ε^w_r by career stage / age quartile (annual period):"
+ε^w_r by career stage / age quartile (annual period):
+
+. di "Stage   ε^w_r     SE        t     Age range"
+Stage   ε^w_r     SE        t     Age range
+
+. di "------  --------- --------- ----- ---------"
+------  --------- --------- ----- ---------
+
+. 
+. forvalues q = 1/4 {
+  2.     qui count if career_q == `q'
+  3.     if r(N) >= 50 {
+  4.         qui sum age_t if career_q == `q'
+  5.         local age_min = r(min)
+  6.         local age_max = r(max)
+  7. 
+.         capture qui ivregress 2sls log_income_change ///
+>             (log_ntr_change = log_ntr_instrument) ///
+>             log_income_t spline1-spline9 married i.year_t ///
+>             if career_q == `q' [aweight=income_weight], robust
+  8.         if _rc != 0 {
+  9.             di "  Q`q'     [identification failure in subsample r(_rc)=" _
+> rc "]"
+ 10.             scalar eps_q`q'_ann = .
+ 11.             scalar se_q`q'_ann  = .
+ 12.         }
+ 13.         else {
+ 14.             scalar eps_q`q'_ann = _b[log_ntr_change]
+ 15.             scalar se_q`q'_ann  = _se[log_ntr_change]
+ 16.             est store eps_ann_q`q'
+ 17. 
+.             di "  Q`q'     " %7.4f eps_q`q'_ann ///
+>                "   " %7.4f se_q`q'_ann ///
+>                "   " %5.2f eps_q`q'_ann/se_q`q'_ann ///
+>                "   " %2.0f `age_min' "-" %2.0f `age_max'
+ 18.         }
+ 19.     }
+ 20.     else {
+ 21.         di "  Q`q'     [< 50 obs, skipped]"
+ 22.         scalar eps_q`q'_ann = .
+ 23.     }
+ 24. }
+  Q1      0.4418    0.2760    1.60    0-22
+  Q2     -0.2939    0.1769   -1.66   23-25
+  Q3     -0.2062    0.1857   -1.11   26-28
+  Q4     [identification failure in subsample r(_rc)=481]
+
+. 
+. save "${datadir}\analysis_annual_augmented.dta", replace
+file D:\Stata Data\labor_signaling_project\data\analysis_annual_augmented.dta
+    saved
+
+. 
+. *--- 1.2: Biennial period ---
+. di ""
+
+
+. di "1.2 BIENNIAL PERIOD (1995-2019): ε^w_r"
+1.2 BIENNIAL PERIOD (1995-2019): ε^w_r
+
+. di "---------------------------------------"
+---------------------------------------
+
+. 
+. use "${datadir}\analysis_biennial.dta", clear
+
+. di "Loaded analysis_biennial.dta: " _N " obs"
+Loaded analysis_biennial.dta: 47201 obs
+
+. 
+. xtile inc_decile = log_income_t, nq(10)
+
+. xtile career_q = age_t, nq(4)
+
+. 
+. * Full-sample biennial ETI
+. ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t spline1-spline9 married i.year_t ///
+>     [aweight=income_weight], cluster(taxsimid)
+(sum of wgt is   2.7511e+09)
+
+Instrumental-variables 2SLS regression            Number of obs   =     47,201
+                                                  Wald chi2(23)   =     498.74
+                                                  Prob > chi2     =     0.0000
+                                                  Root MSE        =     .53871
+
+                           (Std. err. adjusted for 7,022 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .5438264   .1677332     3.24   0.001     .2150754    .8725774
+log_income_t |  -.3720767    .062203    -5.98   0.000    -.4939923   -.2501611
+     spline1 |   .2198103   .1212313     1.81   0.070    -.0177987    .4574192
+     spline2 |   .1448373   .1628657     0.89   0.374    -.1743737    .4640483
+     spline3 |   .0780951    .186945     0.42   0.676    -.2883103    .4445005
+     spline4 |  -.1192693   .1809095    -0.66   0.510    -.4738454    .2353067
+     spline5 |   .0286862   .1697325     0.17   0.866    -.3039834    .3613558
+     spline6 |  -.0978458   .1415678    -0.69   0.489    -.3753135     .179622
+     spline7 |  -.0310694   .1269133    -0.24   0.807     -.279815    .2176761
+     spline8 |   .1637679   .1228065     1.33   0.182    -.0769285    .4044643
+     spline9 |  -.2155175   .0831212    -2.59   0.010    -.3784321   -.0526028
+     married |   -.049724   .0130865    -3.80   0.000    -.0753731   -.0240748
+             |
+      year_t |
+       1997  |   .0483178   .0170961     2.83   0.005     .0148101    .0818256
+       1999  |   .0181584   .0195552     0.93   0.353     -.020169    .0564859
+       2001  |  -.0511518   .0198489    -2.58   0.010     -.090055   -.0122486
+       2003  |   .0282529   .0177824     1.59   0.112       -.0066    .0631058
+       2005  |  -.0079836   .0187116    -0.43   0.670    -.0446577    .0286904
+       2007  |  -.0124088   .0172558    -0.72   0.472    -.0462295    .0214119
+       2009  |   .0051399   .0179611     0.29   0.775    -.0300632     .040343
+       2011  |   .0211185   .0183456     1.15   0.250    -.0148382    .0570752
+       2013  |  -.0037829   .0210621    -0.18   0.857    -.0450639     .037498
+       2015  |   .0353809    .017985     1.97   0.049     .0001309    .0706309
+       2017  |  -.0024375   .0218835    -0.11   0.911    -.0453284    .0404535
+             |
+       _cons |   3.776018   .6142096     6.15   0.000      2.57219    4.979847
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 married 1997.year_t 1999.year_t
+            2001.year_t 2003.year_t 2005.year_t 2007.year_t 2009.year_t
+            2011.year_t 2013.year_t 2015.year_t 2017.year_t
+            log_ntr_instrument
+
+. est store eps_biennial_full
+
+. 
+. scalar eps_w_biennial = _b[log_ntr_change]
+
+. scalar se_eps_biennial = _se[log_ntr_change]
+
+. 
+. di "  ε^w_r (biennial) = " %7.4f eps_w_biennial ///
+>    "  SE = " %6.4f se_eps_biennial
+  ε^w_r (biennial) =  0.5438  SE = 0.1677
+
+. 
+. qui regress log_ntr_change log_ntr_instrument ///
+>     log_income_t spline1-spline9 married i.year_t ///
+>     [aweight=income_weight], cluster(taxsimid)
+
+. qui test log_ntr_instrument
+
+. scalar F_biennial = r(F)
+
+. di "  First-stage F = " %7.2f F_biennial
+  First-stage F =  987.78
+
+. 
+. * By career stage (age quartile, biennial)
+. di ""
+
+
+. di "ε^w_r by career stage (biennial period):"
+ε^w_r by career stage (biennial period):
+
+. 
+. forvalues q = 1/4 {
+  2.     qui count if career_q == `q'
+  3.     if r(N) >= 50 {
+  4.         qui sum age_t if career_q == `q'
+  5.         local age_min = r(min)
+  6.         local age_max = r(max)
+  7. 
+.         capture qui ivregress 2sls log_income_change ///
+>             (log_ntr_change = log_ntr_instrument) ///
+>             log_income_t spline1-spline9 married i.year_t ///
+>             if career_q == `q' [aweight=income_weight], robust
+  8.         if _rc != 0 {
+  9.             di "  Q`q'     [identification failure r(_rc)=" _rc "]"
+ 10.             scalar eps_q`q'_bien = .
+ 11.             scalar se_q`q'_bien  = .
+ 12.         }
+ 13.         else {
+ 14.             scalar eps_q`q'_bien = _b[log_ntr_change]
+ 15.             scalar se_q`q'_bien  = _se[log_ntr_change]
+ 16. 
+.             di "  Q`q'     " %7.4f eps_q`q'_bien ///
+>                "   " %7.4f se_q`q'_bien ///
+>                "   Ages " %2.0f `age_min' "-" %2.0f `age_max'
+ 17.         }
+ 18.     }
+ 19.     else {
+ 20.         scalar eps_q`q'_bien = .
+ 21.     }
+ 22. }
+  Q1     -0.0235    0.1445   Ages 30-38
+  Q2      0.8042    0.2342   Ages 39-44
+  Q3      0.7414    0.3194   Ages 45-50
+  Q4      0.1168    0.3495   Ages 51-61
+
+. 
+. save "${datadir}\analysis_biennial_augmented.dta", replace
+file D:\Stata
+    Data\labor_signaling_project\data\analysis_biennial_augmented.dta saved
+
+. 
+. /*===========================================================================
+> ===
+> PART 2: EXTENSIVE MARGIN - PARTICIPATION ELASTICITY eta^P_r (FULL IV)
+> =============================================================================
+> ===
+> Uses the FULL paired sample from Two_Period_Analysis.do WITHOUT the $10K real
+> income floor that filtered the intensive margin sample (Part 1).
+> 
+> KEY INSIGHT: In Two_Period_Analysis.do the TAXSIM counterfactual (applying
+> year t+3 tax law to inflated year t income) was run on ALL paired observation
+> s
+> BEFORE the $10K income floor was applied; predicted_rates_annual.dta therefor
+> e
+> contains the Gruber-Saez instrument for near-workers ($500-$10K) too.
+> 
+> SAMPLE: Everyone with real income >= $500 (1984$) at year t, stable marital
+>         status over the 3-year window. Includes:
+>           Near-workers : $500 - $10,000 real  (the participation margin)
+>           Main workers : >= $10,000 real       (also in Part 1 intensive samp
+> le)
+> 
+> OUTCOME: d_worked = worked_t3 - 1
+>           worked_t3 = 1 if real_income_t3 >= $500,  else 0
+>           d_worked = 0 (stayer) or -1 (exiter)
+> 
+> INSTRUMENT: log_ntr_instrument_p = log(1-MTR_pred/100) - log(1-MTR_t/100)
+>   MTR_pred = year t+3 tax law applied to year t income (inflated)
+>   MTR_t    = actual year t marginal tax rate (from TAXSIM)
+> 
+> This matches Sztutman (2024) Section 5.2.2 and applies it to NLSY79.
+> LIFECYCLE NOTE: NLSY79 annual workers (ages 17-35) are NOT at the retirement
+> margin. eta^P_r for this cohort may be close to zero or negative because
+> labour market exits at young ages are often temporary (schooling, childcare).
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 2: EXTENSIVE MARGIN - PARTICIPATION ELASTICITY eta^P_r (FULL IV)"
+PART 2: EXTENSIVE MARGIN - PARTICIPATION ELASTICITY eta^P_r (FULL IV)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Loading full paired sample (near-workers + main workers, no $10K floor)..
+> ."
+Loading full paired sample (near-workers + main workers, no $10K floor)...
+
+. di ""
+
+
+. 
+. use "${datadir}\paired_annual_with_inflation.dta", clear
+
+. di "  Loaded paired_annual_with_inflation: " _N " obs"
+  Loaded paired_annual_with_inflation: 164918 obs
+
+. 
+. *--- Merge in counterfactual predicted rates (run for ALL pairs before floor)
+>  ---
+. merge 1:1 taxsimid year_t using "${datadir}\predicted_rates_annual.dta", ///
+>     keep(match master) nogen
+(variable taxsimid was int, now float to accommodate using data's values)
+(variable year_t was int, now float to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           164,918  
+    -----------------------------------------
+
+. di "  After merge with predicted_rates: " _N " obs"
+  After merge with predicted_rates: 164918 obs
+
+. 
+. *--- Construct broad income at t and t+3 (matching Two_Period_Analysis.do A6)
+>  ---
+. foreach var in pwages swages psemp ssemp pui sui gssi pensions nonprop {
+  2.     capture replace `var'_t  = 0 if missing(`var'_t)
+  3.     capture replace `var'_t3 = 0 if missing(`var'_t3)
+  4. }
+
+. 
+. gen broad_income_t  = pwages_t  + swages_t  + psemp_t  + ssemp_t  + ///
+>                       pui_t  + sui_t  + gssi_t  + pensions_t  + nonprop_t
+
+. gen broad_income_t3 = pwages_t3 + swages_t3 + psemp_t3 + ssemp_t3 + ///
+>                       pui_t3 + sui_t3 + gssi_t3 + pensions_t3 + nonprop_t3
+
+. 
+. *--- Real income in 1984 dollars ---
+. gen real_income_t  = broad_income_t  * (${cpi_1984} / cpi_t)
+
+. gen real_income_t3 = broad_income_t3 * (${cpi_1984} / cpi_t3)
+
+. 
+. *--- Sample composition before filters ---
+. di ""
+
+
+. di "Sample composition at baseline year:"
+Sample composition at baseline year:
+
+. count if real_income_t < 500 | missing(real_income_t)
+  60,584
+
+. di "  Below threshold (<$500 real): " r(N) " (excluded)"
+  Below threshold (<$500 real): 60584 (excluded)
+
+. count if real_income_t >= 500 & real_income_t < 10000 & !missing(real_income_
+> t)
+  54,776
+
+. local n_near = r(N)
+
+. di "  Near-workers ($500 - $10K real): `n_near'"
+  Near-workers ($500 - $10K real): 54776
+
+. count if real_income_t >= 10000 & !missing(real_income_t)
+  49,558
+
+. local n_main = r(N)
+
+. di "  Main workers (>= $10K real): `n_main'"
+  Main workers (>= $10K real): 49558
+
+. 
+. *--- Keep base-year participants ---
+. keep if real_income_t >= 500 & !missing(real_income_t)
+(60,584 observations deleted)
+
+. 
+. *--- Marital stability (same as Part 1 intensive sample) ---
+. keep if mstat_t == mstat_t3
+(21,808 observations deleted)
+
+. 
+. *--- Participation outcome at t+3 ---
+. gen worked_t3 = (real_income_t3 >= 500 & !missing(real_income_t3))
+
+. gen d_worked  = worked_t3 - 1   // 0=stayer, -1=exiter
+
+. 
+. di ""
+
+
+. di "Exit rates by income group:"
+Exit rates by income group:
+
+. qui sum d_worked if real_income_t < 10000, meanonly
+
+. di "  Near-workers : exit rate = " %5.1f abs(r(mean))*100 " %"
+  Near-workers : exit rate =  23.0 %
+
+. qui sum d_worked if real_income_t >= 10000, meanonly
+
+. di "  Main workers : exit rate = " %5.1f abs(r(mean))*100 " %"
+  Main workers : exit rate =  14.0 %
+
+. 
+. *--- Drop invalid MTR observations ---
+. drop if missing(mtr_fed_t) | missing(mtr_fed_predicted)
+(0 observations deleted)
+
+. drop if mtr_fed_t < -10 | mtr_fed_predicted < -10
+(17,896 observations deleted)
+
+. 
+. *--- Build Gruber-Saez instrument for participation sample ---
+. * Use _p suffix to avoid name collisions with Part 1 variables (no longer in 
+> memory)
+. gen ntr_t_p         = max(0.01, 1 - mtr_fed_t/100)
+
+. gen ntr_predicted_p = max(0.01, 1 - mtr_fed_predicted/100)
+
+. gen ntr_end_p       = max(0.01, 1 - mtr_fed_t3/100)
+
+. 
+. gen log_ntr_t_p          = ln(ntr_t_p)
+
+. gen log_ntr_predicted_p  = ln(ntr_predicted_p)
+
+. gen log_ntr_end_p        = ln(ntr_end_p)
+
+. 
+. gen log_ntr_instrument_p = log_ntr_predicted_p - log_ntr_t_p
+
+. gen log_ntr_change_p     = log_ntr_end_p       - log_ntr_t_p
+
+. 
+. *--- Controls ---
+. gen log_income_t_p = ln(max(broad_income_t, 1))
+
+. gen married        = (mstat_t == 2)
+
+. 
+. *--- 10-piece income spline for participation sample ---
+. quietly _pctile log_income_t_p, p(10 20 30 40 50 60 70 80 90)
+
+. forval i = 1/9 {
+  2.     local pknot`i' = r(r`i')
+  3.     gen pspline`i' = max(0, log_income_t_p - `pknot`i'')
+  4. }
+
+. 
+. di ""
+
+
+. di "Participation sample after all filters: " _N " obs"
+Participation sample after all filters: 64630 obs
+
+. di "Instrument summary:"
+Instrument summary:
+
+. sum log_ntr_instrument_p log_ntr_change_p d_worked
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+log_ntr_in~p |     64,630    .0047346      .07497  -.3856625   .5695332
+log_ntr_ch~p |     64,630    .0337764    .1809592  -.7884574   .8241754
+    d_worked |     64,630   -.1613183    .3678271         -1          0
+
+. di ""
+
+
+. 
+. save "${datadir}\participation_sample_annual.dta", replace
+file D:\Stata
+    Data\labor_signaling_project\data\participation_sample_annual.dta saved
+
+. 
+. *--- 2.3: First-stage F-stat for participation IV ---
+. di ""
+
+
+. di "PARTICIPATION FIRST STAGE:"
+PARTICIPATION FIRST STAGE:
+
+. qui regress log_ntr_change_p log_ntr_instrument_p ///
+>     log_income_t_p pspline1-pspline9 married i.year_t ///
+>     [aweight=broad_income_t], cluster(taxsimid)
+
+. qui test log_ntr_instrument_p
+
+. scalar F_fs_part = r(F)
+
+. di "  First-stage F = " %7.2f F_fs_part
+  First-stage F = 1114.98
+
+. if F_fs_part < 10 {
+.     di as error "  WARNING: Weak first stage for participation IV (F < 10)"
+. }
+
+. else {
+.     di "  GOOD: First-stage F > 10"
+  GOOD: First-stage F > 10
+. }
+
+. 
+. *--- 2.4: IV estimate of eta^P_r ---
+. di ""
+
+
+. di "eta^P_r FULL SAMPLE (2SLS):"
+eta^P_r FULL SAMPLE (2SLS):
+
+. ivregress 2sls d_worked ///
+>     (log_ntr_change_p = log_ntr_instrument_p) ///
+>     log_income_t_p pspline1-pspline9 married i.year_t ///
+>     [aweight=broad_income_t], cluster(taxsimid)
+(sum of wgt is   9.3880e+08)
+
+Instrumental-variables 2SLS regression            Number of obs   =     64,630
+                                                  Wald chi2(24)   =    1659.90
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0432
+                                                  Root MSE        =     .34528
+
+                          (Std. err. adjusted for 11,326 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+    d_worked | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~p |  -.0111727   .0518398    -0.22   0.829    -.1127769    .0904315
+log_income~p |   .0618995   .0107734     5.75   0.000     .0407842    .0830149
+    pspline1 |   .0145773   .0236019     0.62   0.537    -.0316815     .060836
+    pspline2 |  -.0649444   .0411513    -1.58   0.115    -.1455995    .0157106
+    pspline3 |   .1309108   .0678546     1.93   0.054    -.0020817    .2639033
+    pspline4 |  -.1013263   .0733498    -1.38   0.167    -.2450892    .0424366
+    pspline5 |  -.0230846   .0865445    -0.27   0.790    -.1927086    .1465395
+    pspline6 |   .0313636   .0946604     0.33   0.740    -.1541674    .2168945
+    pspline7 |  -.0106211   .0899109    -0.12   0.906    -.1868432     .165601
+    pspline8 |   .0472974   .0715983     0.66   0.509    -.0930328    .1876275
+    pspline9 |  -.1195608   .0470359    -2.54   0.011    -.2117495    -.027372
+     married |   .0866266   .0051687    16.76   0.000     .0764961    .0967572
+             |
+      year_t |
+       1979  |   .0455478   .0134877     3.38   0.001     .0191124    .0719832
+       1980  |   .0410006   .0136947     2.99   0.003     .0141595    .0678418
+       1981  |  -.0311637   .0139702    -2.23   0.026    -.0585447   -.0037827
+       1982  |  -.0330565    .014596    -2.26   0.024    -.0616641    -.004449
+       1983  |  -.0358776   .0148612    -2.41   0.016     -.065005   -.0067501
+       1984  |   .0340897   .0146067     2.33   0.020     .0054612    .0627183
+       1985  |   .0408023   .0142022     2.87   0.004     .0129665    .0686381
+       1986  |   .0379355   .0141483     2.68   0.007     .0102053    .0656658
+       1987  |  -.0867569   .0148869    -5.83   0.000    -.1159346   -.0575792
+       1988  |   -.057889   .0148553    -3.90   0.000    -.0870049   -.0287731
+       1989  |  -.0616647   .0147947    -4.17   0.000    -.0906617   -.0326677
+       1990  |   .0383185   .0151793     2.52   0.012     .0085677    .0680693
+             |
+       _cons |   -.765769   .0778177    -9.84   0.000    -.9182889   -.6132491
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change_p
+Exogenous:  log_income_t_p pspline1 pspline2 pspline3 pspline4 pspline5
+            pspline6 pspline7 pspline8 pspline9 married 1979.year_t
+            1980.year_t 1981.year_t 1982.year_t 1983.year_t 1984.year_t
+            1985.year_t 1986.year_t 1987.year_t 1988.year_t 1989.year_t
+            1990.year_t log_ntr_instrument_p
+
+. est store eta_P_full
+
+. 
+. scalar eta_P_annual    = _b[log_ntr_change_p]
+
+. scalar se_eta_P_annual = _se[log_ntr_change_p]
+
+. 
+. di ""
+
+
+. di "  eta^P_r (annual, IV) = " %8.4f eta_P_annual ///
+>    "  SE = " %7.4f se_eta_P_annual ///
+>    "  N = " e(N)
+  eta^P_r (annual, IV) =  -0.0112  SE =  0.0518  N = 64630
+
+. di ""
+
+
+. di "  Sztutman (HRS 2yr) : eta^P_r = +0.10"
+  Sztutman (HRS 2yr) : eta^P_r = +0.10
+
+. di "  Sztutman (HRS 4yr) : eta^P_r = +0.01"
+  Sztutman (HRS 4yr) : eta^P_r = +0.01
+
+. di "  Sztutman (HRS 6yr) : eta^P_r = +0.03"
+  Sztutman (HRS 6yr) : eta^P_r = +0.03
+
+. di ""
+
+
+. if eta_P_annual > 0 {
+.     di "  SIGN CHECK PASS: eta^P_r > 0 -- tax cut retains more workers"
+. }
+
+. else {
+.     di "  SIGN CHECK: eta^P_r < 0 -- income effect may dominate for young wor
+> kers"
+  SIGN CHECK: eta^P_r < 0 -- income effect may dominate for young workers
+.     di "  Note: NLSY79 workers (ages 17-35) are not at the retirement margin.
+> "
+  Note: NLSY79 workers (ages 17-35) are not at the retirement margin.
+.     di "  Near-zero or negative eta^P_r is theoretically plausible for this c
+> ohort."
+  Near-zero or negative eta^P_r is theoretically plausible for this cohort.
+. }
+
+. 
+. *--- 2.5: eta^P_r by income group ---
+. di ""
+
+
+. di "eta^P_r by income group:"
+eta^P_r by income group:
+
+. 
+. qui count if real_income_t < 10000
+
+. if r(N) >= 50 {
+.     capture ivregress 2sls d_worked ///
+>         (log_ntr_change_p = log_ntr_instrument_p) ///
+>         log_income_t_p pspline1-pspline9 married i.year_t ///
+>         if real_income_t < 10000 [aweight=broad_income_t], robust
+.     if _rc == 0 {
+.         di "  Near-workers ($500-$10K): eta^P_r = " %7.4f _b[log_ntr_change_p
+> ] ///
+>            "  SE = " %7.4f _se[log_ntr_change_p] "  N=" e(N)
+  Near-workers ($500-$10K): eta^P_r =  0.0068  SE =  0.0827  N=25940
+.         scalar eta_P_near = _b[log_ntr_change_p]
+.     }
+.     else {
+.         scalar eta_P_near = .
+.     }
+. }
+
+. 
+. qui count if real_income_t >= 10000
+
+. if r(N) >= 50 {
+.     capture ivregress 2sls d_worked ///
+>         (log_ntr_change_p = log_ntr_instrument_p) ///
+>         log_income_t_p pspline1-pspline9 married i.year_t ///
+>         if real_income_t >= 10000 [aweight=broad_income_t], robust
+.     if _rc == 0 {
+.         di "  Main workers (>=$10K):    eta^P_r = " %7.4f _b[log_ntr_change_p
+> ] ///
+>            "  SE = " %7.4f _se[log_ntr_change_p] "  N=" e(N)
+  Main workers (>=$10K):    eta^P_r =  0.0745  SE =  0.0681  N=38690
+.         scalar eta_P_main = _b[log_ntr_change_p]
+.     }
+.     else {
+.         scalar eta_P_main = .
+.     }
+. }
+
+. 
+. /*===========================================================================
+> ===
+> PART 3: COMPUTE chi = 1 + eps^w_r / eta^P_r (FULL IV)
+> =============================================================================
+> ===
+> Combines intensive wage elasticity eps^w_r (Part 1) with participation
+> semi-elasticity eta^P_r (Part 2) to compute the labor wedge chi.
+> 
+> Formula (Sztutman 2024, Equation 17):
+>   chi(y) = 1 + eps^w_r(y) / eta^P_r(y)
+>   tau_p(y) = 1 - chi(y)
+> 
+> LIFECYCLE CAVEAT:
+>   NLSY79 annual workers (ages 17-35) are not at the retirement margin.
+>   eta^P_r may be close to zero, making chi non-finite.
+>   In that case, use the structural tau_p = delta/alpha from Phase 5
+>   as the primary identification route for NLSY79.
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 3: LABOR WEDGE chi = 1 + eps^w_r / eta^P_r"
+PART 3: LABOR WEDGE chi = 1 + eps^w_r / eta^P_r
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "  eps^w_r (annual, IV) = " %8.4f eps_w_annual  "  SE = " %6.4f se_eps_ann
+> ual
+  eps^w_r (annual, IV) =  -0.1734  SE = 0.1235
+
+. di "  eta^P_r (annual, IV) = " %8.4f eta_P_annual  "  SE = " %6.4f se_eta_P_a
+> nnual
+  eta^P_r (annual, IV) =  -0.0112  SE = 0.0518
+
+. di ""
+
+
+. 
+. if abs(eta_P_annual) < 0.0001 | missing(eta_P_annual) {
+.     di as error "NEAR-ZERO eta^P_r: chi = 1 + eps/eta is non-finite."
+.     di as error "  eta^P_r = " %8.4f eta_P_annual
+.     di as error "  Setting chi = . (undefined)"
+.     scalar chi_full    = .
+.     scalar tau_p_wedge = .
+.     * Floor for downstream part 6 computations
+.     scalar eta_P_annual = 0.0001
+. }
+
+. else {
+.     scalar chi_full    = 1 + eps_w_annual / eta_P_annual
+.     scalar tau_p_wedge = 1 - chi_full
+. 
+.     di "  chi = 1 + eps/eta   = " %8.4f chi_full
+  chi = 1 + eps/eta   =  16.5207
+.     di "  tau_p = 1 - chi     = " %8.4f tau_p_wedge
+  tau_p = 1 - chi     = -15.5207
+.     di ""
+
+.     di "  COMPARISON TO SZTUTMAN (2024, HRS, 4yr horizon):"
+  COMPARISON TO SZTUTMAN (2024, HRS, 4yr horizon):
+.     di "    Sztutman eps^w_r = -0.16,  eta^P_r = 0.01"
+    Sztutman eps^w_r = -0.16,  eta^P_r = 0.01
+.     di "    Sztutman chi (full-sample ratio) = 1 + (-0.16/0.01) = -15"
+    Sztutman chi (full-sample ratio) = 1 + (-0.16/0.01) = -15
+.     di "    Sztutman chi (local polynomial Figure 3) = 0.5 - 1.0"
+    Sztutman chi (local polynomial Figure 3) = 0.5 - 1.0
+.     di "    Sztutman tau_p average ~5% (from local polynomial)"
+    Sztutman tau_p average ~5% (from local polynomial)
+.     di ""
+
+. 
+.     if chi_full < 0 | chi_full > 5 {
+.         di as error "SCRUTINY: chi = " %8.4f chi_full " outside plausible ran
+> ge [0,5]"
+SCRUTINY: chi =  16.5207 outside plausible range [0,5]
+.         di as error "  Likely cause: eta^P_r near zero for ages 17-35 workers
+> ."
+  Likely cause: eta^P_r near zero for ages 17-35 workers.
+.         di as error "  The full-sample pooled ratio eps/eta blows up when eta
+>  -> 0."
+  The full-sample pooled ratio eps/eta blows up when eta -> 0.
+.         di as error "  This matches Sztutman's own experience: his Figure 3 u
+> ses local"
+  This matches Sztutman's own experience: his Figure 3 uses local
+.         di as error "  polynomial methods precisely to handle this blow-up."
+  polynomial methods precisely to handle this blow-up.
+.         di as error "  PRIMARY IDENTIFICATION: Use structural tau_p = delta/a
+> lpha (Phase 5)."
+  PRIMARY IDENTIFICATION: Use structural tau_p = delta/alpha (Phase 5).
+.         di as error "  The chi computation here is COMPLEMENTARY."
+  The chi computation here is COMPLEMENTARY.
+.     }
+.     else if chi_full < 1 {
+.         di "RESULT: chi < 1 -- POSITIVE SIGNALING EXTERNALITY"
+.         di "  Workers paid " %5.1f (1-chi_full)*100 "% more than marginal pro
+> duct"
+.         di "  Pigouvian tax: tau_p = " %5.1f tau_p_wedge*100 "%"
+.     }
+.     else {
+.         di "RESULT: chi >= 1 -- No signaling externality from wage-wedge chan
+> nel"
+.         di "  Consistent with: young workers not yet at retirement margin"
+.         di "  See Phase 5 structural tau_p for preferred estimate."
+.     }
+. }
+
+. 
+. 
+. /*===========================================================================
+> ===
+> PART 4: DYNAMIC WEDGE PROFILE χ BY CAREER STAGE
+> =============================================================================
+> ===
+> NLSY79's unique contribution: full career arc from ages ~17 to ~65.
+> This section estimates ε^w_r (and subsequently χ) by career stage,
+> using both the annual (young) and biennial (older) periods.
+> 
+> KEY TEST: Does ε^w_r vary by career stage?
+>   - Higher ε^w_r late career → larger wedge for experienced workers
+>   - This would contradict the Pareto case (constant τ_p)
+>   - Would support the general dynamic model where χ depends on h
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 4: DYNAMIC WEDGE PROFILE BY CAREER STAGE"
+PART 4: DYNAMIC WEDGE PROFILE BY CAREER STAGE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Combining annual (young) and biennial (older) periods to trace χ over car
+> eer"
+Combining annual (young) and biennial (older) periods to trace χ over career
+
+. di ""
+
+
+. 
+. * Build unified career-stage elasticity table
+. * Annual period provides age groups 1-4 (younger workers)
+. * Biennial period provides age groups 1-4 (older workers)
+. * Together they span the full career arc
+. 
+. di "Career-stage ε^w_r profile (annual + biennial periods):"
+Career-stage ε^w_r profile (annual + biennial periods):
+
+. di ""
+
+
+. di "Stage  Period    Age Range  ε^w_r    SE"
+Stage  Period    Age Range  ε^w_r    SE
+
+. di "------ --------- ---------- -------- --------"
+------ --------- ---------- -------- --------
+
+. 
+. forvalues q = 1/4 {
+  2.     capture scalar e_a = eps_q`q'_ann
+  3.     if !missing(eps_q`q'_ann) {
+  4.         di "  Q`q'   Annual    [see log] " %8.4f eps_q`q'_ann ///
+>            "   " %6.4f se_q`q'_ann
+  5.     }
+  6. }
+  Q1   Annual    [see log]   0.4418   0.2760
+  Q2   Annual    [see log]  -0.2939   0.1769
+  Q3   Annual    [see log]  -0.2062   0.1857
+
+. 
+. di ""
+
+
+. forvalues q = 1/4 {
+  2.     capture scalar e_b = eps_q`q'_bien
+  3.     if !missing(eps_q`q'_bien) {
+  4.         di "  Q`q'   Biennial  [see log] " %8.4f eps_q`q'_bien ///
+>            "   " %6.4f se_q`q'_bien
+  5.     }
+  6. }
+  Q1   Biennial  [see log]  -0.0235   0.1445
+  Q2   Biennial  [see log]   0.8042   0.2342
+  Q3   Biennial  [see log]   0.7414   0.3194
+  Q4   Biennial  [see log]   0.1168   0.3495
+
+. 
+. di ""
+
+
+. di "INTERPRETATION:"
+INTERPRETATION:
+
+. di "  If ε^w_r is larger in annual period (young workers) than biennial (olde
+> r):"
+  If ε^w_r is larger in annual period (young workers) than biennial (older):
+
+. di "  → Young workers are MORE responsive to tax changes"
+  → Young workers are MORE responsive to tax changes
+
+. di "  → In Sztutman framework: higher ε → lower χ (larger distortion) for you
+> ng"
+  → In Sztutman framework: higher ε → lower χ (larger distortion) for young
+
+. di "  → Consistent with employer uncertainty being greatest early career"
+  → Consistent with employer uncertainty being greatest early career
+
+. di ""
+
+
+. di "  Pareto case: ε^w_r should be approximately CONSTANT across career stage
+> s"
+  Pareto case: ε^w_r should be approximately CONSTANT across career stages
+
+. di "  (labor supply elasticity is a preference parameter, not career-stage sp
+> ecific)"
+  (labor supply elasticity is a preference parameter, not career-stage specific
+> )
+
+. 
+. /*===========================================================================
+> ===
+> PART 5: COMPREHENSIVE χ PROFILE — FIGURES AND TABLES
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 5: FIGURES AND TABLES"
+PART 5: FIGURES AND TABLES
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. *--- Table 1: ε^w_r estimates by decile and period ---
+. use "${datadir}\analysis_annual_augmented.dta", clear
+
+. est restore eps_annual_full
+(results eps_annual_full are active now)
+
+. 
+. capture noisily esttab eps_annual_full eps_biennial_full ///
+>     using "${outdir}\Phase2_Table3_Elasticities.rtf", replace ///
+>     keep(log_ntr_change) ///
+>     b(%9.4f) se(%9.4f) star(* 0.10 ** 0.05 *** 0.01) ///
+>     stats(N, fmt(%12.0fc) labels("Observations")) ///
+>     mtitles("Annual (ε^w_r)" "Biennial (ε^w_r)") ///
+>     title("Table 3: Intensive Wage Elasticity ε^w_r by Period") ///
+>     note("2SLS using Gruber-Saez simulated MTR instrument." ///
+>          "Annual period: 1978-1993, 3-year differences." ///
+>          "Biennial period: 1995-2019, 2-year differences.")
+(output written to D:\Stata Data\labor_signaling_project\output\Phase2_Table3_E
+> lasticities.rtf)
+
+. if _rc != 0 di "WARNING: esttab failed. Install estout: ssc install estout"
+
+. 
+. *--- Figure 1: ε^w_r by income decile (annual) ---
+. preserve
+
+. clear
+
+. set obs 10
+Number of observations (_N) was 0, now 10.
+
+. gen decile = _n
+
+. gen eps_w = .
+(10 missing values generated)
+
+. gen eps_lo = .
+(10 missing values generated)
+
+. gen eps_hi = .
+(10 missing values generated)
+
+. forvalues d = 1/10 {
+  2.     capture {
+  3.         replace eps_w  = eps_d`d'_ann                         in `d'
+  4.         replace eps_lo = eps_d`d'_ann - 1.96 * se_d`d'_ann   in `d'
+  5.         replace eps_hi = eps_d`d'_ann + 1.96 * se_d`d'_ann   in `d'
+  6.     }
+  7. }
+
+. 
+. capture noisily twoway ///
+>     (rcap eps_hi eps_lo decile, lcolor(navy) lwidth(thin)) ///
+>     (connected eps_w decile, ///
+>         lcolor(navy) lwidth(medium) msymbol(circle) mcolor(navy)), ///
+>     yline(0, lcolor(gs8) lpattern(dash)) ///
+>     title("Wage Elasticity (eps^w_r) by Income Decile" ///
+>           "Annual Period 1978-1993", size(medium)) ///
+>     subtitle("Note: eps^w_r combined with eta^P_r to compute chi = 1 + eps^w_
+> r/eta^P_r") ///
+>     xtitle("Income Decile (base-year income)") ///
+>     ytitle("eps^w_r = d log(income) / d log(1-tau)") ///
+>     xlabel(1(1)10) legend(off) ///
+>     note("2SLS, Gruber-Saez instrument. 95% confidence intervals shown.")
+
+. capture noisily graph export "${outdir}\Phase2_Fig1_EpsWProfile.png", replace
+>  width(1400)
+file D:\Stata Data\labor_signaling_project\output\Phase2_Fig1_EpsWProfile.png
+    saved as PNG format
+
+. restore
+
+. 
+. *--- Figure 2: ε^w_r by career stage — annual vs biennial ---
+. preserve
+
+. clear
+
+. set obs 8
+Number of observations (_N) was 0, now 8.
+
+. gen period_q = _n
+
+. gen eps_w = .
+(8 missing values generated)
+
+. gen eps_lo = .
+(8 missing values generated)
+
+. gen eps_hi = .
+(8 missing values generated)
+
+. gen period_label = ""
+(8 missing values generated)
+
+. 
+. forvalues q = 1/4 {
+  2.     local row_a = `q'
+  3.     local row_b = `q' + 4
+  4.     capture replace eps_w    = eps_q`q'_ann                      in `row_a
+> '
+  5.     capture replace eps_lo   = eps_q`q'_ann - 1.96*se_q`q'_ann  in `row_a'
+  6.     capture replace eps_hi   = eps_q`q'_ann + 1.96*se_q`q'_ann  in `row_a'
+  7.     capture replace eps_w    = eps_q`q'_bien                     in `row_b
+> '
+  8.     capture replace eps_lo   = eps_q`q'_bien - 1.96*se_q`q'_bien in `row_b
+> '
+  9.     capture replace eps_hi   = eps_q`q'_bien + 1.96*se_q`q'_bien in `row_b
+> '
+ 10. }
+
+. replace period_label = "Annual Q" + string(period_q) if period_q <= 4
+variable period_label was str1 now str9
+(4 real changes made)
+
+. replace period_label = "Bienial Q" + string(period_q-4) if period_q > 4
+variable period_label was str9 now str10
+(4 real changes made)
+
+. 
+. gen period = (period_q > 4)  // 0=annual, 1=biennial
+
+. 
+. capture noisily twoway ///
+>     (rcap eps_hi eps_lo period_q if period == 0, lcolor(navy)) ///
+>     (connected eps_w period_q if period == 0, ///
+>         lcolor(navy) msymbol(circle) mcolor(navy) lwidth(medium)) ///
+>     (rcap eps_hi eps_lo period_q if period == 1, lcolor(maroon)) ///
+>     (connected eps_w period_q if period == 1, ///
+>         lcolor(maroon) msymbol(square) mcolor(maroon) lwidth(medium)), ///
+>     yline(0, lcolor(gs8) lpattern(dash)) ///
+>     title("Dynamic Wage Elasticity Profile" ///
+>           "eps^w_r by Career Stage Quarter and Survey Period", size(medium)) 
+> ///
+>     subtitle("NLSY contribution: full career arc not available in HRS") ///
+>     xtitle("Career Stage Quartile (within period)") ///
+>     ytitle("eps^w_r = d log(income) / d log(1-tau)") ///
+>     legend(order(2 "Annual period (ages ~17-35)" 4 "Biennial period (ages ~31
+> -62)") ///
+>            pos(1) ring(0) rows(2)) ///
+>     xlabel(1 "Q1" 2 "Q2" 3 "Q3" 4 "Q4" 5 "Q1" 6 "Q2" 7 "Q3" 8 "Q4") ///
+>     note("95% CIs shown. Flat profile implies constant elasticity (Pareto cas
+> e).")
+
+. capture noisily graph export "${outdir}\Phase2_Fig2_DynamicEps.png", replace 
+> width(1400)
+file D:\Stata Data\labor_signaling_project\output\Phase2_Fig2_DynamicEps.png
+    saved as PNG format
+
+. restore
+
+. 
+. /*===========================================================================
+> ===
+> PART 6: PRELIMINARY PIGOUVIAN TAX PROFILE
+> =============================================================================
+> ===
+> Given the preliminary χ estimates, compute τ_p = 1 − χ by income decile.
+> 
+> IMPORTANT CAVEATS:
+>   1. η^P_r is approximated, not precisely estimated → treat as directional
+>   2. χ by DECILE requires decile-specific η^P_r, which needs TAXSIM expansion
+>   3. Current estimates are SUFFICIENT for steering decision:
+>      - If ε^w_r varies significantly by decile → progressive Pigouvian tax
+>      - If ε^w_r is roughly constant → flat Pigouvian tax (consistent with Par
+> eto)
+> 
+>   After TAXSIM expansion (future extension), replace η^P_r with full IV estim
+> ates.
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 6: PRELIMINARY PIGOUVIAN TAX PROFILE"
+PART 6: PRELIMINARY PIGOUVIAN TAX PROFILE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "τ_p(y) = 1 − χ(y) = −ε^w_r(y) / η^P_r(y)"
+τ_p(y) = 1 − χ(y) = −ε^w_r(y) / η^P_r(y)
+
+. di ""
+
+
+. di "Note: Using full-sample η^P_r approximation from Part 3."
+Note: Using full-sample η^P_r approximation from Part 3.
+
+. di "      Decile-specific η^P_r: FUTURE EXTENSION (needs TAXSIM re-run)."
+      Decile-specific η^P_r: FUTURE EXTENSION (needs TAXSIM re-run).
+
+. di ""
+
+
+. 
+. * Assuming η^P_r is roughly constant across deciles (simplifying assumption)
+. * This gives τ_p(y) profile driven by ε^w_r(y) variation
+. 
+. di "Preliminary Pigouvian tax profile by income decile:"
+Preliminary Pigouvian tax profile by income decile:
+
+. di "(Assumes constant η^P_r; update after TAXSIM expansion)"
+(Assumes constant η^P_r; update after TAXSIM expansion)
+
+. di ""
+
+
+. di "Decile  ε^w_r     χ(approx)  τ_p(approx)"
+Decile  ε^w_r     χ(approx)  τ_p(approx)
+
+. di "------  --------- ---------- ----------"
+------  --------- ---------- ----------
+
+. 
+. preserve
+
+. clear
+
+. set obs 10
+Number of observations (_N) was 0, now 10.
+
+. gen decile = _n
+
+. gen eps_w = .
+(10 missing values generated)
+
+. gen chi_approx = .
+(10 missing values generated)
+
+. gen tau_p = .
+(10 missing values generated)
+
+. 
+. forvalues d = 1/10 {
+  2.     capture replace eps_w      = eps_d`d'_ann                          in 
+> `d'
+  3.     capture replace chi_approx = 1 + eps_d`d'_ann / eta_P_annual      in `
+> d'
+  4.     capture replace tau_p      = 1 - (1 + eps_d`d'_ann/eta_P_annual)  in `
+> d'
+  5. }
+
+. 
+. list decile eps_w chi_approx tau_p, clean noobs
+
+    decile       eps_w   chi_app~x       tau_p  
+         1    .0679378   -5.080706    6.080706  
+         2    .2467964   -21.08926    22.08926  
+         3   -.2807679    26.12984   -25.12984  
+         4    .6187637   -54.38181    55.38181  
+         5   -.4338877    39.83467   -38.83467  
+         6   -2.451737    220.4402   -219.4402  
+         7    -.068982    7.174161   -6.174161  
+         8   -.3360813    31.08061   -30.08061  
+         9   -.0210954    2.888118   -1.888118  
+        10   -.5233969     47.8461    -46.8461  
+
+. 
+. export delimited using "${outdir}\Phase2_Table4_Pigouvian.csv", replace
+file D:\Stata Data\labor_signaling_project\output\Phase2_Table4_Pigouvian.csv s
+> aved
+
+. restore
+
+. 
+. /*===========================================================================
+> ===
+> PART 7: SCRUTINY SUMMARY AND STEERING DECISION
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 7: SCRUTINY SUMMARY"
+PART 7: SCRUTINY SUMMARY
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. 
+. di "CRITICAL CHECKS:"
+CRITICAL CHECKS:
+
+. di ""
+
+
+. di "CHECK 1 — ε^w_r sign and magnitude"
+CHECK 1 — ε^w_r sign and magnitude
+
+. if eps_w_annual > 0 {
+.     di "  PASS: ε^w_r > 0 (wages rise when net-of-tax rate rises)"
+.     di "  Annual:   " %7.4f eps_w_annual
+.     di "  Biennial: " %7.4f eps_w_biennial
+. }
+
+. else {
+.     di "  CAUTION: ε^w_r < 0. Wages falling when retention rises is unusual."
+  CAUTION: ε^w_r < 0. Wages falling when retention rises is unusual.
+.     di "  Possible cause: income effect dominates substitution effect"
+  Possible cause: income effect dominates substitution effect
+.     di "  Check: are top-bracket workers actually cutting hours? (Saez et al.
+>  2012)"
+  Check: are top-bracket workers actually cutting hours? (Saez et al. 2012)
+. }
+
+. 
+. di ""
+
+
+. di "CHECK 2 — First-stage validity"
+CHECK 2 — First-stage validity
+
+. di "  Annual F-stat:   " %7.2f F_annual
+  Annual F-stat:   1349.36
+
+. di "  Biennial F-stat: " %7.2f F_biennial
+  Biennial F-stat:  987.78
+
+. if F_annual > 10 & F_biennial > 10 {
+.     di "  PASS: Both first stages are strong"
+  PASS: Both first stages are strong
+. }
+
+. else {
+.     di "  CONCERN: Weak instrument in one or both periods"
+.     di "  Consider: (a) restrict to pure tax-cut reform windows"
+.     di "             (b) use broader income bandwidth"
+.     di "             (c) check if simulated MTR actually varies in NLSY sampl
+> e"
+. }
+
+. 
+. di ""
+
+
+. di "CHECK 3 — ε^w_r stability across career stages"
+CHECK 3 — ε^w_r stability across career stages
+
+. di "  Annual Q1:  " %7.4f eps_q1_ann "  Q4: " %7.4f eps_q4_ann
+  Annual Q1:   0.4418  Q4:       .
+
+. di "  If Q1 ≈ Q4 → consistent with Pareto constant-elasticity case"
+  If Q1 ≈ Q4 → consistent with Pareto constant-elasticity case
+
+. di "  If Q1 > Q4 → younger workers more elastic → dynamic model"
+  If Q1 > Q4 → younger workers more elastic → dynamic model
+
+. 
+. di ""
+
+
+. di "CHECK 4 — η^P_r quality"
+CHECK 4 — η^P_r quality
+
+. di "  STATUS: FULL IV estimated in Part 2 (near-workers + main-workers)"
+  STATUS: FULL IV estimated in Part 2 (near-workers + main-workers)
+
+. di "  eta^P_r (annual, IV) = " %7.4f eta_P_annual "  SE = " %7.4f se_eta_P_an
+> nual
+  eta^P_r (annual, IV) = -0.0112  SE =  0.0518
+
+. di "  Participation first-stage F = " %7.2f F_fs_part
+  Participation first-stage F = 1114.98
+
+. di "  Compare Sztutman (HRS 4yr): eta^P_r = +0.01"
+  Compare Sztutman (HRS 4yr): eta^P_r = +0.01
+
+. di "  Compare Sztutman (HRS 2yr): eta^P_r = +0.10"
+  Compare Sztutman (HRS 2yr): eta^P_r = +0.10
+
+. 
+. di ""
+
+
+. di "STEERING DECISION:"
+STEERING DECISION:
+
+. di ""
+
+
+. if eps_w_annual > 0 & F_annual > 10 {
+.     di "  ε^w_r is identified. Proceed to Phase 3 (advantageous selection)."
+.     di "  When Phase 3 confirms selection: χ < 1 interpretation is credible."
+.     di "  When Phase 1 γ confirms pattern: structural δ recovery is credible.
+> "
+.     di ""
+.     di "  NEXT STEPS FOR THIS FILE:"
+.     di "  1. DONE: eta^P_r estimated via full IV in Part 2"
+.     di "  2. Run local polynomial chi(y) profile (Sztutman Figure 3 replicati
+> on)"
+.     di "  3. Compare tau_p(y) by income group to Sztutman"
+.     di "  4. Phase 5 remains the primary structural identification for tau_p"
+. }
+
+. else {
+.     di "  ISSUES WITH IDENTIFICATION — Escalate before Phase 3."
+  ISSUES WITH IDENTIFICATION — Escalate before Phase 3.
+. }
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "OUTPUT FILES CREATED"
+OUTPUT FILES CREATED
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Tables (${outdir}):"
+Tables (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Phase2_Table3_Elasticities.rtf    : ε^w_r by period"
+  Phase2_Table3_Elasticities.rtf    : ε^w_r by period
+
+. di "  Phase2_Table4_Pigouvian.csv       : Preliminary τ_p by decile"
+  Phase2_Table4_Pigouvian.csv       : Preliminary τ_p by decile
+
+. di ""
+
+
+. di "Figures (${outdir}):"
+Figures (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Phase2_Fig1_EpsWProfile.png       : ε^w_r by income decile"
+  Phase2_Fig1_EpsWProfile.png       : ε^w_r by income decile
+
+. di "  Phase2_Fig2_DynamicEps.png        : ε^w_r by career stage, both periods
+> "
+  Phase2_Fig2_DynamicEps.png        : ε^w_r by career stage, both periods
+
+. di ""
+
+
+. di "Log (${outdir}):"
+Log (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Labor_Wedge_log.txt"
+  Labor_Wedge_log.txt
+
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PHASE 2 COMPLETE (PRELIMINARY — SEE SCRUTINY NOTES)"
+PHASE 2 COMPLETE (PRELIMINARY — SEE SCRUTINY NOTES)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "End time: $S_DATE $S_TIME"
+End time: 10 Apr 2026 18:25:06
+
+. di ""
+
+
+. di "CRITICAL NEXT STEP:"
+CRITICAL NEXT STEP:
+
+. di "  Expand TAXSIM to near-worker sample to enable full η^P_r estimation."
+  Expand TAXSIM to near-worker sample to enable full η^P_r estimation.
+
+. di "  This is necessary for precise χ and τ_p computation."
+  This is necessary for precise χ and τ_p computation.
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\Labor_Wedge_log.txt
+  log type:  text
+ closed on:  10 Apr 2026, 18:25:06
+-------------------------------------------------------------------------------

@@ -1,0 +1,1658 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\Advantageous_Selectio
+> n_log.txt
+  log type:  text
+ opened on:  10 Apr 2026, 18:22:27
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "ADVANTAGEOUS SELECTION TEST (PHASE 3)"
+ADVANTAGEOUS SELECTION TEST (PHASE 3)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "Test: Do workers who enter labor force at tax-cut reforms have higher AFQ
+> T?"
+Test: Do workers who enter labor force at tax-cut reforms have higher AFQT?
+
+. di "Framework: Sztutman (2024) Proposition 1 — advantageous selection"
+Framework: Sztutman (2024) Proposition 1 — advantageous selection
+
+. di "Start time: $S_DATE $S_TIME"
+Start time: 10 Apr 2026 18:22:27
+
+. di ""
+
+
+. 
+. /*===========================================================================
+> ===
+> PART 0: DATA SETUP
+> =============================================================================
+> =*/
+. 
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 0: DATA SETUP"
+PART 0: DATA SETUP
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. *--- Load CPI for real income deflation ---
+. use "${datadir}\BLS_CPI.dta", clear
+
+. qui sum CPI if year == 1984
+
+. global cpi_1984 = r(mean)
+
+. 
+. *--- Load main panel data ---
+. use "${datadir}\nlsy_long_pre_taxsim.dta", clear
+
+. di "Loaded nlsy_long_pre_taxsim.dta: " _N " observations"
+Loaded nlsy_long_pre_taxsim.dta: 583556 observations
+
+. 
+. *--- Variable checks ---
+. foreach v in pwages taxsimid year page afqt afqt_std afqt_quartile afqt_pct_1
+> 980 {
+  2.     capture confirm variable `v'
+  3.     if _rc != 0 {
+  4.         di as error "ERROR: Variable `v' not found. Run Data_process.do fi
+> rst."
+  5.         log close
+  6.         error 111
+  7.     }
+  8. }
+
+. di "Required variables confirmed."
+Required variables confirmed.
+
+. di ""
+
+
+. 
+. *--- Merge CPI ---
+. merge m:1 year using "${datadir}\BLS_CPI.dta", keep(master match) keepusing(C
+> PI) nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           583,556  
+    -----------------------------------------
+
+. 
+. *--- Real wages (1984 dollars) ---
+. gen real_pwages = pwages * ($cpi_1984 / CPI) if !missing(CPI) & !missing(pwag
+> es)
+
+. label var real_pwages "Primary wages in 1984 dollars"
+
+. 
+. * Participation indicator: working = real wages above $1,000 (1984 dollars)
+. * This floors out trivial earnings and occasional-worker noise
+. gen worked = (real_pwages >= 1000 & !missing(real_pwages))
+
+. label var worked "Employed (real wages ≥ $1,000 1984$)"
+
+. 
+. di "Participation definition: real_pwages ≥ $1,000 (1984 dollars)"
+Participation definition: real_pwages ≥ $1,000 (1984 dollars)
+
+. di "Distribution of worked indicator:"
+Distribution of worked indicator:
+
+. tab worked, missing
+
+   Employed |
+(real wages |
+   ≥ $1,000 |
+     1984$) |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    393,943       67.51       67.51
+          1 |    189,613       32.49      100.00
+------------+-----------------------------------
+      Total |    583,556      100.00
+
+. di ""
+
+
+. 
+. * Check AFQT coverage
+. di "AFQT coverage:"
+AFQT coverage:
+
+. count if !missing(afqt)
+  548,044
+
+. di "  Non-missing afqt: " r(N) " of " _N " observations (" ///
+>    %4.1f 100*r(N)/_N "% coverage)"
+  Non-missing afqt: 548044 of 583556 observations (93.9% coverage)
+
+. count if !missing(afqt_pct_1980)
+  546,388
+
+. di "  Non-missing afqt_pct_1980: " r(N)
+  Non-missing afqt_pct_1980: 546388
+
+. di ""
+
+
+. 
+. *--- Reform year definitions ---
+. * event_yr = year of data comparison (post-reform income year)
+. * pre_yr   = pre-reform income year for comparison
+. *
+. * For annual period: use 2-year window (pre = t-2, post = t)
+. * For biennial period: use exact biennial pair (pre = t-2)
+. 
+. local reform_list "erta tra egtrra jgtrra tcja"
+
+. local event_erta  = 1982
+
+. local pre_erta    = 1980
+
+. local type_erta   = "cut"        // tax cut
+
+. 
+. local event_tra   = 1987
+
+. local pre_tra     = 1985
+
+. local type_tra    = "mixed"      // top bracket cut, bottom raised
+
+. 
+. local event_egtrra = 2002
+
+. local pre_egtrra   = 2000
+
+. local type_egtrra  = "cut"
+
+. 
+. local event_jgtrra = 2004
+
+. local pre_jgtrra   = 2002
+
+. local type_jgtrra  = "cut"
+
+. 
+. local event_tcja  = 2018
+
+. local pre_tcja    = 2016
+
+. local type_tcja   = "cut"
+
+. 
+. * Placebo years (non-reform)
+. local placebo_list "p1983 p1988 p2006 p2012"
+
+. local event_p1983  = 1983
+
+. local pre_p1983    = 1981
+
+. 
+. local event_p1988  = 1988
+
+. local pre_p1988    = 1986
+
+. 
+. local event_p2006  = 2006
+
+. local pre_p2006    = 2004
+
+. 
+. local event_p2012  = 2012
+
+. local pre_p2012    = 2010
+
+. 
+. /*===========================================================================
+> ===
+> PART 1: CLASSIFICATION OF WORKERS AROUND REFORM YEARS
+> =============================================================================
+> =*/
+. 
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 1: CLASSIFY WORKERS BY PARTICIPATION CHANGE"
+PART 1: CLASSIFY WORKERS BY PARTICIPATION CHANGE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. 
+. * Build a person-level dataset with AFQT and participation status
+. * for each reform pre/post pair
+. 
+. * Step 1: Keep only relevant years
+. local all_years "1980 1982 1985 1987 2000 2002 2004 2006 2016 2018 1981 1983 
+> 1986 1988 2010 2012"
+
+. 
+. * Keep person-year data for these years, then reshape wide
+. keep if inlist(year, 1980,1981,1982,1983,1985,1986,1987,1988, ///
+>                      2000,2002,2004,2006,2010,2012,2016,2018)
+(380,580 observations deleted)
+
+. 
+. * Keep only relevant vars
+. keep taxsimid year worked real_pwages page pot_exp afqt afqt_std ///
+>      afqt_pct_1980 afqt_quartile
+
+. 
+. * Step 2: Reshape to wide (one row per person, worked_YYYY for each year)
+. reshape wide worked real_pwages page pot_exp, i(taxsimid) j(year)
+(j = 1980 1981 1982 1983 1985 1986 1987 1988 2000 2002 2004 2006 2010 2012 2016
+>  2018)
+
+Data                               Long   ->   Wide
+-----------------------------------------------------------------------------
+Number of observations          202,976   ->   12,686      
+Number of variables                  10   ->   69          
+j variable (16 values)             year   ->   (dropped)
+xij variables:
+                                 worked   ->   worked1980 worked1981 ... worked
+> 2018
+                            real_pwages   ->   real_pwages1980 real_pwages1981 
+> ... real_pwages2018
+                                   page   ->   page1980 page1981 ... page2018
+                                pot_exp   ->   pot_exp1980 pot_exp1981 ... pot_
+> exp2018
+-----------------------------------------------------------------------------
+
+. 
+. * AFQT is time-invariant — carry through from any year
+. * (already in all obs since it's merged as a constant)
+. keep taxsimid afqt afqt_std afqt_pct_1980 afqt_quartile ///
+>     worked1980 worked1981 worked1982 worked1983 ///
+>     worked1985 worked1986 worked1987 worked1988 ///
+>     worked2000 worked2002 worked2004 worked2006 ///
+>     worked2010 worked2012 worked2016 worked2018 ///
+>     real_pwages* page* pot_exp*
+
+. 
+. di "Person-level dataset: " _N " individuals"
+Person-level dataset: 12686 individuals
+
+. di ""
+
+
+. 
+. /*===========================================================================
+> ===
+> PART 2: CLASSIFICATION AND SUMMARY STATISTICS
+> =============================================================================
+> =*/
+. 
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 2: SUMMARY STATISTICS BY PARTICIPATION GROUP"
+PART 2: SUMMARY STATISTICS BY PARTICIPATION GROUP
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * For each reform: classify entrant/exiter/stayer/non-part
+. foreach r of local reform_list {
+  2.     local ev = `event_`r''
+  3.     local pre = `pre_`r''
+  4.     local tp = "`type_`r''"
+  5. 
+.     di ""
+  6.     di "--- REFORM: `r' (`pre' vs `ev', type=`tp') ---"
+  7. 
+.     * Check that data years exist
+.     capture confirm variable worked`pre'
+  8.     if _rc != 0 {
+  9.         di "  WARNING: worked`pre' not found. Skipping `r'."
+ 10.         continue
+ 11.     }
+ 12.     capture confirm variable worked`ev'
+ 13.     if _rc != 0 {
+ 14.         di "  WARNING: worked`ev' not found. Skipping `r'."
+ 15.         continue
+ 16.     }
+ 17. 
+.     capture drop ptype_`r'
+ 18.     gen ptype_`r' = .
+ 19.     replace ptype_`r' = 1 if worked`pre' == 0 & worked`ev' == 1  // Entran
+> t
+ 20.     replace ptype_`r' = 2 if worked`pre' == 1 & worked`ev' == 1  // Stayer
+ 21.     replace ptype_`r' = 3 if worked`pre' == 1 & worked`ev' == 0  // Exiter
+ 22.     replace ptype_`r' = 4 if worked`pre' == 0 & worked`ev' == 0  // Non-pa
+> rticipant
+ 23. 
+.     label define ptype_lbl_`r' 1 "Entrant" 2 "Stayer" 3 "Exiter" 4 "Non-part"
+> , replace
+ 24.     label values ptype_`r' ptype_lbl_`r'
+ 25.     label var ptype_`r' "Participation type: `r' reform"
+ 26. 
+.     * Cell counts
+.     di "  Participation type distribution:"
+ 27.     tab ptype_`r', missing
+ 28. 
+.     * AFQT by participation type
+.     di ""
+ 29.     di "  AFQT (percentile) by participation type:"
+ 30.     tabstat afqt if !missing(ptype_`r'), by(ptype_`r') stat(n mean sd p25 
+> p50 p75)
+ 31. 
+.     * Key test: Entrant vs Stayer AFQT
+.     di ""
+ 32.     di "  KEY TEST: Entrant vs Stayer AFQT comparison"
+ 33.     qui count if ptype_`r' == 1 & !missing(afqt)
+ 34.     local n_ent = r(N)
+ 35.     qui count if ptype_`r' == 2 & !missing(afqt)
+ 36.     local n_stay = r(N)
+ 37. 
+.     if `n_ent' >= 30 & `n_stay' >= 30 {
+ 38.         * Compare Entrant(1) vs Stayer(2) AFQT
+.         ttest afqt if inlist(ptype_`r', 1, 2), by(ptype_`r') unequal
+ 39.         local t_ev  = r(t)
+ 40.         local p_ev  = r(p)
+ 41.         local mu_ent  = r(mu_1)
+ 42.         local mu_stay = r(mu_2)
+ 43.         local afqt_gap = `mu_ent' - `mu_stay'
+ 44. 
+.         di ""
+ 45.         di "  Mean AFQT — Entrants:  " %6.2f `mu_ent'
+ 46.         di "  Mean AFQT — Stayers:   " %6.2f `mu_stay'
+ 47.         di "  Gap (Entrant - Stayer): " %6.2f `afqt_gap' ///
+>            "  t=" %5.2f `t_ev' "  p=" %6.4f `p_ev'
+ 48. 
+.         if "`tp'" == "cut" {
+ 49.             if `afqt_gap' > 0 & `p_ev' < 0.10 {
+ 50.                 di "  RESULT: ADVANTAGEOUS SELECTION CONFIRMED (p<0.10)"
+ 51.                 di "  Entrants at tax cut have higher AFQT than stayers"
+ 52.                 di "  Consistent with Sztutman (2024) signaling prediction
+> "
+ 53.             }
+ 54.             else if `afqt_gap' > 0 {
+ 55.                 di "  RESULT: Positive gap but not statistically significa
+> nt"
+ 56.                 di "  Directionally consistent but weak evidence"
+ 57.             }
+ 58.             else {
+ 59.                 di "  RESULT: No advantageous selection (gap is negative)"
+ 60.                 di "  Does NOT support signaling externality interpretatio
+> n"
+ 61.             }
+ 62.         }
+ 63.         else if "`tp'" == "mixed" {
+ 64.             di "  NOTE: TRA 1986 is mixed (top cuts, bottom raises)"
+ 65.             di "  Net effect on selection is ambiguous — interpret cautiou
+> sly"
+ 66.         }
+ 67.     }
+ 68.     else {
+ 69.         di "  WARNING: Insufficient entrant obs (`n_ent') for t-test. Skip
+> ping."
+ 70.     }
+ 71. }
+
+--- REFORM: erta (1980 vs 1982, type=cut) ---
+(12,686 missing values generated)
+(2,791 real changes made)
+(5,150 real changes made)
+(1,187 real changes made)
+(3,558 real changes made)
+  Participation type distribution:
+
+Participati |
+   on type: |
+erta reform |      Freq.     Percent        Cum.
+------------+-----------------------------------
+    Entrant |      2,791       22.00       22.00
+     Stayer |      5,150       40.60       62.60
+     Exiter |      1,187        9.36       71.95
+   Non-part |      3,558       28.05      100.00
+------------+-----------------------------------
+      Total |     12,686      100.00
+
+  AFQT (percentile) by participation type:
+
+Summary for variables: afqt
+Group variable: ptype_erta (Participation type: erta reform)
+
+ptype_erta |         N      Mean        SD       p25       p50       p75
+-----------+------------------------------------------------------------
+   Entrant |      2637   44897.6  28581.32     20119     42424     68681
+    Stayer |      4973  47888.61  28526.71     23341     46920     72329
+    Exiter |      1116  39607.66  27986.24   15772.5   34894.5   60730.5
+  Non-part |      3188  32733.41  27009.39    9834.5     25360   51207.5
+-----------+------------------------------------------------------------
+     Total |     11914  42395.61  28784.53     16769   38623.5     66291
+------------------------------------------------------------------------
+
+  KEY TEST: Entrant vs Stayer AFQT comparison
+
+Two-sample t test with unequal variances
+------------------------------------------------------------------------------
+   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]
+---------+--------------------------------------------------------------------
+ Entrant |   2,637     44897.6    556.5796    28581.32    43806.22    45988.98
+  Stayer |   4,973    47888.61    404.5222    28526.71    47095.57    48681.66
+---------+--------------------------------------------------------------------
+Combined |   7,610    46852.17    327.6108    28579.23    46209.97    47494.38
+---------+--------------------------------------------------------------------
+    diff |           -2991.012    688.0545               -4339.879   -1642.146
+------------------------------------------------------------------------------
+    diff = mean(Entrant) - mean(Stayer)                           t =  -4.3471
+H0: diff = 0                     Satterthwaite's degrees of freedom =  5363.03
+
+    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0
+ Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000
+
+  Mean AFQT — Entrants:  44897.60
+  Mean AFQT — Stayers:   47888.61
+  Gap (Entrant - Stayer): -2991.01  t=-4.35  p=0.0000
+  RESULT: No advantageous selection (gap is negative)
+  Does NOT support signaling externality interpretation
+
+--- REFORM: tra (1985 vs 1987, type=mixed) ---
+(12,686 missing values generated)
+(1,231 real changes made)
+(6,765 real changes made)
+(1,164 real changes made)
+(3,526 real changes made)
+  Participation type distribution:
+
+Participati |
+   on type: |
+ tra reform |      Freq.     Percent        Cum.
+------------+-----------------------------------
+    Entrant |      1,231        9.70        9.70
+     Stayer |      6,765       53.33       63.03
+     Exiter |      1,164        9.18       72.21
+   Non-part |      3,526       27.79      100.00
+------------+-----------------------------------
+      Total |     12,686      100.00
+
+  AFQT (percentile) by participation type:
+
+Summary for variables: afqt
+Group variable: ptype_tra (Participation type: tra reform)
+
+ptype_tra |         N      Mean        SD       p25       p50       p75
+----------+------------------------------------------------------------
+  Entrant |      1148  36703.23  27821.89   12960.5   30062.5   57890.5
+   Stayer |      6549  46306.07  28676.19     21071     44281     70619
+   Exiter |      1088  37397.32  28554.24   12431.5   31630.5     59134
+ Non-part |      3129  38037.48  28201.92     12684     32966     59808
+----------+------------------------------------------------------------
+    Total |     11914  42395.61  28784.53     16769   38623.5     66291
+-----------------------------------------------------------------------
+
+  KEY TEST: Entrant vs Stayer AFQT comparison
+
+Two-sample t test with unequal variances
+------------------------------------------------------------------------------
+   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]
+---------+--------------------------------------------------------------------
+ Entrant |   1,148    36703.23    821.1371    27821.89    35092.14    38314.33
+  Stayer |   6,549    46306.07    354.3512    28676.19    45611.43    47000.72
+---------+--------------------------------------------------------------------
+Combined |   7,697    44873.82    327.7331    28752.86    44231.37    45516.26
+---------+--------------------------------------------------------------------
+    diff |           -9602.838    894.3326               -11357.02   -7848.655
+------------------------------------------------------------------------------
+    diff = mean(Entrant) - mean(Stayer)                           t = -10.7374
+H0: diff = 0                     Satterthwaite's degrees of freedom =  1604.23
+
+    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0
+ Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000
+
+  Mean AFQT — Entrants:  36703.23
+  Mean AFQT — Stayers:   46306.07
+  Gap (Entrant - Stayer): -9602.84  t=-10.74  p=0.0000
+  NOTE: TRA 1986 is mixed (top cuts, bottom raises)
+  Net effect on selection is ambiguous — interpret cautiously
+
+--- REFORM: egtrra (2000 vs 2002, type=cut) ---
+(12,686 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(12,686 real changes made)
+  Participation type distribution:
+
+Participati |
+   on type: |
+     egtrra |
+     reform |      Freq.     Percent        Cum.
+------------+-----------------------------------
+   Non-part |     12,686      100.00      100.00
+------------+-----------------------------------
+      Total |     12,686      100.00
+
+  AFQT (percentile) by participation type:
+
+Summary for variables: afqt
+Group variable: ptype_egtrra (Participation type: egtrra reform)
+
+ptype_egtrra |         N      Mean        SD       p25       p50       p75
+-------------+------------------------------------------------------------
+    Non-part |     11914  42395.61  28784.53     16769   38623.5     66291
+-------------+------------------------------------------------------------
+       Total |     11914  42395.61  28784.53     16769   38623.5     66291
+--------------------------------------------------------------------------
+
+  KEY TEST: Entrant vs Stayer AFQT comparison
+  WARNING: Insufficient entrant obs (0) for t-test. Skipping.
+
+--- REFORM: jgtrra (2002 vs 2004, type=cut) ---
+(12,686 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(12,686 real changes made)
+  Participation type distribution:
+
+Participati |
+   on type: |
+     jgtrra |
+     reform |      Freq.     Percent        Cum.
+------------+-----------------------------------
+   Non-part |     12,686      100.00      100.00
+------------+-----------------------------------
+      Total |     12,686      100.00
+
+  AFQT (percentile) by participation type:
+
+Summary for variables: afqt
+Group variable: ptype_jgtrra (Participation type: jgtrra reform)
+
+ptype_jgtrra |         N      Mean        SD       p25       p50       p75
+-------------+------------------------------------------------------------
+    Non-part |     11914  42395.61  28784.53     16769   38623.5     66291
+-------------+------------------------------------------------------------
+       Total |     11914  42395.61  28784.53     16769   38623.5     66291
+--------------------------------------------------------------------------
+
+  KEY TEST: Entrant vs Stayer AFQT comparison
+  WARNING: Insufficient entrant obs (0) for t-test. Skipping.
+
+--- REFORM: tcja (2016 vs 2018, type=cut) ---
+(12,686 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(12,686 real changes made)
+  Participation type distribution:
+
+Participati |
+   on type: |
+tcja reform |      Freq.     Percent        Cum.
+------------+-----------------------------------
+   Non-part |     12,686      100.00      100.00
+------------+-----------------------------------
+      Total |     12,686      100.00
+
+  AFQT (percentile) by participation type:
+
+Summary for variables: afqt
+Group variable: ptype_tcja (Participation type: tcja reform)
+
+ptype_tcja |         N      Mean        SD       p25       p50       p75
+-----------+------------------------------------------------------------
+  Non-part |     11914  42395.61  28784.53     16769   38623.5     66291
+-----------+------------------------------------------------------------
+     Total |     11914  42395.61  28784.53     16769   38623.5     66291
+------------------------------------------------------------------------
+
+  KEY TEST: Entrant vs Stayer AFQT comparison
+  WARNING: Insufficient entrant obs (0) for t-test. Skipping.
+
+. 
+. /*===========================================================================
+> ===
+> PART 3: REGRESSION-BASED SELECTION TEST
+> =============================================================================
+> ===
+> Regression of AFQT on participation-change indicators.
+> Controls for age and cohort to isolate reform-driven selection from life-cycl
+> e
+> entry (NLSY respondents were young in 1982, so many "entrants" are natural
+> labor market entrants, not reform-induced).
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 3: REGRESSION-BASED SELECTION TEST (CONTROLLING FOR AGE/COHORT)"
+PART 3: REGRESSION-BASED SELECTION TEST (CONTROLLING FOR AGE/COHORT)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "MOTIVATION: NLSY respondents are young in 1982 (ages 17-25)."
+MOTIVATION: NLSY respondents are young in 1982 (ages 17-25).
+
+. di "  Many 'entrants' are simply first-time labor market participants."
+  Many 'entrants' are simply first-time labor market participants.
+
+. di "  Need to control for age and cohort to isolate REFORM-INDUCED selection.
+> "
+  Need to control for age and cohort to isolate REFORM-INDUCED selection.
+
+. di ""
+
+
+. di "SPECIFICATION:"
+SPECIFICATION:
+
+. di "  AFQT_i = α + β₁·Entrant + β₂·Exiter + β₃·NonPart + controls + ε"
+  AFQT_i = α + β₁·Entrant + β₂·Exiter + β₃·NonPart + controls + ε
+
+. di "  Sample: workers valid in pre and post period"
+  Sample: workers valid in pre and post period
+
+. di "  H₁: β₁ > 0 (entrants have higher AFQT than stayers)"
+  H₁: β₁ > 0 (entrants have higher AFQT than stayers)
+
+. di ""
+
+
+. 
+. * Controls available at person-level: page (pre-reform age)
+. * Age at pre-reform year
+. foreach y_pre in 1980 1985 2000 2002 2016 {
+  2.     capture confirm variable page`y_pre'
+  3.     if _rc == 0 {
+  4.         rename page`y_pre' age_`y_pre'
+  5.     }
+  6. }
+
+. 
+. *--- Main reform regressions ---
+. foreach r of local reform_list {
+  2.     local ev = `event_`r''
+  3.     local pre = `pre_`r''
+  4.     local tp = "`type_`r''"
+  5. 
+.     capture confirm variable ptype_`r'
+  6.     if _rc != 0 {
+  7.         di "Skipping `r' — not classified."
+  8.         continue
+  9.     }
+ 10. 
+.     * Pre-period age variable name
+.     local age_var "age_`pre'"
+ 11.     capture confirm variable `age_var'
+ 12.     if _rc != 0 {
+ 13.         * Fallback: try pot_exp from pre year
+.         local age_var "pot_exp`pre'"
+ 14.         capture confirm variable `age_var'
+ 15.         if _rc != 0 local age_var ""
+ 16.     }
+ 17. 
+.     di ""
+ 18.     di "--- `r' Reform: AFQT regression ---"
+ 19. 
+.     * Create dummies from ptype
+.     capture drop ent_`r' exit_`r' np_`r'
+ 20.     gen ent_`r'  = (ptype_`r' == 1)
+ 21.     gen exit_`r' = (ptype_`r' == 3)
+ 22.     gen np_`r'   = (ptype_`r' == 4)
+ 23. 
+.     if "`age_var'" != "" {
+ 24.         * With age control
+.         reg afqt ent_`r' exit_`r' np_`r' `age_var' ///
+>             if !missing(ptype_`r') & !missing(afqt), robust
+ 25.     }
+ 26.     else {
+ 27.         * Without age (biennial years where age not available)
+.         reg afqt ent_`r' exit_`r' np_`r' ///
+>             if !missing(ptype_`r') & !missing(afqt), robust
+ 28.     }
+ 29.     est store afqt_reg_`r'
+ 30. 
+.     local b_ent = _b[ent_`r']
+ 31.     local se_ent = _se[ent_`r']
+ 32. 
+.     di "  β(Entrant) = " %6.2f `b_ent' "  SE = " %5.2f `se_ent' ///
+>        "  t = " %5.2f `b_ent'/`se_ent'
+ 33. 
+.     if "`tp'" == "cut" & `b_ent' > 0 & `b_ent'/`se_ent' > 1.96 {
+ 34.         di "  RESULT: Significant advantageous selection (p<0.05)"
+ 35.     }
+ 36.     else if "`tp'" == "cut" & `b_ent' > 0 & `b_ent'/`se_ent' > 1.65 {
+ 37.         di "  RESULT: Marginal advantageous selection (p<0.10)"
+ 38.     }
+ 39.     else if "`tp'" == "cut" {
+ 40.         di "  RESULT: No significant advantageous selection"
+ 41.     }
+ 42. }
+
+--- erta Reform: AFQT regression ---
+
+Linear regression                               Number of obs     =     11,914
+                                                F(4, 11909)       =     160.64
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0492
+                                                Root MSE          =      28072
+
+------------------------------------------------------------------------------
+             |               Robust
+        afqt | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    ent_erta |  -2285.367   708.0265    -3.23   0.001    -3673.214   -897.5193
+   exit_erta |  -8136.041   929.8798    -8.75   0.000    -9958.757   -6313.325
+     np_erta |  -14624.86   640.4124   -22.84   0.000    -15880.17   -13369.54
+    age_1980 |   321.5488   78.47447     4.10   0.000     167.7261    475.3716
+       _cons |   41648.96   1570.995    26.51   0.000     38569.56    44728.37
+------------------------------------------------------------------------------
+  β(Entrant) = -2285.37  SE = 708.03  t = -3.23
+  RESULT: No significant advantageous selection
+
+--- tra Reform: AFQT regression ---
+
+Linear regression                               Number of obs     =     11,914
+                                                F(4, 11909)       =     122.14
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0396
+                                                Root MSE          =      28213
+
+------------------------------------------------------------------------------
+             |               Robust
+        afqt | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     ent_tra |  -10628.91   900.6458   -11.80   0.000    -12394.32   -8863.496
+    exit_tra |  -9241.787   942.5717    -9.80   0.000    -11089.38   -7394.193
+      np_tra |  -13547.11   706.2093   -19.18   0.000     -14931.4   -12162.83
+    age_1985 |   -539.778   36.86388   -14.64   0.000    -612.0372   -467.5188
+       _cons |   58909.63   933.4993    63.11   0.000     57079.82    60739.44
+------------------------------------------------------------------------------
+  β(Entrant) = -1.1e+04  SE = 900.65  t = -11.80
+
+--- egtrra Reform: AFQT regression ---
+note: ent_egtrra omitted because of collinearity.
+note: exit_egtrra omitted because of collinearity.
+note: np_egtrra omitted because of collinearity.
+note: age_2000 omitted because of collinearity.
+
+Linear regression                               Number of obs     =     11,914
+                                                F(0, 11913)       =       0.00
+                                                Prob > F          =          .
+                                                R-squared         =     0.0000
+                                                Root MSE          =      28785
+
+------------------------------------------------------------------------------
+             |               Robust
+        afqt | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  ent_egtrra |          0  (omitted)
+ exit_egtrra |          0  (omitted)
+   np_egtrra |          0  (omitted)
+    age_2000 |          0  (omitted)
+       _cons |   42395.61   263.7122   160.76   0.000     41878.69    42912.53
+------------------------------------------------------------------------------
+  β(Entrant) =   0.00  SE =  0.00  t =     .
+  RESULT: No significant advantageous selection
+
+--- jgtrra Reform: AFQT regression ---
+note: ent_jgtrra omitted because of collinearity.
+note: exit_jgtrra omitted because of collinearity.
+note: np_jgtrra omitted because of collinearity.
+note: age_2002 omitted because of collinearity.
+
+Linear regression                               Number of obs     =     11,914
+                                                F(0, 11913)       =       0.00
+                                                Prob > F          =          .
+                                                R-squared         =     0.0000
+                                                Root MSE          =      28785
+
+------------------------------------------------------------------------------
+             |               Robust
+        afqt | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  ent_jgtrra |          0  (omitted)
+ exit_jgtrra |          0  (omitted)
+   np_jgtrra |          0  (omitted)
+    age_2002 |          0  (omitted)
+       _cons |   42395.61   263.7122   160.76   0.000     41878.69    42912.53
+------------------------------------------------------------------------------
+  β(Entrant) =   0.00  SE =  0.00  t =     .
+  RESULT: No significant advantageous selection
+
+--- tcja Reform: AFQT regression ---
+note: ent_tcja omitted because of collinearity.
+note: exit_tcja omitted because of collinearity.
+note: np_tcja omitted because of collinearity.
+note: age_2016 omitted because of collinearity.
+
+Linear regression                               Number of obs     =     11,914
+                                                F(0, 11913)       =       0.00
+                                                Prob > F          =          .
+                                                R-squared         =     0.0000
+                                                Root MSE          =      28785
+
+------------------------------------------------------------------------------
+             |               Robust
+        afqt | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    ent_tcja |          0  (omitted)
+   exit_tcja |          0  (omitted)
+     np_tcja |          0  (omitted)
+    age_2016 |          0  (omitted)
+       _cons |   42395.61   263.7122   160.76   0.000     41878.69    42912.53
+------------------------------------------------------------------------------
+  β(Entrant) =   0.00  SE =  0.00  t =     .
+  RESULT: No significant advantageous selection
+
+. 
+. /*===========================================================================
+> ===
+> PART 4: PLACEBO TEST
+> =============================================================================
+> ===
+> Run the same test for non-reform years. Should find no systematic AFQT select
+> ion.
+> If we find significant AFQT gaps in placebo years, the test is confounded by
+> secular trends (e.g., AFQT-linked participation patterns unrelated to tax cha
+> nges).
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 4: PLACEBO TEST — NON-REFORM YEARS"
+PART 4: PLACEBO TEST — NON-REFORM YEARS
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Test: Do non-reform years show the same AFQT selection pattern?"
+Test: Do non-reform years show the same AFQT selection pattern?
+
+. di "H₀: No systematic AFQT selection in non-reform years"
+H₀: No systematic AFQT selection in non-reform years
+
+. di "Failure: Would undermine causal interpretation of Phase 3 main results"
+Failure: Would undermine causal interpretation of Phase 3 main results
+
+. di ""
+
+
+. 
+. foreach r of local placebo_list {
+  2.     local ev  = `event_`r''
+  3.     local pre = `pre_`r''
+  4. 
+.     capture confirm variable worked`pre'
+  5.     if _rc != 0 continue
+  6.     capture confirm variable worked`ev'
+  7.     if _rc != 0 continue
+  8. 
+.     capture drop ptype_`r'
+  9.     gen ptype_`r' = .
+ 10.     replace ptype_`r' = 1 if worked`pre' == 0 & worked`ev' == 1
+ 11.     replace ptype_`r' = 2 if worked`pre' == 1 & worked`ev' == 1
+ 12.     replace ptype_`r' = 3 if worked`pre' == 1 & worked`ev' == 0
+ 13.     replace ptype_`r' = 4 if worked`pre' == 0 & worked`ev' == 0
+ 14. 
+.     capture drop pent_`r' pexit_`r' pnp_`r'
+ 15.     gen pent_`r'  = (ptype_`r' == 1)
+ 16.     gen pexit_`r' = (ptype_`r' == 3)
+ 17.     gen pnp_`r'   = (ptype_`r' == 4)
+ 18. 
+.     qui reg afqt pent_`r' pexit_`r' pnp_`r' ///
+>         if !missing(ptype_`r') & !missing(afqt), robust
+ 19.     est store placebo_`r'
+ 20. 
+.     local b_pe = _b[pent_`r']
+ 21.     local t_pe = `b_pe' / _se[pent_`r']
+ 22. 
+.     di "Placebo year `ev' (pre `pre'): β(Entrant) = " %6.2f `b_pe' ///
+>        "  t = " %5.2f `t_pe'
+ 23. }
+(12,686 missing values generated)
+(2,221 real changes made)
+(6,059 real changes made)
+(1,313 real changes made)
+(3,093 real changes made)
+Placebo year 1983 (pre 1981): β(Entrant) = -5517.77  t = -7.53
+(12,686 missing values generated)
+(1,306 real changes made)
+(6,700 real changes made)
+(1,137 real changes made)
+(3,543 real changes made)
+Placebo year 1988 (pre 1986): β(Entrant) = -1.1e+04  t = -12.75
+(12,686 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(12,686 real changes made)
+Placebo year 2006 (pre 2004): β(Entrant) =   0.00  t =     .
+(12,686 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(12,686 real changes made)
+Placebo year 2012 (pre 2010): β(Entrant) =   0.00  t =     .
+
+. 
+. di ""
+
+
+. di "COMPARISON: Main results vs. Placebos"
+COMPARISON: Main results vs. Placebos
+
+. di "If placebos show similar or larger effects → spurious identification"
+If placebos show similar or larger effects → spurious identification
+
+. di "If placebos are near zero → reforms are driving the selection"
+If placebos are near zero → reforms are driving the selection
+
+. 
+. /*===========================================================================
+> ===
+> PART 5: INTERACTION TEST — DOES AFQT PREDICT PARTICIPATION RESPONSE?
+> =============================================================================
+> ===
+> This is the most demanding test: among workers near the participation margin,
+> do high-AFQT workers respond more on the extensive margin to tax changes?
+> 
+> Regression:
+>   ΔParticipation_i = α + β₁·AFQT + β₂·ΔlogNTR + β₃·(AFQT × ΔlogNTR) + X + ε
+> 
+> Prediction from signaling model:
+>   β₃ > 0: High-ability workers are MORE responsive on the extensive margin
+>   Mechanism: high-ability workers are near the threshold when taxes fall
+>              because they generate positive externality (underpriced labor)
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 5: INTERACTION TEST — AFQT × TAX CHANGE"
+PART 5: INTERACTION TEST — AFQT × TAX CHANGE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "SPECIFICATION:"
+SPECIFICATION:
+
+. di "  ΔP = α + β₁·AFQT_std + β₂·ΔlogNTR + β₃·(AFQT_std × ΔlogNTR) + age + ε"
+  ΔP = α + β₁·AFQT_std + β₂·ΔlogNTR + β₃·(AFQT_std × ΔlogNTR) + age + ε
+
+. di ""
+
+
+. di "H₁: β₃ > 0 (high-AFQT workers more responsive to tax incentives)"
+H₁: β₃ > 0 (high-AFQT workers more responsive to tax incentives)
+
+. di "    This directly tests whether the signaling externality drives selectio
+> n"
+    This directly tests whether the signaling externality drives selection
+
+. di ""
+
+
+. 
+. * Need to load Two_Period_Analysis data (which has log NTR changes)
+. local run_part5 = 1
+
+. capture confirm file "${datadir}\analysis_annual.dta"
+
+. if _rc != 0 {
+.     di "WARNING: analysis_annual.dta not found."
+.     di "  Run Two_Period_Analysis.do first to enable Part 5."
+.     di "  Skipping Part 5."
+.     local run_part5 = 0
+. }
+
+. 
+. if `run_part5' {
+. 
+. * Load annual analysis data (has NTR changes and income)
+. use "${datadir}\analysis_annual.dta", clear
+. di "Loaded analysis_annual.dta for interaction test"
+Loaded analysis_annual.dta for interaction test
+. 
+. * Merge AFQT from long data
+. preserve
+. use "${datadir}\nlsy_long_pre_taxsim.dta", clear
+. keep taxsimid afqt afqt_std afqt_quartile
+. duplicates drop taxsimid, force
+
+Duplicates in terms of taxsimid
+
+(570,870 observations deleted)
+. tempfile afqt_data
+. save `afqt_data'
+file C:\Users\yuhao\AppData\Local\Temp\ST_c970_000002.tmp saved as .dta
+    format
+. restore
+. merge m:1 taxsimid using `afqt_data', keep(match) nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            31,832  
+    -----------------------------------------
+. di "After AFQT merge: " _N " observations"
+After AFQT merge: 31832 observations
+. 
+. * Construct participation indicator from annual data
+. * analysis_annual has broad_income_t (period t), broad_income_t3 (period t+3)
+. * Define participation change: was below floor, now above, or vice versa
+. * (Note: sample already restricted to real income ≥ $10K at t)
+. * Use pwages directly where available from the paired dataset
+. * Alternatively: use income change as proxy
+. 
+. * We can define: large income increase relative to average as "expansion"
+. * But for the interaction test, even the intensive margin regression is usefu
+> l
+. 
+. * Interaction test: Does AFQT moderate the wage elasticity to tax changes?
+. * This tests advantageous selection at INTENSIVE margin
+. 
+. gen afqt_x_ntr = afqt_std * log_ntr_change
+(1,187 missing values generated)
+. 
+. di ""
+
+. di "5.1 INTERACTION: AFQT × NTR CHANGE (intensive margin)"
+5.1 INTERACTION: AFQT × NTR CHANGE (intensive margin)
+. di "------------------------------------------------------"
+------------------------------------------------------
+. 
+. ivregress 2sls log_income_change ///
+>     (log_ntr_change afqt_x_ntr = log_ntr_instrument c.afqt_std#c.log_ntr_inst
+> rument) ///
+>     afqt_std log_income_t spline1-spline9 married i.year_t ///
+>     [aweight=income_weight], robust
+(sum of wgt is   6.3402e+08)
+
+Instrumental-variables 2SLS regression            Number of obs   =     30,645
+                                                  Wald chi2(26)   =    1922.89
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.1466
+                                                  Root MSE        =     .44772
+
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |  -.1712995   .1205835    -1.42   0.155    -.4076388    .0650397
+  afqt_x_ntr |    .187335   .1006265     1.86   0.063    -.0098893    .3845593
+    afqt_std |   .0877728   .0035882    24.46   0.000     .0807401    .0948055
+log_income_t |  -.5382147   .1285164    -4.19   0.000    -.7901022   -.2863273
+     spline1 |   .1682369    .267752     0.63   0.530    -.3565473    .6930211
+     spline2 |  -.1165538   .2663237    -0.44   0.662    -.6385387    .4054311
+     spline3 |   .3522032    .239876     1.47   0.142    -.1179451    .8223516
+     spline4 |  -.2479514   .2517073    -0.99   0.325    -.7412887     .245386
+     spline5 |   .1246597   .2128692     0.59   0.558    -.2925563    .5418756
+     spline6 |   -.019468   .1855536    -0.10   0.916    -.3831463    .3442104
+     spline7 |  -.1234046    .173693    -0.71   0.477    -.4638366    .2170273
+     spline8 |   .4649164   .1567144     2.97   0.003     .1577618    .7720709
+     spline9 |  -.5087255   .1182914    -4.30   0.000    -.7405724   -.2768786
+     married |   .0613771   .0069453     8.84   0.000     .0477645    .0749897
+             |
+      year_t |
+       1979  |   .0073394   .0790793     0.09   0.926    -.1476532     .162332
+       1980  |   .0792064   .0802539     0.99   0.324    -.0780884    .2365012
+       1981  |   .1413134   .0812577     1.74   0.082    -.0179488    .3005755
+       1982  |   .3053012   .0813489     3.75   0.000     .1458603    .4647422
+       1983  |   .3756859   .0819776     4.58   0.000     .2150128     .536359
+       1984  |   .3978036   .0817363     4.87   0.000     .2376035    .5580038
+       1985  |   .4194977   .0816136     5.14   0.000      .259538    .5794575
+       1986  |   .4012563   .0815287     4.92   0.000     .2414629    .5610496
+       1987  |   .4164669   .0823806     5.06   0.000     .2550038      .57793
+       1988  |   .4259637    .082625     5.16   0.000     .2640217    .5879057
+       1989  |   .4151263   .0827933     5.01   0.000     .2528543    .5773982
+       1990  |   .4259035   .0829421     5.13   0.000       .26334    .5884671
+             |
+       _cons |   4.951424   1.146864     4.32   0.000     2.703612    7.199236
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change afqt_x_ntr
+Exogenous:  afqt_std log_income_t spline1 spline2 spline3 spline4 spline5
+            spline6 spline7 spline8 spline9 married 1979.year_t 1980.year_t
+            1981.year_t 1982.year_t 1983.year_t 1984.year_t 1985.year_t
+            1986.year_t 1987.year_t 1988.year_t 1989.year_t 1990.year_t
+            log_ntr_instrument c.afqt_std#c.log_ntr_instrument
+. est store afqt_ntr_interact
+. 
+. local b_afqt_int = _b[afqt_x_ntr]
+. local se_afqt_int = _se[afqt_x_ntr]
+. local t_afqt_int = `b_afqt_int' / `se_afqt_int'
+. 
+. di ""
+
+. di "  β(AFQT × ΔlogNTR) = " %8.4f `b_afqt_int' ///
+>    "  SE = " %7.4f `se_afqt_int' ///
+>    "  t = " %5.2f `t_afqt_int'
+  β(AFQT × ΔlogNTR) =   0.1873  SE =  0.1006  t =  1.86
+. di ""
+
+. 
+. if `b_afqt_int' > 0 & `t_afqt_int' > 1.96 {
+.     di "RESULT: HIGH-ABILITY WORKERS MORE RESPONSIVE TO TAX CHANGES"
+.     di "  β₃ > 0: High-AFQT workers amplify the wage response to tax cuts"
+.     di "  Consistent with advantageous selection at the intensive margin"
+.     di "  Strong support for signaling externality interpretation"
+. }
+. else if `b_afqt_int' > 0 {
+.     di "RESULT: Positive but not significant at 5% level"
+RESULT: Positive but not significant at 5% level
+.     di "  Directionally consistent; more power needed (biennial sample)"
+  Directionally consistent; more power needed (biennial sample)
+. }
+. else {
+.     di "RESULT: No evidence that high-AFQT workers respond more"
+.     di "  Standard homogeneous labor supply; or insufficient statistical powe
+> r"
+. }
+. 
+. di ""
+
+. di "5.2 BY AFQT QUARTILE — ETI by ability group"
+5.2 BY AFQT QUARTILE — ETI by ability group
+. di "--------------------------------------------"
+--------------------------------------------
+. di "If advantageous selection: high-AFQT workers should have higher ETI"
+If advantageous selection: high-AFQT workers should have higher ETI
+. 
+. forvalues q = 1/4 {
+  2.     qui ivregress 2sls log_income_change ///
+>         (log_ntr_change = log_ntr_instrument) ///
+>         log_income_t spline1-spline9 married i.year_t ///
+>         if afqt_quartile == `q' [aweight=income_weight], robust
+  3.     local eti_q`q' = _b[log_ntr_change]
+  4.     di "  AFQT Q`q' ETI = " %8.4f `eti_q`q''
+  5. }
+  AFQT Q1 ETI =   0.0228
+  AFQT Q2 ETI =   0.0991
+  AFQT Q3 ETI =  -0.3311
+  AFQT Q4 ETI =  -0.0405
+. 
+. di ""
+
+. di "Gradient test: ETI_Q4 - ETI_Q1 = " %8.4f `eti_q4' - `eti_q1'
+Gradient test: ETI_Q4 - ETI_Q1 =  -0.0633
+. if `eti_q4' > `eti_q1' {
+.     di "RESULT: High-AFQT workers have higher ETI (Q4 > Q1)"
+.     di "  Consistent with advantageous selection"
+. }
+. else {
+.     di "RESULT: No clear AFQT-ETI gradient"
+RESULT: No clear AFQT-ETI gradient
+. }
+. 
+. } // end if run_part5
+
+. 
+. /*===========================================================================
+> ===
+> PART 6: OUTPUT — TABLES AND FIGURES
+> =============================================================================
+> =*/
+. 
+. * Return to person-level dataset for output
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 6: OUTPUT"
+PART 6: OUTPUT
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * Reload person-level data for tables
+. use "${datadir}\nlsy_long_pre_taxsim.dta", clear
+
+. merge m:1 year using "${datadir}\BLS_CPI.dta", keep(master match) keepusing(C
+> PI) nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           583,556  
+    -----------------------------------------
+
+. gen real_pwages = pwages * ($cpi_1984 / CPI) if !missing(CPI) & !missing(pwag
+> es)
+
+. gen worked = (real_pwages >= 1000 & !missing(real_pwages))
+
+. keep if inlist(year, 1980,1981,1982,1983,1985,1986,1987,1988, ///
+>                      2000,2002,2004,2006,2010,2012,2016,2018)
+(380,580 observations deleted)
+
+. keep taxsimid year worked real_pwages page afqt afqt_std afqt_pct_1980 afqt_q
+> uartile
+
+. reshape wide worked real_pwages page, i(taxsimid) j(year)
+(j = 1980 1981 1982 1983 1985 1986 1987 1988 2000 2002 2004 2006 2010 2012 2016
+>  2018)
+
+Data                               Long   ->   Wide
+-----------------------------------------------------------------------------
+Number of observations          202,976   ->   12,686      
+Number of variables                   9   ->   53          
+j variable (16 values)             year   ->   (dropped)
+xij variables:
+                                 worked   ->   worked1980 worked1981 ... worked
+> 2018
+                            real_pwages   ->   real_pwages1980 real_pwages1981 
+> ... real_pwages2018
+                                   page   ->   page1980 page1981 ... page2018
+-----------------------------------------------------------------------------
+
+. 
+. * Re-classify for output tables
+. foreach r of local reform_list {
+  2.     local ev  = `event_`r''
+  3.     local pre = `pre_`r''
+  4.     capture confirm variable worked`pre'
+  5.     if _rc != 0 continue
+  6.     capture confirm variable worked`ev'
+  7.     if _rc != 0 continue
+  8. 
+.     capture drop ptype_`r'
+  9.     gen ptype_`r' = .
+ 10.     replace ptype_`r' = 1 if worked`pre' == 0 & worked`ev' == 1
+ 11.     replace ptype_`r' = 2 if worked`pre' == 1 & worked`ev' == 1
+ 12.     replace ptype_`r' = 3 if worked`pre' == 1 & worked`ev' == 0
+ 13.     replace ptype_`r' = 4 if worked`pre' == 0 & worked`ev' == 0
+ 14.     label define ptype_lbl2_`r' 1 "Entrant" 2 "Stayer" 3 "Exiter" 4 "Non-p
+> art", replace
+ 15.     label values ptype_`r' ptype_lbl2_`r'
+ 16. }
+(12,686 missing values generated)
+(2,791 real changes made)
+(5,150 real changes made)
+(1,187 real changes made)
+(3,558 real changes made)
+(12,686 missing values generated)
+(1,231 real changes made)
+(6,765 real changes made)
+(1,164 real changes made)
+(3,526 real changes made)
+(12,686 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(12,686 real changes made)
+(12,686 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(12,686 real changes made)
+(12,686 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(12,686 real changes made)
+
+. 
+. *--- Summary table: AFQT by participation type ---
+. di "Writing Phase3_Table1_SelectionTest.rtf..."
+Writing Phase3_Table1_SelectionTest.rtf...
+
+. capture {
+
+. 
+. *--- Figure 1: AFQT distributions by participation type ---
+. di "Saving Phase3_Fig1_AFQTbyGroup.png..."
+Saving Phase3_Fig1_AFQTbyGroup.png...
+
+. * Use ERTA (1982) as primary exhibit — largest sample, clearest cut
+. capture confirm variable ptype_erta
+
+. if _rc == 0 {
+.     twoway ///
+>         (kdensity afqt if ptype_erta == 1 & !missing(afqt), ///
+>             lcolor(navy) lwidth(thick) lpattern(solid)) ///
+>         (kdensity afqt if ptype_erta == 2 & !missing(afqt), ///
+>             lcolor(maroon) lwidth(medium) lpattern(dash)) ///
+>         (kdensity afqt if ptype_erta == 3 & !missing(afqt), ///
+>             lcolor(dkgreen) lwidth(medium) lpattern(dot)), ///
+>         title("AFQT Distribution by Labor Force Status" ///
+>               "ERTA 1981 Tax Reform (Pre: 1980, Post: 1982)", size(medium)) /
+> //
+>         subtitle("Advantageous selection predicts: Entrant AFQT > Stayer AFQT
+> ") ///
+>         xtitle("AFQT Percentile") ytitle("Density") ///
+>         legend(order(1 "Entrants" 2 "Stayers" 3 "Exiters") pos(1) ring(0) row
+> s(3)) ///
+>         note("AFQT administered 1980 — pre-market, exogenous to reform." ///
+>              "Entrant = non-working 1980, working 1982.")
+.     graph export "${outdir}\Phase3_Fig1_AFQTbyGroup.png", replace width(1400)
+file D:\Stata Data\labor_signaling_project\output\Phase3_Fig1_AFQTbyGroup.png
+    saved as PNG format
+. }
+
+. 
+. *--- Figure 2: AFQT gap (Entrant − Stayer) across reforms ---
+. di "Saving Phase3_Fig2_SelectionPattern.png..."
+Saving Phase3_Fig2_SelectionPattern.png...
+
+. preserve
+
+. clear
+
+. set obs 5
+Number of observations (_N) was 0, now 5.
+
+. gen reform = ""
+(5 missing values generated)
+
+. replace reform = "ERTA" in 1
+variable reform was str1 now str4
+(1 real change made)
+
+. replace reform = "TRA" in 2
+(1 real change made)
+
+. replace reform = "EGTRRA" in 3
+variable reform was str4 now str6
+(1 real change made)
+
+. replace reform = "JGTRRA" in 4
+(1 real change made)
+
+. replace reform = "TCJA" in 5
+(1 real change made)
+
+. gen reform_n = _n
+
+. gen afqt_gap = .
+(5 missing values generated)
+
+. gen type_cut = 1
+
+. replace type_cut = 0 in 2  // TRA is mixed
+(1 real change made)
+
+. 
+. local i = 0
+
+. foreach r of local reform_list {
+  2.     local i = `i' + 1
+  3.     * We can't recover the gaps computed earlier after reshaping
+.     * So just create placeholder — user should fill from log output
+.     replace afqt_gap = . in `i'
+  4. }
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. * Note: after running, user should manually enter the gap values from Part 2 
+> output
+. * into Phase3_Table1_SelectionTest.rtf
+. di ""
+
+
+. di "NOTE: Phase3_Fig2 requires manual entry of AFQT gaps from Part 2 output."
+NOTE: Phase3_Fig2 requires manual entry of AFQT gaps from Part 2 output.
+
+. di "      See Advantageous_Selection_log.txt for values."
+      See Advantageous_Selection_log.txt for values.
+
+. di "      Rerun after Phase 3 to auto-populate."
+      Rerun after Phase 3 to auto-populate.
+
+. restore
+
+. 
+. /*===========================================================================
+> ===
+> PART 7: SCRUTINY SUMMARY
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 7: SCRUTINY SUMMARY AND STEERING DECISION"
+PART 7: SCRUTINY SUMMARY AND STEERING DECISION
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "WHAT TO LOOK FOR IN THE LOG:"
+WHAT TO LOOK FOR IN THE LOG:
+
+. di ""
+
+
+. di "1. PRIMARY TEST (ERTA 1982, EGTRRA 2002, JGTRRA 2004, TCJA 2018):"
+1. PRIMARY TEST (ERTA 1982, EGTRRA 2002, JGTRRA 2004, TCJA 2018):
+
+. di "   - Are mean AFQT scores of Entrants > Stayers?"
+   - Are mean AFQT scores of Entrants > Stayers?
+
+. di "   - Is the gap statistically significant?"
+   - Is the gap statistically significant?
+
+. di "   - Is it economically meaningful (>3 percentile point gap)?"
+   - Is it economically meaningful (>3 percentile point gap)?
+
+. di ""
+
+
+. di "2. AGE CONTROL CHECK (Part 3):"
+2. AGE CONTROL CHECK (Part 3):
+
+. di "   - Does the β(Entrant) coefficient survive age controls?"
+   - Does the β(Entrant) coefficient survive age controls?
+
+. di "   - If not: the 'advantageous selection' is just young high-ability work
+> ers"
+   - If not: the 'advantageous selection' is just young high-ability workers
+
+. di "     entering naturally (life cycle, not reform-induced)"
+     entering naturally (life cycle, not reform-induced)
+
+. di ""
+
+
+. di "3. PLACEBO TEST (Part 4):"
+3. PLACEBO TEST (Part 4):
+
+. di "   - Are β(Entrant) coefficients in non-reform years near zero?"
+   - Are β(Entrant) coefficients in non-reform years near zero?
+
+. di "   - If non-reform years also show selection, identification is suspect"
+   - If non-reform years also show selection, identification is suspect
+
+. di "   - Should be: |β_placebo| << |β_reform|"
+   - Should be: |β_placebo| << |β_reform|
+
+. di ""
+
+
+. di "4. INTERACTION TEST (Part 5):"
+4. INTERACTION TEST (Part 5):
+
+. di "   - Does β(AFQT × ΔlogNTR) > 0?"
+   - Does β(AFQT × ΔlogNTR) > 0?
+
+. di "   - This is the most demanding test and cleanest causal identification"
+   - This is the most demanding test and cleanest causal identification
+
+. di ""
+
+
+. di "STEERING DECISION FOR SUBSEQUENT PHASES:"
+STEERING DECISION FOR SUBSEQUENT PHASES:
+
+. di ""
+
+
+. di "IF advantageous selection confirmed (Parts 2-3 positive, Part 4 flat):"
+IF advantageous selection confirmed (Parts 2-3 positive, Part 4 flat):
+
+. di "  → Strong support for signaling externality interpretation of χ < 1"
+  → Strong support for signaling externality interpretation of χ < 1
+
+. di "  → Proceed to Phase 2 with confidence that labor wedge is Pigouvian"
+  → Proceed to Phase 2 with confidence that labor wedge is Pigouvian
+
+. di ""
+
+
+. di "IF selection NOT confirmed but Phase 1 γ pattern holds:"
+IF selection NOT confirmed but Phase 1 γ pattern holds:
+
+. di "  → Reframe: γ may reflect human capital; χ < 1 may reflect monopsony"
+  → Reframe: γ may reflect human capital; χ < 1 may reflect monopsony
+
+. di "  → Check: is the OLS-FE gap in Phase 1 large? If yes, selection is there
+> "
+  → Check: is the OLS-FE gap in Phase 1 large? If yes, selection is there
+
+. di "            but AFQT doesn't capture it (AFQT ≠ v(θ) in this sample)"
+            but AFQT doesn't capture it (AFQT ≠ v(θ) in this sample)
+
+. di ""
+
+
+. di "IF NEITHER holds:"
+IF NEITHER holds:
+
+. di "  → Escalate to Prof. Sztutman; possible data or model mismatch"
+  → Escalate to Prof. Sztutman; possible data or model mismatch
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "OUTPUT FILES CREATED"
+OUTPUT FILES CREATED
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Tables (${outdir}):"
+Tables (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Phase3_Table1_SelectionTest.rtf     : AFQT by participation type"
+  Phase3_Table1_SelectionTest.rtf     : AFQT by participation type
+
+. di "  (AFQT interaction regression: see log)"
+  (AFQT interaction regression: see log)
+
+. di ""
+
+
+. di "Figures (${outdir}):"
+Figures (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Phase3_Fig1_AFQTbyGroup.png         : AFQT densities by group (ERTA)"
+  Phase3_Fig1_AFQTbyGroup.png         : AFQT densities by group (ERTA)
+
+. di ""
+
+
+. di "Log (${outdir}):"
+Log (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Advantageous_Selection_log.txt"
+  Advantageous_Selection_log.txt
+
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PHASE 3 COMPLETE"
+PHASE 3 COMPLETE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "End time: $S_DATE $S_TIME"
+End time: 10 Apr 2026 18:22:37
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\Advantageous_Selectio
+> n_log.txt
+  log type:  text
+ closed on:  10 Apr 2026, 18:22:37
+-------------------------------------------------------------------------------

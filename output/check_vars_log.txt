@@ -1,0 +1,41 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\check_vars_log.txt
+  log type:  text
+ opened on:   9 Mar 2026, 22:36:18
+
+. 
+. use "${datadir}\analysis_annual.dta", clear
+
+. di "Annual dataset vars:"
+Annual dataset vars:
+
+. describe, short
+
+Contains data from D:\Stata Data\labor_signaling_project\data\analysis_annual.d
+> ta
+ Observations:        31,832                  
+    Variables:            88                  24 Feb 2026 02:42
+Sorted by: taxsimid  year_t
+
+. di ""
+
+
+. di "Variable names containing 'year':"
+Variable names containing 'year':
+
+. ds *year*
+year_t   year_t3
+
+. di ""
+
+
+. di "Variable names containing 'broad' or 'income_group':"
+Variable names containing 'broad' or 'income_group':
+
+. ds *broad* *income_group*
+variable *income_group* not found
+r(111);
+
+end of do-file
+r(111);

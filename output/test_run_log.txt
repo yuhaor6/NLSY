@@ -1,0 +1,48 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\test_run_log.txt
+  log type:  text
+ opened on:  11 Mar 2026, 01:16:14
+
+. di "Stata is running"
+Stata is running
+
+. di "Working directory: " c(pwd)
+Working directory: D:\Stata Data\labor_signaling_project\data
+
+. use "nlsy_long_pre_taxsim.dta", clear
+
+. di "Observations: " _N
+Observations: 583556
+
+. describe hrs pwages
+
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+-------------------------------------------------------------------------------
+hrs             int     %8.0g                 
+pwages          long    %12.0g                
+
+. summarize hrs if hrs > 0 & year >= 1979 & year <= 1993, detail
+
+                             hrs
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%           48              1
+ 5%          210              2
+10%          408              2       Obs             126,666
+25%         1000              2       Sum of wgt.     126,666
+
+50%         1890                      Mean           1656.248
+                        Largest       Std. dev.      834.8546
+75%         2112           5933
+90%         2572           5980       Variance       696982.3
+95%         2900           6240       Skewness      -.0513652
+99%         3680           7852       Kurtosis       2.855217
+
+. log close
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\test_run_log.txt
+  log type:  text
+ closed on:  11 Mar 2026, 01:16:15
+-------------------------------------------------------------------------------

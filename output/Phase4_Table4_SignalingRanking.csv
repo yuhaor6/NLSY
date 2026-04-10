@@ -1,0 +1,10 @@
+occ_n,gamma_v,ap_v,occ_label,rank,signal_theory
+3,1.2353243,.010483444,Sales,1,Medium
+4,1.0767059,.0074943947,Clerical,2,Medium
+1,1.0495428,.0012509447,Professional/Tech,3,High (pred)
+9,.96770173,.0069653299,Service Workers,4,Medium
+7,.93657851,.013160233,Laborers,5,Low  (pred)
+6,.87833971,.0095683606,Operatives,6,Medium
+2,.86690092,.0096620424,Managers/Admin,7,High (pred)
+5,.71627599,.0083671268,Craftsmen,8,Medium
+8,.46961194,.0065495572,Farm Workers,9,Low  (pred)

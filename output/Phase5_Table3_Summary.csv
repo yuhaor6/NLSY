@@ -1,0 +1,9 @@
+method,estimate,lower,upper,notes
+Phase 1: Pareto (ETI annual),11.439616,8.0077314,14.8715,
+Phase 1: Pareto (ETI biennial),21.365774,14.956042,27.775505,
+Phase 1: Pareto (ETI average),16.402695,11.481886,21.323503,Primary estimate
+Phase 2: Direct χ (prelim),16.402695,11.481886,21.323503,Placeholder — needs full η^P_r
+Sensitivity: α=1.5,37.712498,26.398748,49.026245,Robustness
+Sensitivity: α=2.5,22.627499,15.839249,29.415747,Robustness
+Sensitivity: α=3.0,18.856249,13.199374,24.513123,Robustness
+Literature comparison (Sztutman),,,,HRS-based estimate from paper

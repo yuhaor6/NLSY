@@ -1,0 +1,1170 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\Pigouvian_Tax_log.txt
+  log type:  text
+ opened on:  10 Apr 2026, 18:27:38
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PIGOUVIAN TAX QUANTIFICATION (PHASE 5)"
+PIGOUVIAN TAX QUANTIFICATION (PHASE 5)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "τ_p(y) = 1 − χ(y)   |   Pareto case: τ_p = δ/α"
+τ_p(y) = 1 − χ(y)   |   Pareto case: τ_p = δ/α
+
+. di "Cross-phase consistency: δ from γ vs. δ from τ_p × α"
+Cross-phase consistency: δ from γ vs. δ from τ_p × α
+
+. di "Start time: $S_DATE $S_TIME"
+Start time: 10 Apr 2026 18:27:38
+
+. di ""
+
+
+. 
+. /*===========================================================================
+> ===
+> PART 0: VERIFY PHASE 1-4 OUTPUTS EXIST
+> =============================================================================
+> =*/
+. 
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 0: VERIFY PREREQUISITE OUTPUTS"
+PART 0: VERIFY PREREQUISITE OUTPUTS
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. 
+. local prereqs_ok = 1
+
+. 
+. capture confirm file "${outdir}\Phase1_Table3_Structural.csv"
+
+. if _rc == 0 {
+.     di "FOUND: Phase1_Table3_Structural.csv (δ from Phase 1)"
+FOUND: Phase1_Table3_Structural.csv (δ from Phase 1)
+.     global phase1_ready = 1
+. }
+
+. else {
+.     di "MISSING: Phase1_Table3_Structural.csv"
+.     di "  Run Structural_Wage_Experience.do (Phase 1) first."
+.     global phase1_ready = 0
+.     local prereqs_ok = 0
+. }
+
+. 
+. capture confirm file "${outdir}\Phase2_Table4_Pigouvian.csv"
+
+. if _rc == 0 {
+.     di "FOUND: Phase2_Table4_Pigouvian.csv (χ from Phase 2)"
+FOUND: Phase2_Table4_Pigouvian.csv (χ from Phase 2)
+.     global phase2_ready = 1
+. }
+
+. else {
+.     di "MISSING: Phase2_Table4_Pigouvian.csv"
+.     di "  Run Labor_Wedge_Estimation.do (Phase 2) first."
+.     global phase2_ready = 0
+.     local prereqs_ok = 0
+. }
+
+. 
+. capture confirm file "${outdir}\two_period_summary.dta"
+
+. if _rc == 0 {
+.     global eti_ready = 1
+. }
+
+. else {
+.     global eti_ready = 0
+. }
+
+. 
+. if `prereqs_ok' == 0 {
+.     di ""
+.     di "One or more prerequisite outputs missing."
+.     di "This file will run with available inputs and note gaps."
+.     di "For full results, run Phases 1-4 first."
+. }
+
+. 
+. di ""
+
+
+. 
+. /*===========================================================================
+> ===
+> PART 1: COLLECT ESTIMATES FROM PRIOR PHASES
+> =============================================================================
+> =*/
+. 
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 1: COLLECT CROSS-PHASE ESTIMATES"
+PART 1: COLLECT CROSS-PHASE ESTIMATES
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. 
+. *--- From Phase 1: γ_FE, δ estimates ---
+. if $phase1_ready == 1 {
+.     import delimited using "${outdir}\Phase1_Table3_Structural.csv", clear
+(encoding automatically selected: ISO-8859-1)
+(4 vars, 4 obs)
+. 
+.     di "Phase 1 structural estimates:"
+Phase 1 structural estimates:
+.     list, clean noobs
+
+           description      value         se    eti_used  
+         gamma_FE_full   .9131034   .0100229           .  
+      delta_annual_ETI   .3945234          .   -.1734079  
+    delta_biennial_ETI   .7368515          .    .5438264  
+        delta_midpoint   .5656875          .           .  
+. 
+.     * Extract key scalars
+.     qui sum value if description == "gamma_FE_full"
+.     global gamma_fe = r(mean)
+. 
+.     qui sum value if description == "delta_midpoint"
+.     global delta_p1 = r(mean)
+. 
+.     di ""
+
+.     di "  γ_FE (full career):      " %7.4f $gamma_fe
+  γ_FE (full career):       0.9131
+.     di "  δ (Phase 1 estimate):    " %7.4f $delta_p1
+  δ (Phase 1 estimate):     0.5657
+. }
+
+. else {
+.     di "Phase 1 not available. Using placeholder values."
+.     global gamma_fe = 0.15    // placeholder
+.     global delta_p1 = 0.10    // placeholder
+.     di "  [PLACEHOLDER] γ_FE = " $gamma_fe "  δ = " $delta_p1
+. }
+
+. 
+. *--- From Phase 2: χ(y) and τ_p(y) by decile ---
+. if $phase2_ready == 1 {
+.     import delimited using "${outdir}\Phase2_Table4_Pigouvian.csv", clear
+(encoding automatically selected: ISO-8859-9)
+(4 vars, 10 obs)
+. 
+.     di ""
+
+.     di "Phase 2 Pigouvian tax estimates (preliminary):"
+Phase 2 Pigouvian tax estimates (preliminary):
+.     list, clean noobs
+
+    decile       eps_w   chi_app~x       tau_p  
+         1    .0679378   -5.080706    6.080706  
+         2    .2467964   -21.08926    22.08926  
+         3   -.2807679    26.12984   -25.12984  
+         4    .6187637   -54.38181    55.38181  
+         5   -.4338877    39.83467   -38.83467  
+         6   -2.451737    220.4402   -219.4402  
+         7    -.068982    7.174161   -6.174161  
+         8   -.3360813    31.08061   -30.08061  
+         9   -.0210954    2.888118   -1.888118  
+        10   -.5233969     47.8461    -46.8461  
+. 
+.     * If chi_approx is missing (Phase 2 placeholder), note this
+.     qui count if missing(chi_approx)
+.     if r(N) > 0 {
+.         di "NOTE: Some χ estimates are missing — Phase 2 needs full η^P_r"
+.     }
+. }
+
+. 
+. *--- From Two_Period_Analysis: ETI ---
+. if $eti_ready == 1 {
+.     use "${outdir}\two_period_summary.dta", clear
+.     qui sum ETI if strpos(period, "Annual") > 0
+.     global eti_annual  = r(mean)
+.     qui sum ETI if strpos(period, "Biennial") > 0
+.     global eti_biennial = r(mean)
+.     di ""
+
+.     di "ETI estimates:"
+ETI estimates:
+.     di "  Annual:   " %7.4f $eti_annual
+  Annual:   -0.1734
+.     di "  Biennial: " %7.4f $eti_biennial
+  Biennial:  0.5438
+.     di "  Average:  " %7.4f ($eti_annual + $eti_biennial)/2
+  Average:   0.1852
+.     global eti_avg = ($eti_annual + $eti_biennial) / 2
+. }
+
+. else {
+.     global eti_annual   = 0.4
+.     global eti_biennial = 0.3
+.     global eti_avg      = 0.35
+.     di "ETI: using literature midpoints (0.3-0.4) as placeholders"
+. }
+
+. 
+. di ""
+
+
+. 
+. /*===========================================================================
+> ===
+> PART 2: PARETO TAIL PARAMETER α
+> =============================================================================
+> ===
+> Estimate the Pareto tail index from the top of the wage distribution.
+> Method: Log-rank regression on the top 20% of income in the analysis sample.
+>   log(1 − F(w)) = c − α·log(w)   ←   slope = −α (Pareto tail parameter)
+> Alternatively: use Hill estimator.
+> =============================================================================
+> =*/
+. 
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 2: PARETO TAIL PARAMETER α"
+PART 2: PARETO TAIL PARAMETER α
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Method: Log-rank regression on top 20% of income distribution"
+Method: Log-rank regression on top 20% of income distribution
+
+. di "  log(1 − F(w)) = c − α·log(w)    → slope gives α"
+  log(1 − F(w)) = c − α·log(w)    → slope gives α
+
+. di ""
+
+
+. 
+. capture confirm file "${datadir}\analysis_annual.dta"
+
+. if _rc == 0 {
+.     use "${datadir}\analysis_annual.dta", clear
+. 
+.     * Work with broad income at baseline
+.     * Keep top 20% (top 2 deciles) for Pareto tail estimation
+.     quietly _pctile log_income_t, p(80)
+.     local p80 = r(r1)
+. 
+.     keep if log_income_t >= `p80' & !missing(log_income_t)
+(25,712 observations deleted)
+.     sort log_income_t
+.     gen rank_n = _n
+.     gen total_n = _N
+.     gen log_rank = ln(1 - (rank_n - 0.5) / total_n)
+. 
+.     di "Pareto tail sample: top 20% of annual income distribution"
+Pareto tail sample: top 20% of annual income distribution
+.     di "N = " _N " observations in tail"
+N = 6120 observations in tail
+. 
+.     reg log_rank log_income_t, robust
+
+Linear regression                               Number of obs     =      6,120
+                                                F(1, 6118)        =   38064.46
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.9866
+                                                Root MSE          =     .11569
+
+------------------------------------------------------------------------------
+             |               Robust
+    log_rank | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_income_t |  -3.448747   .0176767  -195.10   0.000      -3.4834   -3.414095
+       _cons |   35.28312   .1846956   191.03   0.000     34.92105    35.64519
+------------------------------------------------------------------------------
+.     scalar alpha_est = abs(_b[log_income_t])
+.     scalar alpha_se  = _se[log_income_t]
+.     scalar alpha_r2  = e(r2)
+. 
+.     di ""
+
+.     di "Pareto tail fit:"
+Pareto tail fit:
+.     di "  α = " %7.4f alpha_est "  SE = " %6.4f alpha_se
+  α =  3.4487  SE = 0.0177
+.     di "  R² = " %6.4f alpha_r2
+  R² = 0.9866
+.     di ""
+
+. 
+.     if alpha_r2 < 0.85 {
+.         di "CAUTION: Low R² — Pareto fit may be poor"
+.         di "  The income distribution in NLSY may not follow a clean Pareto t
+> ail"
+.         di "  Alternative: use percentile-based τ_p without structural Pareto
+> "
+.     }
+.     else {
+.         di "GOOD: R² suggests reasonable Pareto fit"
+GOOD: R² suggests reasonable Pareto fit
+.     }
+. 
+.     * Typical range: α ∈ [1.5, 3.5] for US earnings
+.     if alpha_est < 1 | alpha_est > 5 {
+.         di as error "SCRUTINY: α = " %6.3f alpha_est " is outside typical ran
+> ge [1, 5]"
+.         di as error "  Check: (1) income variable is correct (not log income 
+> by mistake)"
+.         di as error "         (2) sufficient top-income variation in annual s
+> ample"
+.     }
+.     else {
+.         di "GOOD: α ∈ typical range for US earnings distribution"
+GOOD: α ∈ typical range for US earnings distribution
+.         di "  For reference: US top income shares → α ≈ 1.5-2.5 typically"
+  For reference: US top income shares → α ≈ 1.5-2.5 typically
+.     }
+. 
+.     global alpha_pareto = alpha_est
+. 
+. }
+
+. else {
+.     di "analysis_annual.dta not available. Using literature α = 2.0 as placeh
+> older."
+.     global alpha_pareto = 2.0
+.     di "  [PLACEHOLDER] α = " $alpha_pareto
+. }
+
+. 
+. /*===========================================================================
+> ===
+> PART 3: PIGOUVIAN TAX COMPUTATION
+> =============================================================================
+> ===
+> Combining Phase 1 (δ) and Phase 2 (ε^w_r) estimates:
+> 
+>   Method A (Pareto structural):
+>     τ_p = δ / α
+>     where δ = γ(1+ε)/(1+γ) from Phase 1
+>           α = Pareto tail from Part 2
+> 
+>   Method B (Direct from χ):
+>     τ_p(y) = 1 − χ(y) = −ε^w_r(y) / η^P_r
+>     From Phase 2 (preliminary, needs full η^P_r)
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 3: PIGOUVIAN TAX COMPUTATION"
+PART 3: PIGOUVIAN TAX COMPUTATION
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. 
+. *--- Method A: Pareto structural ---
+. local tau_p_a = $delta_p1 / $alpha_pareto
+
+. 
+. di "METHOD A — Pareto Structural: τ_p = δ / α"
+METHOD A — Pareto Structural: τ_p = δ / α
+
+. di "  δ = " %6.4f $delta_p1 "  α = " %6.4f $alpha_pareto
+  δ = 0.5657  α = 3.4487
+
+. di "  τ_p (Pareto) = " %7.4f `tau_p_a'
+  τ_p (Pareto) =  0.1640
+
+. di ""
+
+
+. 
+. if `tau_p_a' < 0 {
+.     di as error "SCRUTINY FAILURE: τ_p < 0 from Method A"
+.     di as error "  δ or α is misestimated. Check Phase 1 δ value."
+. }
+
+. else if `tau_p_a' > 0.5 {
+.     di "NOTE: τ_p > 50% is large. Compare to Sztutman's HRS estimates for ben
+> chmark."
+. }
+
+. else if `tau_p_a' > 0 {
+.     di "RESULT: Optimal Pigouvian correction ≈ " %4.1f `tau_p_a'*100 " percen
+> tage points"
+RESULT: Optimal Pigouvian correction ≈ 16.4 percentage points
+.     di "  Interpretation: The signaling externality warrants a Pigouvian tax 
+> of"
+  Interpretation: The signaling externality warrants a Pigouvian tax of
+.     di "  approximately " %4.1f `tau_p_a'*100 "pp on top of the Mirrleesian o
+> ptimal tax."
+  approximately 16.4pp on top of the Mirrleesian optimal tax.
+. }
+
+. 
+. *--- Method A: Sensitivity to δ and α ---
+. di ""
+
+
+. di "3.1 SENSITIVITY TABLE: τ_p = δ/α"
+3.1 SENSITIVITY TABLE: τ_p = δ/α
+
+. di "---------------------------------"
+---------------------------------
+
+. di "        α=1.5    α=2.0    α=2.5    α=3.0"
+        α=1.5    α=2.0    α=2.5    α=3.0
+
+. foreach d_val in 0.05 0.10 0.15 0.20 0.25 0.30 {
+  2.     di "δ=" %4.2f `d_val' ":  " ///
+>        %7.4f `d_val'/1.5 "  " ///
+>        %7.4f `d_val'/2.0 "  " ///
+>        %7.4f `d_val'/2.5 "  " ///
+>        %7.4f `d_val'/3.0
+  3. }
+δ=0.05:   0.0333   0.0250   0.0200   0.0167
+δ=0.10:   0.0667   0.0500   0.0400   0.0333
+δ=0.15:   0.1000   0.0750   0.0600   0.0500
+δ=0.20:   0.1333   0.1000   0.0800   0.0667
+δ=0.25:   0.1667   0.1250   0.1000   0.0833
+δ=0.30:   0.2000   0.1500   0.1200   0.1000
+
+. 
+. *--- ETI-range sensitivity ---
+. di ""
+
+
+. di "3.2 SENSITIVITY OF δ TO ETI (at γ_FE = " %5.3f $gamma_fe ")"
+3.2 SENSITIVITY OF δ TO ETI (at γ_FE = 0.913)
+
+. di "------------------------------------------"
+------------------------------------------
+
+. di "  ε (ETI)    δ_implied    τ_p (at α=" %4.2f $alpha_pareto ")"
+  ε (ETI)    δ_implied    τ_p (at α=3.45)
+
+. foreach e_val in 0.20 0.30 0.40 0.50 0.60 {
+  2.     local d_e = $gamma_fe * (1 + `e_val') / (1 + $gamma_fe)
+  3.     local t_e = `d_e' / $alpha_pareto
+  4.     di "  " %6.2f `e_val' "      " %7.4f `d_e' "      " %7.4f `t_e'
+  5. }
+    0.20       0.5727       0.1661
+    0.30       0.6205       0.1799
+    0.40       0.6682       0.1938
+    0.50       0.7159       0.2076
+    0.60       0.7637       0.2214
+
+. 
+. /*===========================================================================
+> ===
+> PART 4: DYNAMIC PIGOUVIAN TAX BY CAREER STAGE
+> =============================================================================
+> ===
+> If Phase 1 rejects constant γ (i.e., the Wald test is significant),
+> then τ_p is history-dependent. We compute τ_p for each career stage.
+> 
+>   τ_p(career stage s) = δ_s / α
+>   where δ_s = γ_s(1 + ε) / (1 + γ_s) from Phase 1 career-stage estimates
+> 
+> Key predictions:
+>   - τ_p_early > τ_p_late: larger distortion early in career
+>     (employer uncertainty greatest → largest positive externality)
+>   - Convergence: τ_p → 0 as career progresses (employer learning completes)
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 4: DYNAMIC PIGOUVIAN TAX BY CAREER STAGE"
+PART 4: DYNAMIC PIGOUVIAN TAX BY CAREER STAGE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "NOTE: Career-stage γ values required from Phase 1 log output."
+NOTE: Career-stage γ values required from Phase 1 log output.
+
+. di "      Update scalars g1-g5 below with Phase 1 results before final run."
+      Update scalars g1-g5 below with Phase 1 results before final run.
+
+. di ""
+
+
+. di "Placeholder: Using full-career γ as constant for all stages."
+Placeholder: Using full-career γ as constant for all stages.
+
+. di "Update after running Phase 1 and reading γ by career quintile."
+Update after running Phase 1 and reading γ by career quintile.
+
+. di ""
+
+
+. 
+. * INSTRUCTION: After running Phase 1, replace these placeholders:
+. * Read career-stage γ values from Structural_Wage_Experience_log.txt
+. * and update these scalars:
+. *   scalar g1 = [Q1 γ from Phase 1 log]
+. *   scalar g2 = [Q2 γ from Phase 1 log]
+. *   scalar g3 = [Q3 γ from Phase 1 log]
+. *   scalar g4 = [Q4 γ from Phase 1 log]
+. *   scalar g5 = [Q5 γ from Phase 1 log]
+. 
+. * For now: placeholder from full-career estimate
+. scalar g1 = $gamma_fe * 1.2   // Hypothetical: 20% higher early career
+
+. scalar g2 = $gamma_fe * 1.1
+
+. scalar g3 = $gamma_fe
+
+. scalar g4 = $gamma_fe * 0.9
+
+. scalar g5 = $gamma_fe * 0.8   // 20% lower late career
+
+. 
+. di "Dynamic τ_p by career stage (PLACEHOLDER — update with Phase 1 results):"
+Dynamic τ_p by career stage (PLACEHOLDER — update with Phase 1 results):
+
+. di ""
+
+
+. di "Stage  γ_FE     δ_implied  τ_p       Interpretation"
+Stage  γ_FE     δ_implied  τ_p       Interpretation
+
+. di "------ -------- ---------- --------- ---------------"
+------ -------- ---------- --------- ---------------
+
+. 
+. forvalues q = 1/5 {
+  2.     local gq = g`q'
+  3.     local dq = `gq' * (1 + $eti_avg) / (1 + `gq')
+  4.     local tq = `dq' / $alpha_pareto
+  5. 
+.     local interp = "Moderate distortion"
+  6.     if `tq' > `tau_p_a' * 1.2 local interp = "ABOVE average — higher Pigou
+> vian needed"
+  7.     if `tq' < `tau_p_a' * 0.8 local interp = "Below average — lower Pigouv
+> ian"
+  8. 
+.     di "  Q`q'    " %7.4f `gq' "   " %7.4f `dq' "   " %7.4f `tq' ///
+>        "   `interp'"
+  9. }
+  Q1     1.0957    0.6197    0.1797   Moderate distortion
+  Q2     1.0044    0.5939    0.1722   Moderate distortion
+  Q3     0.9131    0.5657    0.1640   Moderate distortion
+  Q4     0.8218    0.5346    0.1550   Moderate distortion
+  Q5     0.7305    0.5003    0.1451   Moderate distortion
+
+. 
+. di ""
+
+
+. di "[PLACEHOLDER NOTE]"
+[PLACEHOLDER NOTE]
+
+. di "Replace g1-g5 scalars above with actual Phase 1 career-stage γ estimates.
+> "
+Replace g1-g5 scalars above with actual Phase 1 career-stage γ estimates.
+
+. di "Then this table will show the true dynamic Pigouvian tax profile."
+Then this table will show the true dynamic Pigouvian tax profile.
+
+. 
+. /*===========================================================================
+> ===
+> PART 5: CROSS-PHASE CONSISTENCY CHECK (CRITICAL SCRUTINY)
+> =============================================================================
+> ===
+> The most important diagnostic: are the two independent δ estimates consistent
+> ?
+> 
+>   δ_1 from Phase 1:  δ_1 = γ_FE × (1 + ETI) / (1 + γ_FE)
+>   δ_2 from Phase 2:  δ_2 = τ_p × α = (1 − χ) × α
+> 
+>   If |δ_1 − δ_2| > 0.05: model is internally inconsistent; investigate before
+>  citing
+> 
+>   This test is the "smoking gun" for whether the model is coherent:
+>   - If consistent: both the structural approach (Phase 1) and the reduced-for
+> m
+>     approach (Phase 2) point to the same information asymmetry δ
+>   - If inconsistent: one of the identifying assumptions is violated
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 5: CROSS-PHASE CONSISTENCY CHECK"
+PART 5: CROSS-PHASE CONSISTENCY CHECK
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "δ_1 (Phase 1, structural): " %7.4f $delta_p1
+δ_1 (Phase 1, structural):  0.5657
+
+. di "  From: δ = γ_FE(1 + ε)/(1 + γ_FE)"
+  From: δ = γ_FE(1 + ε)/(1 + γ_FE)
+
+. di ""
+
+
+. di "δ_2 (Phase 2 + α): τ_p × α"
+δ_2 (Phase 2 + α): τ_p × α
+
+. di "  τ_p (Phase 2 preliminary): " %7.4f `tau_p_a' " [currently = δ/α from Ph
+> ase 1]"
+  τ_p (Phase 2 preliminary):  0.1640 [currently = δ/α from Phase 1]
+
+. di "  α (Pareto): " %7.4f $alpha_pareto
+  α (Pareto):  3.4487
+
+. di "  δ_2 = τ_p × α = " %7.4f `tau_p_a' * $alpha_pareto
+  δ_2 = τ_p × α =  0.5657
+
+. di ""
+
+
+. di "NOTE: When Phase 2 has full η^P_r and proper χ(y), compute:"
+NOTE: When Phase 2 has full η^P_r and proper χ(y), compute:
+
+. di "  δ_2_proper = (1 − χ_full) × α"
+  δ_2_proper = (1 − χ_full) × α
+
+. di "  and compare with δ_1 from Phase 1."
+  and compare with δ_1 from Phase 1.
+
+. di ""
+
+
+. di "CONSISTENCY INTERPRETATION (from literature):"
+CONSISTENCY INTERPRETATION (from literature):
+
+. di "  |δ_1 − δ_2| < 0.02: Excellent fit — model is internally consistent"
+  |δ_1 − δ_2| < 0.02: Excellent fit — model is internally consistent
+
+. di "  |δ_1 − δ_2| ∈ [0.02, 0.05]: Acceptable — minor identification issues"
+  |δ_1 − δ_2| ∈ [0.02, 0.05]: Acceptable — minor identification issues
+
+. di "  |δ_1 − δ_2| > 0.05: Investigate — likely model misfit or biased estimat
+> or"
+  |δ_1 − δ_2| > 0.05: Investigate — likely model misfit or biased estimator
+
+. di ""
+
+
+. di "COMMON CAUSES OF INCONSISTENCY:"
+COMMON CAUSES OF INCONSISTENCY:
+
+. di "  1. ETI ≠ labor supply ε: ETI includes avoidance/evasion; ε is pure supp
+> ly"
+  1. ETI ≠ labor supply ε: ETI includes avoidance/evasion; ε is pure supply
+
+. di "     → Fix: use intensive-margin-only ETI (controlling for income shiftin
+> g)"
+     → Fix: use intensive-margin-only ETI (controlling for income shifting)
+
+. di "  2. Pareto assumption fails: Income distribution is not Pareto at top"
+  2. Pareto assumption fails: Income distribution is not Pareto at top
+
+. di "     → Fix: use non-parametric τ_p(y) from Phase 2 without Pareto"
+     → Fix: use non-parametric τ_p(y) from Phase 2 without Pareto
+
+. di "  3. χ is biased: η^P_r approximation in Phase 2 is poor"
+  3. χ is biased: η^P_r approximation in Phase 2 is poor
+
+. di "     → Fix: expand TAXSIM sample to near-workers"
+     → Fix: expand TAXSIM sample to near-workers
+
+. di "  4. γ_FE is contaminated: cumhrs endogenous even within-person"
+  4. γ_FE is contaminated: cumhrs endogenous even within-person
+
+. di "     → Fix: instrument for cumhrs using past hours or reform-year variati
+> on"
+     → Fix: instrument for cumhrs using past hours or reform-year variation
+
+. 
+. /*===========================================================================
+> ===
+> PART 6: SUMMARY TABLE FOR PAPER
+> =============================================================================
+> ===
+> The final output to be included in the paper:
+> Main estimates of τ_p under different assumptions and methods.
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 6: SUMMARY TABLE"
+PART 6: SUMMARY TABLE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. clear
+
+. set obs 8
+Number of observations (_N) was 0, now 8.
+
+. gen method = ""
+(8 missing values generated)
+
+. gen estimate = .
+(8 missing values generated)
+
+. gen lower = .
+(8 missing values generated)
+
+. gen upper = .
+(8 missing values generated)
+
+. gen notes = ""
+(8 missing values generated)
+
+. 
+. replace method = "Phase 1: Pareto (ETI annual)"     in 1
+variable method was str1 now str28
+(1 real change made)
+
+. replace method = "Phase 1: Pareto (ETI biennial)"   in 2
+variable method was str28 now str30
+(1 real change made)
+
+. replace method = "Phase 1: Pareto (ETI average)"    in 3
+(1 real change made)
+
+. replace method = "Phase 2: Direct χ (prelim)"       in 4
+(1 real change made)
+
+. replace method = "Sensitivity: α=1.5"               in 5
+(1 real change made)
+
+. replace method = "Sensitivity: α=2.5"               in 6
+(1 real change made)
+
+. replace method = "Sensitivity: α=3.0"               in 7
+(1 real change made)
+
+. replace method = "Literature comparison (Sztutman)" in 8
+variable method was str30 now str32
+(1 real change made)
+
+. 
+. local delta_a = $gamma_fe * (1 + $eti_annual)  / (1 + $gamma_fe)
+
+. local delta_b = $gamma_fe * (1 + $eti_biennial) / (1 + $gamma_fe)
+
+. local delta_c = $gamma_fe * (1 + $eti_avg)      / (1 + $gamma_fe)
+
+. 
+. replace estimate = `delta_a' / $alpha_pareto   in 1
+(1 real change made)
+
+. replace estimate = `delta_b' / $alpha_pareto   in 2
+(1 real change made)
+
+. replace estimate = `delta_c' / $alpha_pareto   in 3
+(1 real change made)
+
+. replace estimate = `tau_p_a'                   in 4  // placeholder
+(1 real change made)
+
+. replace estimate = `delta_c' / 1.5            in 5
+(1 real change made)
+
+. replace estimate = `delta_c' / 2.5            in 6
+(1 real change made)
+
+. replace estimate = `delta_c' / 3.0            in 7
+(1 real change made)
+
+. replace estimate = .                           in 8   // fill from paper
+(0 real changes made)
+
+. 
+. * Rough confidence intervals (±30% of point estimate as placeholder)
+. replace lower = estimate * 0.7
+(7 real changes made)
+
+. replace upper = estimate * 1.3
+(7 real changes made)
+
+. 
+. replace notes = "Primary estimate" in 3
+variable notes was str1 now str16
+(1 real change made)
+
+. replace notes = "Placeholder — needs full η^P_r" in 4
+variable notes was str16 now str33
+(1 real change made)
+
+. replace notes = "Robustness" in 5
+(1 real change made)
+
+. replace notes = "Robustness" in 6
+(1 real change made)
+
+. replace notes = "Robustness" in 7
+(1 real change made)
+
+. replace notes = "HRS-based estimate from paper" in 8
+(1 real change made)
+
+. 
+. di ""
+
+
+. di "SUMMARY: Pigouvian Tax Estimates"
+SUMMARY: Pigouvian Tax Estimates
+
+. di "(Percent of income)"
+(Percent of income)
+
+. di ""
+
+
+. list method estimate lower upper notes, clean noobs
+
+                              method   estimate      lower      upper          
+>                   notes  
+        Phase 1: Pareto (ETI annual)   .1143962   .0800773    .148715          
+>                          
+      Phase 1: Pareto (ETI biennial)   .2136577   .1495604   .2777551          
+>                          
+       Phase 1: Pareto (ETI average)   .1640269   .1148189    .213235          
+>        Primary estimate  
+          Phase 2: Direct χ (prelim)   .1640269   .1148189    .213235   Placeho
+> lder — needs full η^P_r  
+                  Sensitivity: α=1.5    .377125   .2639875   .4902624          
+>              Robustness  
+                  Sensitivity: α=2.5    .226275   .1583925   .2941575          
+>              Robustness  
+                  Sensitivity: α=3.0   .1885625   .1319937   .2451312          
+>              Robustness  
+    Literature comparison (Sztutman)          .          .          .    HRS-ba
+> sed estimate from paper  
+
+. 
+. * Convert to percentage
+. replace estimate = estimate * 100
+(7 real changes made)
+
+. replace lower    = lower * 100
+(7 real changes made)
+
+. replace upper    = upper * 100
+(7 real changes made)
+
+. 
+. export delimited using "${outdir}\Phase5_Table3_Summary.csv", replace
+file D:\Stata Data\labor_signaling_project\output\Phase5_Table3_Summary.csv sav
+> ed
+
+. 
+. *--- Figure: τ_p profile ---
+. preserve
+
+. keep if !missing(estimate) & _n <= 7
+(1 observation deleted)
+
+. gen idx = _n
+
+. 
+. twoway ///
+>     (rcap upper lower idx, lcolor(navy) lwidth(medium)) ///
+>     (scatter estimate idx, msymbol(circle) mcolor(navy) msize(large)), ///
+>     title("Optimal Pigouvian Tax Correction" ///
+>           "Point Estimates and Uncertainty Ranges", size(medium)) ///
+>     subtitle("tau_p = 1 - chi(y) = delta/alpha (Pareto case)") ///
+>     ytitle("Pigouvian tax (% of income)") ///
+>     xtitle("") ///
+>     xlabel(1 "Ann ETI" 2 "Bien ETI" 3 "Avg ETI" ///
+>            4 "Direct chi" 5 "alpha=1.5" 6 "alpha=2.5" 7 "alpha=3.0", ///
+>            angle(30) labsize(small)) ///
+>     yline(0, lcolor(gs10) lpattern(dash)) ///
+>     legend(off) ///
+>     note("Ranges = +-30% interval (placeholder -- update with bootstrap SEs).
+> " ///
+>          "Phase 2 direct chi estimate requires expanded TAXSIM for eta^P_r.")
+
+. graph export "${outdir}\Phase5_Fig1_TauProfile.png", replace width(1400)
+file D:\Stata Data\labor_signaling_project\output\Phase5_Fig1_TauProfile.png
+    saved as PNG format
+
+. restore
+
+. 
+. /*===========================================================================
+> ===
+> PART 7: FINAL SCRUTINY AND RESEARCH READINESS ASSESSMENT
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PART 7: RESEARCH READINESS ASSESSMENT"
+PART 7: RESEARCH READINESS ASSESSMENT
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "STATUS OF EACH PHASE:"
+STATUS OF EACH PHASE:
+
+. di ""
+
+
+. 
+. * Phase 1
+. if $phase1_ready == 1 {
+.     di "  Phase 1 (Structural γ):    COMPLETE ✓"
+  Phase 1 (Structural γ):    COMPLETE ✓
+.     di "    Key result: γ_FE = " %6.4f $gamma_fe ", δ ≈ " %6.4f $delta_p1
+    Key result: γ_FE = 0.9131, δ ≈ 0.5657
+. }
+
+. else {
+.     di "  Phase 1 (Structural γ):    PENDING — Run Structural_Wage_Experience
+> .do"
+. }
+
+. 
+. * Phase 2
+. if $phase2_ready == 1 {
+.     di "  Phase 2 (Labor Wedge χ):   PRELIMINARY — needs full η^P_r"
+  Phase 2 (Labor Wedge χ):   PRELIMINARY — needs full η^P_r
+.     di "    Action: Expand Two_Period_Analysis.do to include near-workers"
+    Action: Expand Two_Period_Analysis.do to include near-workers
+. }
+
+. else {
+.     di "  Phase 2 (Labor Wedge χ):   PENDING — Run Labor_Wedge_Estimation.do"
+. }
+
+. 
+. di "  Phase 3 (AFQT Selection):   Check Advantageous_Selection_log.txt"
+  Phase 3 (AFQT Selection):   Check Advantageous_Selection_log.txt
+
+. di "  Phase 4 (Sector Hetero):    Check Sector_Heterogeneity_log.txt"
+  Phase 4 (Sector Hetero):    Check Sector_Heterogeneity_log.txt
+
+. di "  Phase 5 (Pigouvian τ_p):    PRELIMINARY (depends on Phases 1-2)"
+  Phase 5 (Pigouvian τ_p):    PRELIMINARY (depends on Phases 1-2)
+
+. di ""
+
+
+. di "WHAT IS NEEDED FOR A SUBMISSION-READY PAPER:"
+WHAT IS NEEDED FOR A SUBMISSION-READY PAPER:
+
+. di ""
+
+
+. di "  SHORT-RUN (can complete now):"
+  SHORT-RUN (can complete now):
+
+. di "  □ Run all 4 phases and check scrutiny checkpoints"
+  □ Run all 4 phases and check scrutiny checkpoints
+
+. di "  □ Update Phase 5 with actual career-stage γ from Phase 1"
+  □ Update Phase 5 with actual career-stage γ from Phase 1
+
+. di "  □ Verify AFQT selection test finds advantageous selection (Phase 3)"
+  □ Verify AFQT selection test finds advantageous selection (Phase 3)
+
+. di "  □ Check Pareto α and whether Pareto case is supported (Phase 1 Wald tes
+> t)"
+  □ Check Pareto α and whether Pareto case is supported (Phase 1 Wald test)
+
+. di ""
+
+
+. di "  MEDIUM-RUN (requires data work):"
+  MEDIUM-RUN (requires data work):
+
+. di "  □ Expand Two_Period_Analysis.do to near-workers (income $1K-$10K real)"
+  □ Expand Two_Period_Analysis.do to near-workers (income $1K-$10K real)
+
+. di "  □ Re-run TAXSIM on expanded sample"
+  □ Re-run TAXSIM on expanded sample
+
+. di "  □ Estimate full η^P_r by income decile and career stage"
+  □ Estimate full η^P_r by income decile and career stage
+
+. di "  □ Compute precise χ(y) and τ_p(y) from Phase 2"
+  □ Compute precise χ(y) and τ_p(y) from Phase 2
+
+. di ""
+
+
+. di "  FOR ROBUSTNESS (paper polish):"
+  FOR ROBUSTNESS (paper polish):
+
+. di "  □ Bootstrap standard errors for τ_p (Phase 5 confidence intervals)"
+  □ Bootstrap standard errors for τ_p (Phase 5 confidence intervals)
+
+. di "  □ Cross-phase consistency check (δ_1 vs δ_2) once Phase 2 is complete"
+  □ Cross-phase consistency check (δ_1 vs δ_2) once Phase 2 is complete
+
+. di "  □ Sector-specific τ_p from Phase 4 findings"
+  □ Sector-specific τ_p from Phase 4 findings
+
+. di "  □ Comparison with Sztutman HRS estimates (own code vs literature)"
+  □ Comparison with Sztutman HRS estimates (own code vs literature)
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "OUTPUT FILES CREATED"
+OUTPUT FILES CREATED
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Tables (${outdir}):"
+Tables (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Phase5_Table3_Summary.csv       : Main τ_p estimates"
+  Phase5_Table3_Summary.csv       : Main τ_p estimates
+
+. di ""
+
+
+. di "Figures (${outdir}):"
+Figures (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Phase5_Fig1_TauProfile.png      : τ_p profile with uncertainty"
+  Phase5_Fig1_TauProfile.png      : τ_p profile with uncertainty
+
+. di ""
+
+
+. di "Log (${outdir}):"
+Log (D:\Stata Data\labor_signaling_project\output):
+
+. di "  Pigouvian_Tax_log.txt"
+  Pigouvian_Tax_log.txt
+
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "PHASE 5 COMPLETE"
+PHASE 5 COMPLETE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "End time: $S_DATE $S_TIME"
+End time: 10 Apr 2026 18:27:40
+
+. di ""
+
+
+. di "RECOMMENDED NEXT ACTION:"
+RECOMMENDED NEXT ACTION:
+
+. di "  1. Run all phases in order: Phase 1 → Phase 3 → Phase 2 → Phase 4 → Pha
+> se 5"
+  1. Run all phases in order: Phase 1 → Phase 3 → Phase 2 → Phase 4 → Phase 5
+
+. di "  2. Read each phase's log and scrutiny section before proceeding"
+  2. Read each phase's log and scrutiny section before proceeding
+
+. di "  3. Update Phase 5 g1-g5 scalars with Phase 1 career-stage γ values"
+  3. Update Phase 5 g1-g5 scalars with Phase 1 career-stage γ values
+
+. di "  4. Schedule time to expand TAXSIM sample for Phase 2 full estimation"
+  4. Schedule time to expand TAXSIM sample for Phase 2 full estimation
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\Pigouvian_Tax_log.txt
+  log type:  text
+ closed on:  10 Apr 2026, 18:27:40
+-------------------------------------------------------------------------------

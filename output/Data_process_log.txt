@@ -1,0 +1,5347 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\Data_process_log.txt
+  log type:  text
+ opened on:  27 Mar 2026, 00:37:35
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "DATA PROCESSING"
+DATA PROCESSING
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "Start time: $S_DATE $S_TIME"
+Start time: 27 Mar 2026 00:37:35
+
+. di ""
+
+
+. 
+. * 1) Import the CSV (one row per person)
+. import delimited "NLSY_All_Data.csv", varnames(1) clear
+(encoding automatically selected: ISO-8859-1)
+(669 vars, 12,686 obs)
+
+. rename r0000100 taxsimid
+
+. save "base_data.dta", replace
+file base_data.dta saved
+
+. 
+. * 2) Import the left-out variables
+. import delimited "left_out.csv", varnames(1) clear
+(encoding automatically selected: ISO-8859-1)
+(13 vars, 12,686 obs)
+
+. rename r0000100 taxsimid
+
+. save "left_out.dta", replace
+file left_out.dta saved
+
+. 
+. * 3) Import the occupation/industry variables
+. import delimited "Occupation_Industry.csv", varnames(1) clear
+(encoding automatically selected: ISO-8859-1)
+(1,470 vars, 12,686 obs)
+
+. rename r0000100 taxsimid
+
+. 
+. * Keep only the variables we need (ID + occupation + industry variables)
+. keep taxsimid     r0046400 r0263400 r0446400 r0702100 r0945000 r1255400 r1650
+> 200     r1922800 r2317600 r2525400 r2924400 r3127100 r3522800 r3727800 r41821
+> 00     r0046300 r0263300 r0446300 r0702000 r0944900 r1255300 r1650100     r19
+> 22700 r2317500 r2525300 r2924300 r3127000 r3522700 r3727700 r4182000     r033
+> 8300 r0546000 r0840500 r1087700 r1463400 r1810200 r2171900     r2376700 r2771
+> 500 r3013300 r3340700 r3605000 r3955200 r4587904     r5270600 r6472600 r65918
+> 00 r7209600 r7898000 t0138400 t1298000     t2326500 t3308700 t4282800 t525690
+> 0 t7818600 t8428300 t8982400     e5900100 e5910100 e5920100 e5930100 e5940100
+>  e5950100 e5960100     e5970100 e5980100 e5990100 e6000100 e6010100 e6020100 
+> e6030100     e6040100 e6050100 e6060100 e6070100 e6080100 e6090100 e6100100  
+>    e6110100 e6120100 e6130100 e8590100 x0177200 e8741100 e8939000     e916450
+> 0 e9452000
+
+. 
+. save "occupation_industry.dta", replace
+file occupation_industry.dta saved
+
+. 
+. * 4) NOW LOAD BASE DATA AND MERGE EVERYTHING
+. use "base_data.dta", clear 
+
+. merge 1:1 taxsimid using "left_out.dta"
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            12,686  (_merge==3)
+    -----------------------------------------
+
+. tab _merge
+
+   Matching result from |
+                  merge |      Freq.     Percent        Cum.
+------------------------+-----------------------------------
+            Matched (3) |     12,686      100.00      100.00
+------------------------+-----------------------------------
+                  Total |     12,686      100.00
+
+. drop _merge
+
+. 
+. merge 1:1 taxsimid using "occupation_industry.dta"
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            12,686  (_merge==3)
+    -----------------------------------------
+
+. tab _merge
+
+   Matching result from |
+                  merge |      Freq.     Percent        Cum.
+------------------------+-----------------------------------
+            Matched (3) |     12,686      100.00      100.00
+------------------------+-----------------------------------
+                  Total |     12,686      100.00
+
+. drop _merge
+
+. 
+. save "merged_data.dta", replace
+file merged_data.dta saved
+
+. 
+. import delimited "demo_x_hour.csv", varnames(1) clear
+(encoding automatically selected: ISO-8859-1)
+(66 vars, 12,686 obs)
+
+. rename r0000100 taxsimid
+
+. save "demo_hour_data.dta", replace
+file demo_hour_data.dta saved
+
+. 
+. * Merge with existing data
+. use "merged_data.dta", clear
+
+. merge 1:1 taxsimid using "demo_hour_data.dta"
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            12,686  (_merge==3)
+    -----------------------------------------
+
+. tab _merge
+
+   Matching result from |
+                  merge |      Freq.     Percent        Cum.
+------------------------+-----------------------------------
+            Matched (3) |     12,686      100.00      100.00
+------------------------+-----------------------------------
+                  Total |     12,686      100.00
+
+. drop _merge
+
+. 
+. save "merged_data.dta", replace
+file merged_data.dta saved
+
+. 
+. use "merged_data.dta", clear
+
+. 
+. * Race/Ethnicity (1=Hispanic, 2=Black, 3=Non-Black Non-Hispanic)
+. rename r0214700 race_ethnicity
+
+. 
+. * Sex (1=Male, 2=Female)
+. rename r0214800 sex
+
+. 
+. * Sample type
+. rename r0173600 sample_id
+
+. 
+. * AFQT scores (all measured in 1981)
+. rename r0618200 afqt_pct_1980    // Original 1980 percentile
+
+. rename r0618300 afqt_pct_1989    // 1989 revised percentile
+
+. rename r0618301 afqt_pct_2006    // 2006 revised percentile
+
+. 
+. * 4) Rename wave‐specific vars into *_YYYY stubs
+. 
+. * RENAME HIGHEST GRADE COMPLETED VARIABLES
+. rename r0017300 hgc_1979
+
+. rename r0229200 hgc_1980
+
+. rename r0417400 hgc_1981
+
+. rename r0664500 hgc_1982
+
+. rename r0905900 hgc_1983
+
+. rename r1205800 hgc_1984
+
+. rename r1605100 hgc_1985
+
+. rename r1905600 hgc_1986
+
+. rename r2306500 hgc_1987
+
+. rename r2509000 hgc_1988
+
+. rename r2908100 hgc_1989
+
+. rename r3110200 hgc_1990
+
+. rename r3510200 hgc_1991
+
+. rename r3710200 hgc_1992
+
+. rename r4137900 hgc_1993
+
+. rename r4526500 hgc_1994
+
+. rename r5221800 hgc_1996
+
+. rename r5821800 hgc_1998
+
+. rename r6540400 hgc_2000
+
+. rename r7103600 hgc_2002
+
+. rename r7810500 hgc_2004
+
+. rename t0014400 hgc_2006
+
+. rename t1214300 hgc_2008
+
+. rename t2272800 hgc_2010
+
+. rename t3212900 hgc_2012
+
+. rename t4201100 hgc_2014
+
+. rename t5176100 hgc_2016
+
+. rename t7743900 hgc_2018
+
+. rename t8355300 hgc_2020
+
+. 
+. /*===========================================================================
+> ===
+> FIX #3: Realign HGC for biennial years to match income years
+> =============================================================================
+> =
+> For biennial surveys (1996+), hgc is measured at survey time but income is 
+> from the prior year. We need education as of the income year.
+> 
+> APPROACH: For biennial years, the education at survey time is a reasonable
+> proxy for education during the income year (most education is completed
+> before entering the workforce anyway).
+> 
+> We'll align these when reshaping to long format.
+> =============================================================================
+> =*/
+. 
+. * Realign HGC for biennial years (survey year -> income year)
+. rename hgc_1996 hgc_1995
+
+. rename hgc_1998 hgc_1997
+
+. rename hgc_2000 hgc_1999
+
+. rename hgc_2002 hgc_2001
+
+. rename hgc_2004 hgc_2003
+
+. rename hgc_2006 hgc_2005
+
+. rename hgc_2008 hgc_2007
+
+. rename hgc_2010 hgc_2009
+
+. rename hgc_2012 hgc_2011
+
+. rename hgc_2014 hgc_2013
+
+. rename hgc_2016 hgc_2015
+
+. rename hgc_2018 hgc_2017
+
+. rename hgc_2020 hgc_2019
+
+. 
+. * RENAME HOURS WORKED VARIABLES
+. rename r0215710 hrs_1978
+
+. rename r0407300 hrs_1979
+
+. rename r0646600 hrs_1980
+
+. rename r0896800 hrs_1981
+
+. rename r1145200 hrs_1982
+
+. rename r1520400 hrs_1983
+
+. rename r1891100 hrs_1984
+
+. rename r2258200 hrs_1985
+
+. rename r2445600 hrs_1986
+
+. rename r2871400 hrs_1987
+
+. rename r3075100 hrs_1988
+
+. rename r3401800 hrs_1989
+
+. rename r3657200 hrs_1990
+
+. rename r4007700 hrs_1991
+
+. rename r4418800 hrs_1992
+
+. rename r5081800 hrs_1993
+
+. rename r5167100 hrs_1995
+
+. rename r6479900 hrs_1997
+
+. rename r7007600 hrs_1999
+
+. rename r7704900 hrs_2001
+
+. rename r8497300 hrs_2003
+
+. rename t0989100 hrs_2005
+
+. rename t2210900 hrs_2007
+
+. rename t3108800 hrs_2009
+
+. rename t4113300 hrs_2011
+
+. rename t5024700 hrs_2013
+
+. rename t5772700 hrs_2015
+
+. rename t8219900 hrs_2017
+
+. rename t8789100 hrs_2019
+
+. rename t9300900 hrs_2021
+
+. 
+. * Replace NLSY missing codes with Stata missing
+. * -1 = Refused, -2 = Don't know, -3 = Invalid skip, -4 = Valid skip, -5 = Non
+> -interview
+. 
+. foreach var of varlist hrs_* {
+  2.     capture replace `var' = . if `var' < 0
+  3. }
+
+. 
+. foreach var of varlist hgc_* {
+  2.     capture replace `var' = . if `var' < 0
+  3. }
+
+. 
+. foreach var of varlist afqt_* {
+  2.     capture replace `var' = . if `var' < 0
+  3. }
+
+. 
+. replace race_ethnicity = . if race_ethnicity < 0
+(0 real changes made)
+
+. replace sex = . if sex < 0
+(0 real changes made)
+
+. 
+. * Create a female indicator
+. gen female = (sex == 2) if sex != .
+
+. 
+. * Create race dummies
+. gen black = (race_ethnicity == 2) if race_ethnicity != .
+
+. gen hispanic = (race_ethnicity == 1) if race_ethnicity != .
+
+. 
+. * Create education categories (using most recent non-missing HGC)
+. * NOTE: This is still useful for cross-sectional summaries, but we'll use
+. * year-specific hgc for potential experience calculations after reshape
+. egen max_education = rowmax(hgc_*)
+(15 missing values generated)
+
+. gen college_grad = (max_education >= 16) if max_education != .
+(15 missing values generated)
+
+. gen some_college = (max_education >= 13 & max_education < 16) if max_educatio
+> n != .
+(15 missing values generated)
+
+. gen hs_grad = (max_education == 12) if max_education != .
+(15 missing values generated)
+
+. 
+. * Apply value labels
+. label define race_lbl 1 "Hispanic" 2 "Black" 3 "Non-Black, Non-Hispanic"
+
+. label values race_ethnicity race_lbl
+
+. 
+. label define sex_lbl 1 "Male" 2 "Female"
+
+. label values sex sex_lbl
+
+. 
+. label var female "Female indicator"
+
+. label var black "Black indicator"
+
+. label var hispanic "Hispanic indicator"
+
+. label var max_education "Maximum education attained"
+
+. label var college_grad "College graduate (16+ years)"
+
+. label var some_college "Some college (13-15 years)"
+
+. label var hs_grad "High school graduate only"
+
+. 
+. /*===========================================================================
+> ===
+> FIX #2: CREATE CUMULATIVE HOURS WITH INTERPOLATION FOR MISSING YEARS
+> =============================================================================
+> =
+> For biennial years (1995+), we don't have hours for even years (1994, 1996...
+> ).
+> We interpolate by assuming similar hours to adjacent observed years.
+> 
+> METHOD: For year Y (odd, observed), we estimate hours for Y-1 (even, unobserv
+> ed)
+> as equal to hours_Y (the best proxy available).
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "CREATING CUMULATIVE HOURS WITH INTERPOLATION"
+CREATING CUMULATIVE HOURS WITH INTERPOLATION
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. foreach yr in 1978 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 199
+> 0 1991 1992 1993 1995 1997 1999 2001 2003 2005 2007 2009 2011 2013 2015 2017 
+> 2019 2021 {
+  2.     gen hrs_temp_`yr' = hrs_`yr'
+  3.     replace hrs_temp_`yr' = 0 if missing(hrs_temp_`yr')
+  4. }
+(2,801 missing values generated)
+(2,801 real changes made)
+(3,268 missing values generated)
+(3,268 real changes made)
+(1,619 missing values generated)
+(1,619 real changes made)
+(725 missing values generated)
+(725 real changes made)
+(610 missing values generated)
+(610 real changes made)
+(728 missing values generated)
+(728 real changes made)
+(1,870 missing values generated)
+(1,870 real changes made)
+(2,086 missing values generated)
+(2,086 real changes made)
+(2,324 missing values generated)
+(2,324 real changes made)
+(2,454 missing values generated)
+(2,454 real changes made)
+(2,292 missing values generated)
+(2,292 real changes made)
+(2,439 missing values generated)
+(2,439 real changes made)
+(3,789 missing values generated)
+(3,789 real changes made)
+(3,778 missing values generated)
+(3,778 real changes made)
+(3,823 missing values generated)
+(3,823 real changes made)
+(3,936 missing values generated)
+(3,936 real changes made)
+(4,112 missing values generated)
+(4,112 real changes made)
+(4,382 missing values generated)
+(4,382 real changes made)
+(4,712 missing values generated)
+(4,712 real changes made)
+(5,020 missing values generated)
+(5,020 real changes made)
+(5,108 missing values generated)
+(5,108 real changes made)
+(5,082 missing values generated)
+(5,082 real changes made)
+(4,985 missing values generated)
+(4,985 real changes made)
+(5,165 missing values generated)
+(5,165 real changes made)
+(5,433 missing values generated)
+(5,433 real changes made)
+(5,699 missing values generated)
+(5,699 real changes made)
+(5,851 missing values generated)
+(5,851 real changes made)
+(5,866 missing values generated)
+(5,866 real changes made)
+(6,188 missing values generated)
+(6,188 real changes made)
+(6,311 missing values generated)
+(6,311 real changes made)
+
+. 
+. * Annual period: straightforward accumulation
+. gen cumhrs_1978 = hrs_temp_1978
+
+. gen cumhrs_1979 = cumhrs_1978 + hrs_temp_1979
+
+. gen cumhrs_1980 = cumhrs_1979 + hrs_temp_1980
+
+. gen cumhrs_1981 = cumhrs_1980 + hrs_temp_1981
+
+. gen cumhrs_1982 = cumhrs_1981 + hrs_temp_1982
+
+. gen cumhrs_1983 = cumhrs_1982 + hrs_temp_1983
+
+. gen cumhrs_1984 = cumhrs_1983 + hrs_temp_1984
+
+. gen cumhrs_1985 = cumhrs_1984 + hrs_temp_1985
+
+. gen cumhrs_1986 = cumhrs_1985 + hrs_temp_1986
+
+. gen cumhrs_1987 = cumhrs_1986 + hrs_temp_1987
+
+. gen cumhrs_1988 = cumhrs_1987 + hrs_temp_1988
+
+. gen cumhrs_1989 = cumhrs_1988 + hrs_temp_1989
+
+. gen cumhrs_1990 = cumhrs_1989 + hrs_temp_1990
+
+. gen cumhrs_1991 = cumhrs_1990 + hrs_temp_1991
+
+. gen cumhrs_1992 = cumhrs_1991 + hrs_temp_1992
+
+. gen cumhrs_1993 = cumhrs_1992 + hrs_temp_1993
+
+. 
+. * Biennial period: CORRECTED - add estimated hours for missing years
+. * For 1994 (unobserved): use average of 1993 and 1995 hours as proxy
+. gen hrs_est_1994 = (hrs_temp_1993 + hrs_temp_1995) / 2
+
+. gen cumhrs_1994 = cumhrs_1993 + hrs_est_1994
+
+. gen cumhrs_1995 = cumhrs_1994 + hrs_temp_1995
+
+. 
+. * Continue pattern: estimate even years, then add odd year
+. gen hrs_est_1996 = (hrs_temp_1995 + hrs_temp_1997) / 2
+
+. gen cumhrs_1996 = cumhrs_1995 + hrs_est_1996
+
+. gen cumhrs_1997 = cumhrs_1996 + hrs_temp_1997
+
+. 
+. gen hrs_est_1998 = (hrs_temp_1997 + hrs_temp_1999) / 2
+
+. gen cumhrs_1998 = cumhrs_1997 + hrs_est_1998
+
+. gen cumhrs_1999 = cumhrs_1998 + hrs_temp_1999
+
+. 
+. gen hrs_est_2000 = (hrs_temp_1999 + hrs_temp_2001) / 2
+
+. gen cumhrs_2000 = cumhrs_1999 + hrs_est_2000
+
+. gen cumhrs_2001 = cumhrs_2000 + hrs_temp_2001
+
+. 
+. gen hrs_est_2002 = (hrs_temp_2001 + hrs_temp_2003) / 2
+
+. gen cumhrs_2002 = cumhrs_2001 + hrs_est_2002
+
+. gen cumhrs_2003 = cumhrs_2002 + hrs_temp_2003
+
+. 
+. gen hrs_est_2004 = (hrs_temp_2003 + hrs_temp_2005) / 2
+
+. gen cumhrs_2004 = cumhrs_2003 + hrs_est_2004
+
+. gen cumhrs_2005 = cumhrs_2004 + hrs_temp_2005
+
+. 
+. gen hrs_est_2006 = (hrs_temp_2005 + hrs_temp_2007) / 2
+
+. gen cumhrs_2006 = cumhrs_2005 + hrs_est_2006
+
+. gen cumhrs_2007 = cumhrs_2006 + hrs_temp_2007
+
+. 
+. gen hrs_est_2008 = (hrs_temp_2007 + hrs_temp_2009) / 2
+
+. gen cumhrs_2008 = cumhrs_2007 + hrs_est_2008
+
+. gen cumhrs_2009 = cumhrs_2008 + hrs_temp_2009
+
+. 
+. gen hrs_est_2010 = (hrs_temp_2009 + hrs_temp_2011) / 2
+
+. gen cumhrs_2010 = cumhrs_2009 + hrs_est_2010
+
+. gen cumhrs_2011 = cumhrs_2010 + hrs_temp_2011
+
+. 
+. gen hrs_est_2012 = (hrs_temp_2011 + hrs_temp_2013) / 2
+
+. gen cumhrs_2012 = cumhrs_2011 + hrs_est_2012
+
+. gen cumhrs_2013 = cumhrs_2012 + hrs_temp_2013
+
+. 
+. gen hrs_est_2014 = (hrs_temp_2013 + hrs_temp_2015) / 2
+
+. gen cumhrs_2014 = cumhrs_2013 + hrs_est_2014
+
+. gen cumhrs_2015 = cumhrs_2014 + hrs_temp_2015
+
+. 
+. gen hrs_est_2016 = (hrs_temp_2015 + hrs_temp_2017) / 2
+
+. gen cumhrs_2016 = cumhrs_2015 + hrs_est_2016
+
+. gen cumhrs_2017 = cumhrs_2016 + hrs_temp_2017
+
+. 
+. gen hrs_est_2018 = (hrs_temp_2017 + hrs_temp_2019) / 2
+
+. gen cumhrs_2018 = cumhrs_2017 + hrs_est_2018
+
+. gen cumhrs_2019 = cumhrs_2018 + hrs_temp_2019
+
+. 
+. gen hrs_est_2020 = (hrs_temp_2019 + hrs_temp_2021) / 2
+
+. gen cumhrs_2020 = cumhrs_2019 + hrs_est_2020
+
+. gen cumhrs_2021 = cumhrs_2020 + hrs_temp_2021
+
+. 
+. * Drop temporary variables
+. drop hrs_temp_* hrs_est_*
+
+. 
+. * Label cumulative hours
+. foreach yr in 1978 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 199
+> 0 1991 1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 
+> 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 20
+> 21 {
+  2.     capture label var cumhrs_`yr' "Cumulative hours worked through `yr' (i
+> nterpolated for even years)"
+  3. }
+
+. 
+. di "Cumulative hours now include interpolated estimates for non-survey years.
+> "
+Cumulative hours now include interpolated estimates for non-survey years.
+
+. 
+. /*===========================================================================
+> ===
+> PART 2: RENAME CPSOCC70 - CPS JOB OCCUPATION (1970 Census 3-digit codes)
+> =============================================================================
+> =
+> Reference numbers from codebook:
+> - These represent the occupation of the respondent's current/most recent job
+> - Available 1979-1993 (annual survey period)
+> =============================================================================
+> =*/
+. * 1979: R00464.00
+. rename r0046400 cpsocc70_1979
+
+. 
+. * 1980: R02634.00
+. rename r0263400 cpsocc70_1980
+
+. 
+. * 1981: R04464.00
+. rename r0446400 cpsocc70_1981
+
+. 
+. * 1982: R07021.00
+. rename r0702100 cpsocc70_1982
+
+. 
+. * 1983: R09450.00
+. rename r0945000 cpsocc70_1983
+
+. 
+. * 1984: R12554.00
+. rename r1255400 cpsocc70_1984
+
+. 
+. * 1985: R16502.00
+. rename r1650200 cpsocc70_1985
+
+. 
+. * 1986: R19228.00
+. rename r1922800 cpsocc70_1986
+
+. 
+. * 1987: R23176.00
+. rename r2317600 cpsocc70_1987
+
+. 
+. * 1988: R25254.00
+. rename r2525400 cpsocc70_1988
+
+. 
+. * 1989: R29244.00
+. rename r2924400 cpsocc70_1989
+
+. 
+. * 1990: R31271.00
+. rename r3127100 cpsocc70_1990
+
+. 
+. * 1991: R35228.00
+. rename r3522800 cpsocc70_1991
+
+. 
+. * 1992: R37278.00
+. rename r3727800 cpsocc70_1992
+
+. 
+. * 1993: R41821.00
+. rename r4182100 cpsocc70_1993
+
+. 
+. 
+. /*===========================================================================
+> ===
+> PART 3: RENAME OCCALL-EMP.01 - JOB #1 OCCUPATION (All Jobs)
+> =============================================================================
+> =
+> Reference numbers from codebook:
+> - Occupation of Employer #1 (typically the main/primary job)
+> - Available 1980-2022
+> =============================================================================
+> =*/
+. 
+. * 1980: R03383.00
+. rename r0338300 occall01_1980
+
+. 
+. * 1981: R05460.00
+. rename r0546000 occall01_1981
+
+. 
+. * 1982: R08405.00
+. rename r0840500 occall01_1982
+
+. 
+. * 1983: R10877.00
+. rename r1087700 occall01_1983
+
+. 
+. * 1984: R14634.00
+. rename r1463400 occall01_1984
+
+. 
+. * 1985: R18102.00
+. rename r1810200 occall01_1985
+
+. 
+. * 1986: R21719.00
+. rename r2171900 occall01_1986
+
+. 
+. * 1987: R23767.00
+. rename r2376700 occall01_1987
+
+. 
+. * 1988: R27715.00
+. rename r2771500 occall01_1988
+
+. 
+. * 1989: R30133.00
+. rename r3013300 occall01_1989
+
+. 
+. * 1990: R33407.00
+. rename r3340700 occall01_1990
+
+. 
+. * 1991: R36050.00
+. rename r3605000 occall01_1991
+
+. 
+. * 1992: R39552.00
+. rename r3955200 occall01_1992
+
+. 
+. * 1994: R45879.04
+. rename r4587904 occall01_1994
+
+. 
+. * 1996: R52706.00
+. rename r5270600 occall01_1996
+
+. 
+. * 1998: R64726.00
+. rename r6472600 occall01_1998
+
+. 
+. * 2000: R65918.00
+. rename r6591800 occall01_2000
+
+. 
+. * 2002: R72096.00
+. rename r7209600 occall01_2002
+
+. 
+. * 2004: R78980.00
+. rename r7898000 occall01_2004
+
+. 
+. * 2006: T01384.00
+. rename t0138400 occall01_2006
+
+. 
+. * 2008: T12980.00
+. rename t1298000 occall01_2008
+
+. 
+. * 2010: T23265.00
+. rename t2326500 occall01_2010
+
+. 
+. * 2012: T33087.00
+. rename t3308700 occall01_2012
+
+. 
+. * 2014: T42828.00
+. rename t4282800 occall01_2014
+
+. 
+. * 2016: T52569.00
+. rename t5256900 occall01_2016
+
+. 
+. * 2018: T78186.00
+. rename t7818600 occall01_2018
+
+. 
+. * 2020: T84283.00
+. rename t8428300 occall01_2020
+
+. 
+. * 2022: T89824.00
+. rename t8982400 occall01_2022
+
+. 
+. /*===========================================================================
+> ===
+> PART 4: RENAME EMPLOYERS_ALL_IND - JOB #1 INDUSTRY (1970 Census codes)
+> =============================================================================
+> =
+> Reference numbers from codebook:
+> - Industry of Employer #1
+> - 1970 Census codes for 1979-2000
+> - 2000 Census codes for 2002+
+> =============================================================================
+> =*/
+. 
+. * 1979: E59001.00
+. rename e5900100 ind01_1979
+
+. 
+. * 1980: E59101.00
+. rename e5910100 ind01_1980
+
+. 
+. * 1981: E59201.00
+. rename e5920100 ind01_1981
+
+. 
+. * 1982: E59301.00
+. rename e5930100 ind01_1982
+
+. 
+. * 1983: E59401.00
+. rename e5940100 ind01_1983
+
+. 
+. * 1984: E59501.00
+. rename e5950100 ind01_1984
+
+. 
+. * 1985: E59601.00
+. rename e5960100 ind01_1985
+
+. 
+. * 1986: E59701.00
+. rename e5970100 ind01_1986
+
+. 
+. * 1987: E59801.00
+. rename e5980100 ind01_1987
+
+. 
+. * 1988: E59901.00
+. rename e5990100 ind01_1988
+
+. 
+. * 1989: E60001.00
+. rename e6000100 ind01_1989
+
+. 
+. * 1990: E60101.00
+. rename e6010100 ind01_1990
+
+. 
+. * 1991: E60201.00
+. rename e6020100 ind01_1991
+
+. 
+. * 1992: E60301.00
+. rename e6030100 ind01_1992
+
+. 
+. * 1993: E60401.00
+. rename e6040100 ind01_1993
+
+. 
+. * 1994: E60501.00
+. rename e6050100 ind01_1994
+
+. 
+. * 1996: E60601.00
+. rename e6060100 ind01_1996
+
+. 
+. * 1998: E60701.00
+. rename e6070100 ind01_1998
+
+. 
+. * 2000: E60801.00
+. rename e6080100 ind01_2000
+
+. 
+. * 2002: E60901.00
+. rename e6090100 ind01_2002
+
+. 
+. * 2004: E61001.00
+. rename e6100100 ind01_2004
+
+. 
+. * 2006: E61101.00
+. rename e6110100 ind01_2006
+
+. 
+. * 2008: E61201.00
+. rename e6120100 ind01_2008
+
+. 
+. * 2010: E61301.00
+. rename e6130100 ind01_2010
+
+. 
+. * 2012: E85901.00
+. rename e8590100 ind01_2012
+
+. 
+. * 2014: X01772.00
+. rename x0177200 ind01_2014
+
+. 
+. * 2016: E87411.00
+. rename e8741100 ind01_2016
+
+. 
+. * 2018: E89390.00
+. rename e8939000 ind01_2018
+
+. 
+. * 2020: E91645.00
+. rename e9164500 ind01_2020
+
+. 
+. * 2022: E94520.00
+. rename e9452000 ind01_2022
+
+. 
+. di "EMPLOYERS_ALL_IND variables renamed: 1979-2022"
+EMPLOYERS_ALL_IND variables renamed: 1979-2022
+
+. 
+. /*===========================================================================
+> ===
+> PART 4B: RENAME CPSIND70 - CPS JOB INDUSTRY (1970 Census 3-digit codes)
+> =============================================================================
+> =
+> FIX #7 (Industry Variable Bug):
+> - CPSIND70 = industry of respondent's CURRENT/MOST RECENT CPS job
+> - Available 1979-1993 (matches annual survey period)
+> - These reference numbers were missing from the keep command, causing
+>   ind_broad coverage to collapse from ~48% (1979) to ~2% (1993).
+> - Root cause: Part 4 was using ind01_ (Employer #1 in lifetime roster),
+>   which is typically the FIRST-EVER employer, not the current job.
+> - Fix: add CPSIND70 refs to keep command (Fix #7a) and use them for
+>   1979-1993 in Part 7 (Fix #7b).
+> =============================================================================
+> =*/
+. 
+. rename r0046300 cpsind70_1979
+
+. rename r0263300 cpsind70_1980
+
+. rename r0446300 cpsind70_1981
+
+. rename r0702000 cpsind70_1982
+
+. rename r0944900 cpsind70_1983
+
+. rename r1255300 cpsind70_1984
+
+. rename r1650100 cpsind70_1985
+
+. rename r1922700 cpsind70_1986
+
+. rename r2317500 cpsind70_1987
+
+. rename r2525300 cpsind70_1988
+
+. rename r2924300 cpsind70_1989
+
+. rename r3127000 cpsind70_1990
+
+. rename r3522700 cpsind70_1991
+
+. rename r3727700 cpsind70_1992
+
+. rename r4182000 cpsind70_1993
+
+. 
+. di "CPSIND70 variables renamed: 1979-1993"
+CPSIND70 variables renamed: 1979-1993
+
+. 
+. /*===========================================================================
+> ===
+> PART 5: CLEAN MISSING VALUES
+> =============================================================================
+> =
+> NLSY missing codes:
+> -1 = Refused
+> -2 = Don't know
+> -3 = Invalid skip
+> -4 = Valid skip
+> -5 = Non-interview
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "Cleaning missing values..."
+Cleaning missing values...
+
+. 
+. * CPSOCC70 variables
+. replace cpsocc70_1979 = . if cpsocc70_1979 < 0
+(7,485 real changes made, 7,485 to missing)
+
+. replace cpsocc70_1980 = . if cpsocc70_1980 < 0
+(6,936 real changes made, 6,936 to missing)
+
+. replace cpsocc70_1981 = . if cpsocc70_1981 < 0
+(6,345 real changes made, 6,345 to missing)
+
+. replace cpsocc70_1982 = . if cpsocc70_1982 < 0
+(3,401 real changes made, 3,401 to missing)
+
+. replace cpsocc70_1983 = . if cpsocc70_1983 < 0
+(3,268 real changes made, 3,268 to missing)
+
+. replace cpsocc70_1984 = . if cpsocc70_1984 < 0
+(3,150 real changes made, 3,150 to missing)
+
+. replace cpsocc70_1985 = . if cpsocc70_1985 < 0
+(3,665 real changes made, 3,665 to missing)
+
+. replace cpsocc70_1986 = . if cpsocc70_1986 < 0
+(3,696 real changes made, 3,696 to missing)
+
+. replace cpsocc70_1987 = . if cpsocc70_1987 < 0
+(3,757 real changes made, 3,757 to missing)
+
+. replace cpsocc70_1988 = . if cpsocc70_1988 < 0
+(3,697 real changes made, 3,697 to missing)
+
+. replace cpsocc70_1989 = . if cpsocc70_1989 < 0
+(3,640 real changes made, 3,640 to missing)
+
+. replace cpsocc70_1990 = . if cpsocc70_1990 < 0
+(3,734 real changes made, 3,734 to missing)
+
+. replace cpsocc70_1991 = . if cpsocc70_1991 < 0
+(5,063 real changes made, 5,063 to missing)
+
+. replace cpsocc70_1992 = . if cpsocc70_1992 < 0
+(5,022 real changes made, 5,022 to missing)
+
+. replace cpsocc70_1993 = . if cpsocc70_1993 < 0
+(5,127 real changes made, 5,127 to missing)
+
+. 
+. * OCCALL01 variables
+. replace occall01_1980 = . if occall01_1980 < 0
+(11,141 real changes made, 11,141 to missing)
+
+. replace occall01_1981 = . if occall01_1981 < 0
+(11,086 real changes made, 11,086 to missing)
+
+. replace occall01_1982 = . if occall01_1982 < 0
+(12,542 real changes made, 12,542 to missing)
+
+. replace occall01_1983 = . if occall01_1983 < 0
+(12,616 real changes made, 12,616 to missing)
+
+. replace occall01_1984 = . if occall01_1984 < 0
+(12,610 real changes made, 12,610 to missing)
+
+. replace occall01_1985 = . if occall01_1985 < 0
+(12,647 real changes made, 12,647 to missing)
+
+. replace occall01_1986 = . if occall01_1986 < 0
+(12,662 real changes made, 12,662 to missing)
+
+. replace occall01_1987 = . if occall01_1987 < 0
+(12,668 real changes made, 12,668 to missing)
+
+. replace occall01_1988 = . if occall01_1988 < 0
+(12,573 real changes made, 12,573 to missing)
+
+. replace occall01_1989 = . if occall01_1989 < 0
+(12,647 real changes made, 12,647 to missing)
+
+. replace occall01_1990 = . if occall01_1990 < 0
+(12,660 real changes made, 12,660 to missing)
+
+. replace occall01_1991 = . if occall01_1991 < 0
+(12,672 real changes made, 12,672 to missing)
+
+. replace occall01_1992 = . if occall01_1992 < 0
+(12,623 real changes made, 12,623 to missing)
+
+. replace occall01_1994 = . if occall01_1994 < 0
+(5,348 real changes made, 5,348 to missing)
+
+. replace occall01_1996 = . if occall01_1996 < 0
+(5,078 real changes made, 5,078 to missing)
+
+. replace occall01_1998 = . if occall01_1998 < 0
+(5,174 real changes made, 5,174 to missing)
+
+. replace occall01_2000 = . if occall01_2000 < 0
+(5,447 real changes made, 5,447 to missing)
+
+. replace occall01_2002 = . if occall01_2002 < 0
+(5,800 real changes made, 5,800 to missing)
+
+. replace occall01_2004 = . if occall01_2004 < 0
+(6,047 real changes made, 6,047 to missing)
+
+. replace occall01_2006 = . if occall01_2006 < 0
+(6,166 real changes made, 6,166 to missing)
+
+. replace occall01_2008 = . if occall01_2008 < 0
+(6,243 real changes made, 6,243 to missing)
+
+. replace occall01_2010 = . if occall01_2010 < 0
+(6,414 real changes made, 6,414 to missing)
+
+. replace occall01_2012 = . if occall01_2012 < 0
+(6,732 real changes made, 6,732 to missing)
+
+. replace occall01_2014 = . if occall01_2014 < 0
+(7,159 real changes made, 7,159 to missing)
+
+. replace occall01_2016 = . if occall01_2016 < 0
+(7,363 real changes made, 7,363 to missing)
+
+. replace occall01_2018 = . if occall01_2018 < 0
+(7,509 real changes made, 7,509 to missing)
+
+. replace occall01_2020 = . if occall01_2020 < 0
+(7,966 real changes made, 7,966 to missing)
+
+. replace occall01_2022 = . if occall01_2022 < 0
+(8,357 real changes made, 8,357 to missing)
+
+. 
+. * IND01 variables
+. replace ind01_1979 = . if ind01_1979 < 0
+(6,582 real changes made, 6,582 to missing)
+
+. replace ind01_1980 = . if ind01_1980 < 0
+(9,221 real changes made, 9,221 to missing)
+
+. replace ind01_1981 = . if ind01_1981 < 0
+(10,152 real changes made, 10,152 to missing)
+
+. replace ind01_1982 = . if ind01_1982 < 0
+(10,601 real changes made, 10,601 to missing)
+
+. replace ind01_1983 = . if ind01_1983 < 0
+(11,193 real changes made, 11,193 to missing)
+
+. replace ind01_1984 = . if ind01_1984 < 0
+(11,554 real changes made, 11,554 to missing)
+
+. replace ind01_1985 = . if ind01_1985 < 0
+(11,912 real changes made, 11,912 to missing)
+
+. replace ind01_1986 = . if ind01_1986 < 0
+(12,069 real changes made, 12,069 to missing)
+
+. replace ind01_1987 = . if ind01_1987 < 0
+(12,166 real changes made, 12,166 to missing)
+
+. replace ind01_1988 = . if ind01_1988 < 0
+(12,257 real changes made, 12,257 to missing)
+
+. replace ind01_1989 = . if ind01_1989 < 0
+(12,304 real changes made, 12,304 to missing)
+
+. replace ind01_1990 = . if ind01_1990 < 0
+(12,361 real changes made, 12,361 to missing)
+
+. replace ind01_1991 = . if ind01_1991 < 0
+(12,423 real changes made, 12,423 to missing)
+
+. replace ind01_1992 = . if ind01_1992 < 0
+(12,437 real changes made, 12,437 to missing)
+
+. replace ind01_1993 = . if ind01_1993 < 0
+(12,460 real changes made, 12,460 to missing)
+
+. replace ind01_1994 = . if ind01_1994 < 0
+(12,485 real changes made, 12,485 to missing)
+
+. replace ind01_1996 = . if ind01_1996 < 0
+(12,493 real changes made, 12,493 to missing)
+
+. replace ind01_1998 = . if ind01_1998 < 0
+(12,516 real changes made, 12,516 to missing)
+
+. replace ind01_2000 = . if ind01_2000 < 0
+(12,538 real changes made, 12,538 to missing)
+
+. replace ind01_2002 = . if ind01_2002 < 0
+(12,568 real changes made, 12,568 to missing)
+
+. replace ind01_2004 = . if ind01_2004 < 0
+(12,578 real changes made, 12,578 to missing)
+
+. replace ind01_2006 = . if ind01_2006 < 0
+(12,591 real changes made, 12,591 to missing)
+
+. replace ind01_2008 = . if ind01_2008 < 0
+(12,603 real changes made, 12,603 to missing)
+
+. replace ind01_2010 = . if ind01_2010 < 0
+(12,608 real changes made, 12,608 to missing)
+
+. replace ind01_2012 = . if ind01_2012 < 0
+(12,620 real changes made, 12,620 to missing)
+
+. replace ind01_2014 = . if ind01_2014 < 0
+(12,627 real changes made, 12,627 to missing)
+
+. replace ind01_2016 = . if ind01_2016 < 0
+(12,630 real changes made, 12,630 to missing)
+
+. replace ind01_2018 = . if ind01_2018 < 0
+(12,635 real changes made, 12,635 to missing)
+
+. replace ind01_2020 = . if ind01_2020 < 0
+(12,641 real changes made, 12,641 to missing)
+
+. replace ind01_2022 = . if ind01_2022 < 0
+(12,648 real changes made, 12,648 to missing)
+
+. 
+. * CPSIND70 variables (Fix #7 — correct current-job industry for 1979-1993)
+. foreach var of varlist cpsind70_* {
+  2.     replace `var' = . if `var' < 0
+  3. }
+(7,519 real changes made, 7,519 to missing)
+(6,935 real changes made, 6,935 to missing)
+(6,349 real changes made, 6,349 to missing)
+(3,398 real changes made, 3,398 to missing)
+(3,266 real changes made, 3,266 to missing)
+(3,148 real changes made, 3,148 to missing)
+(3,660 real changes made, 3,660 to missing)
+(3,695 real changes made, 3,695 to missing)
+(3,755 real changes made, 3,755 to missing)
+(3,690 real changes made, 3,690 to missing)
+(3,634 real changes made, 3,634 to missing)
+(3,739 real changes made, 3,739 to missing)
+(5,042 real changes made, 5,042 to missing)
+(5,022 real changes made, 5,022 to missing)
+(5,127 real changes made, 5,127 to missing)
+
+. 
+. /*===========================================================================
+> ===
+> PART 6: CREATE UNIFIED OCCUPATION VARIABLE (occ_YYYY)
+> =============================================================================
+> =
+> Strategy:
+> - For 1979-1993: Use CPSOCC70 (CPS job occupation)
+> - For 1994+: Use OCCALL01 (Job #1 occupation)
+> =============================================================================
+> =*/
+. 
+. * Annual period: Use CPSOCC70
+. gen occ_1979 = cpsocc70_1979
+(7,485 missing values generated)
+
+. gen occ_1980 = cpsocc70_1980
+(6,936 missing values generated)
+
+. gen occ_1981 = cpsocc70_1981
+(6,345 missing values generated)
+
+. gen occ_1982 = cpsocc70_1982
+(3,401 missing values generated)
+
+. gen occ_1983 = cpsocc70_1983
+(3,268 missing values generated)
+
+. gen occ_1984 = cpsocc70_1984
+(3,150 missing values generated)
+
+. gen occ_1985 = cpsocc70_1985
+(3,665 missing values generated)
+
+. gen occ_1986 = cpsocc70_1986
+(3,696 missing values generated)
+
+. gen occ_1987 = cpsocc70_1987
+(3,757 missing values generated)
+
+. gen occ_1988 = cpsocc70_1988
+(3,697 missing values generated)
+
+. gen occ_1989 = cpsocc70_1989
+(3,640 missing values generated)
+
+. gen occ_1990 = cpsocc70_1990
+(3,734 missing values generated)
+
+. gen occ_1991 = cpsocc70_1991
+(5,063 missing values generated)
+
+. gen occ_1992 = cpsocc70_1992
+(5,022 missing values generated)
+
+. gen occ_1993 = cpsocc70_1993
+(5,127 missing values generated)
+
+. 
+. * Biennial period: Use OCCALL01
+. gen occ_1994 = occall01_1994
+(5,348 missing values generated)
+
+. gen occ_1996 = occall01_1996
+(5,078 missing values generated)
+
+. gen occ_1998 = occall01_1998
+(5,174 missing values generated)
+
+. gen occ_2000 = occall01_2000
+(5,447 missing values generated)
+
+. gen occ_2002 = occall01_2002
+(5,800 missing values generated)
+
+. gen occ_2004 = occall01_2004
+(6,047 missing values generated)
+
+. gen occ_2006 = occall01_2006
+(6,166 missing values generated)
+
+. gen occ_2008 = occall01_2008
+(6,243 missing values generated)
+
+. gen occ_2010 = occall01_2010
+(6,414 missing values generated)
+
+. gen occ_2012 = occall01_2012
+(6,732 missing values generated)
+
+. gen occ_2014 = occall01_2014
+(7,159 missing values generated)
+
+. gen occ_2016 = occall01_2016
+(7,363 missing values generated)
+
+. gen occ_2018 = occall01_2018
+(7,509 missing values generated)
+
+. gen occ_2020 = occall01_2020
+(7,966 missing values generated)
+
+. gen occ_2022 = occall01_2022
+(8,357 missing values generated)
+
+. 
+. di "Unified occ_YYYY variables created"
+Unified occ_YYYY variables created
+
+. 
+. /*===========================================================================
+> ===
+> PART 7: CREATE UNIFIED INDUSTRY VARIABLE (ind_YYYY)
+> =============================================================================
+> =
+> FIX #7b: For 1979-1993, use CPSIND70 (current CPS job industry) instead of
+>          ind01 (Employer #1 in lifetime roster, which collapses after ~1985
+>          as workers move off their first-ever employer).
+>          For 1994+, continue using ind01 (no CPSIND70 available after 1993).
+> =============================================================================
+> =*/
+. 
+. * 1979-1993: Use CPSIND70 (Fix #7b — correct current-job industry)
+. gen ind_1979 = cpsind70_1979
+(7,519 missing values generated)
+
+. gen ind_1980 = cpsind70_1980
+(6,935 missing values generated)
+
+. gen ind_1981 = cpsind70_1981
+(6,349 missing values generated)
+
+. gen ind_1982 = cpsind70_1982
+(3,398 missing values generated)
+
+. gen ind_1983 = cpsind70_1983
+(3,266 missing values generated)
+
+. gen ind_1984 = cpsind70_1984
+(3,148 missing values generated)
+
+. gen ind_1985 = cpsind70_1985
+(3,660 missing values generated)
+
+. gen ind_1986 = cpsind70_1986
+(3,695 missing values generated)
+
+. gen ind_1987 = cpsind70_1987
+(3,755 missing values generated)
+
+. gen ind_1988 = cpsind70_1988
+(3,690 missing values generated)
+
+. gen ind_1989 = cpsind70_1989
+(3,634 missing values generated)
+
+. gen ind_1990 = cpsind70_1990
+(3,739 missing values generated)
+
+. gen ind_1991 = cpsind70_1991
+(5,042 missing values generated)
+
+. gen ind_1992 = cpsind70_1992
+(5,022 missing values generated)
+
+. gen ind_1993 = cpsind70_1993
+(5,127 missing values generated)
+
+. gen ind_1994 = ind01_1994
+(12,485 missing values generated)
+
+. gen ind_1996 = ind01_1996
+(12,493 missing values generated)
+
+. gen ind_1998 = ind01_1998
+(12,516 missing values generated)
+
+. gen ind_2000 = ind01_2000
+(12,538 missing values generated)
+
+. gen ind_2002 = ind01_2002
+(12,568 missing values generated)
+
+. gen ind_2004 = ind01_2004
+(12,578 missing values generated)
+
+. gen ind_2006 = ind01_2006
+(12,591 missing values generated)
+
+. gen ind_2008 = ind01_2008
+(12,603 missing values generated)
+
+. gen ind_2010 = ind01_2010
+(12,608 missing values generated)
+
+. gen ind_2012 = ind01_2012
+(12,620 missing values generated)
+
+. gen ind_2014 = ind01_2014
+(12,627 missing values generated)
+
+. gen ind_2016 = ind01_2016
+(12,630 missing values generated)
+
+. gen ind_2018 = ind01_2018
+(12,635 missing values generated)
+
+. gen ind_2020 = ind01_2020
+(12,641 missing values generated)
+
+. gen ind_2022 = ind01_2022
+(12,648 missing values generated)
+
+. 
+. 
+. /*===========================================================================
+> ===
+> PART 8: CREATE BROAD OCCUPATION CATEGORIES (1-digit from 3-digit codes)
+> =============================================================================
+> =
+> 1970 Census Occupation Codes → Broad Categories:
+> 001-195: Professional, Technical (1)
+> 201-245: Managers, Administrators (2)
+> 260-285: Sales Workers (3)
+> 301-395: Clerical Workers (4)
+> 401-575: Craftsmen (5)
+> 601-695: Operatives except transport (6)
+> 701-715: Transport Equipment Operatives (6)
+> 740-785: Laborers (7)
+> 801-824: Farm Workers (8)
+> 901-984: Service Workers (9)
+> =============================================================================
+> =*/
+. 
+. * 1979
+. gen occ_broad_1979 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1979 = 1 if occ_1979 >= 1 & occ_1979 <= 195
+(173 real changes made)
+
+. replace occ_broad_1979 = 2 if occ_1979 >= 201 & occ_1979 <= 245
+(104 real changes made)
+
+. replace occ_broad_1979 = 3 if occ_1979 >= 260 & occ_1979 <= 285
+(345 real changes made)
+
+. replace occ_broad_1979 = 4 if occ_1979 >= 301 & occ_1979 <= 395
+(1,038 real changes made)
+
+. replace occ_broad_1979 = 5 if occ_1979 >= 401 & occ_1979 <= 575
+(403 real changes made)
+
+. replace occ_broad_1979 = 6 if occ_1979 >= 601 & occ_1979 <= 715
+(785 real changes made)
+
+. replace occ_broad_1979 = 7 if occ_1979 >= 740 & occ_1979 <= 785
+(615 real changes made)
+
+. replace occ_broad_1979 = 8 if occ_1979 >= 801 & occ_1979 <= 824
+(190 real changes made)
+
+. replace occ_broad_1979 = 9 if occ_1979 >= 901 & occ_1979 <= 984
+(1,548 real changes made)
+
+. 
+. * 1980
+. gen occ_broad_1980 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1980 = 1 if occ_1980 >= 1 & occ_1980 <= 195
+(275 real changes made)
+
+. replace occ_broad_1980 = 2 if occ_1980 >= 201 & occ_1980 <= 245
+(154 real changes made)
+
+. replace occ_broad_1980 = 3 if occ_1980 >= 260 & occ_1980 <= 285
+(321 real changes made)
+
+. replace occ_broad_1980 = 4 if occ_1980 >= 301 & occ_1980 <= 395
+(1,307 real changes made)
+
+. replace occ_broad_1980 = 5 if occ_1980 >= 401 & occ_1980 <= 575
+(492 real changes made)
+
+. replace occ_broad_1980 = 6 if occ_1980 >= 601 & occ_1980 <= 715
+(917 real changes made)
+
+. replace occ_broad_1980 = 7 if occ_1980 >= 740 & occ_1980 <= 785
+(590 real changes made)
+
+. replace occ_broad_1980 = 8 if occ_1980 >= 801 & occ_1980 <= 824
+(146 real changes made)
+
+. replace occ_broad_1980 = 9 if occ_1980 >= 901 & occ_1980 <= 984
+(1,547 real changes made)
+
+. 
+. * 1981
+. gen occ_broad_1981 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1981 = 1 if occ_1981 >= 1 & occ_1981 <= 195
+(476 real changes made)
+
+. replace occ_broad_1981 = 2 if occ_1981 >= 201 & occ_1981 <= 245
+(198 real changes made)
+
+. replace occ_broad_1981 = 3 if occ_1981 >= 260 & occ_1981 <= 285
+(402 real changes made)
+
+. replace occ_broad_1981 = 4 if occ_1981 >= 301 & occ_1981 <= 395
+(1,474 real changes made)
+
+. replace occ_broad_1981 = 5 if occ_1981 >= 401 & occ_1981 <= 575
+(614 real changes made)
+
+. replace occ_broad_1981 = 6 if occ_1981 >= 601 & occ_1981 <= 715
+(915 real changes made)
+
+. replace occ_broad_1981 = 7 if occ_1981 >= 740 & occ_1981 <= 785
+(562 real changes made)
+
+. replace occ_broad_1981 = 8 if occ_1981 >= 801 & occ_1981 <= 824
+(130 real changes made)
+
+. replace occ_broad_1981 = 9 if occ_1981 >= 901 & occ_1981 <= 984
+(1,569 real changes made)
+
+. 
+. * 1982
+. gen occ_broad_1982 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1982 = 1 if occ_1982 >= 1 & occ_1982 <= 195
+(693 real changes made)
+
+. replace occ_broad_1982 = 2 if occ_1982 >= 201 & occ_1982 <= 245
+(323 real changes made)
+
+. replace occ_broad_1982 = 3 if occ_1982 >= 260 & occ_1982 <= 285
+(501 real changes made)
+
+. replace occ_broad_1982 = 4 if occ_1982 >= 301 & occ_1982 <= 395
+(2,202 real changes made)
+
+. replace occ_broad_1982 = 5 if occ_1982 >= 401 & occ_1982 <= 575
+(815 real changes made)
+
+. replace occ_broad_1982 = 6 if occ_1982 >= 601 & occ_1982 <= 715
+(1,446 real changes made)
+
+. replace occ_broad_1982 = 7 if occ_1982 >= 740 & occ_1982 <= 785
+(835 real changes made)
+
+. replace occ_broad_1982 = 8 if occ_1982 >= 801 & occ_1982 <= 824
+(250 real changes made)
+
+. replace occ_broad_1982 = 9 if occ_1982 >= 901 & occ_1982 <= 984
+(2,220 real changes made)
+
+. 
+. * 1983
+. gen occ_broad_1983 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1983 = 1 if occ_1983 >= 1 & occ_1983 <= 195
+(811 real changes made)
+
+. replace occ_broad_1983 = 2 if occ_1983 >= 201 & occ_1983 <= 245
+(351 real changes made)
+
+. replace occ_broad_1983 = 3 if occ_1983 >= 260 & occ_1983 <= 285
+(558 real changes made)
+
+. replace occ_broad_1983 = 4 if occ_1983 >= 301 & occ_1983 <= 395
+(2,196 real changes made)
+
+. replace occ_broad_1983 = 5 if occ_1983 >= 401 & occ_1983 <= 575
+(825 real changes made)
+
+. replace occ_broad_1983 = 6 if occ_1983 >= 601 & occ_1983 <= 715
+(1,331 real changes made)
+
+. replace occ_broad_1983 = 7 if occ_1983 >= 740 & occ_1983 <= 785
+(846 real changes made)
+
+. replace occ_broad_1983 = 8 if occ_1983 >= 801 & occ_1983 <= 824
+(267 real changes made)
+
+. replace occ_broad_1983 = 9 if occ_1983 >= 901 & occ_1983 <= 984
+(2,233 real changes made)
+
+. 
+. * 1984
+. gen occ_broad_1984 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1984 = 1 if occ_1984 >= 1 & occ_1984 <= 195
+(1,089 real changes made)
+
+. replace occ_broad_1984 = 2 if occ_1984 >= 201 & occ_1984 <= 245
+(534 real changes made)
+
+. replace occ_broad_1984 = 3 if occ_1984 >= 260 & occ_1984 <= 285
+(455 real changes made)
+
+. replace occ_broad_1984 = 4 if occ_1984 >= 301 & occ_1984 <= 395
+(2,239 real changes made)
+
+. replace occ_broad_1984 = 5 if occ_1984 >= 401 & occ_1984 <= 575
+(1,095 real changes made)
+
+. replace occ_broad_1984 = 6 if occ_1984 >= 601 & occ_1984 <= 715
+(1,193 real changes made)
+
+. replace occ_broad_1984 = 7 if occ_1984 >= 740 & occ_1984 <= 785
+(805 real changes made)
+
+. replace occ_broad_1984 = 8 if occ_1984 >= 801 & occ_1984 <= 824
+(162 real changes made)
+
+. replace occ_broad_1984 = 9 if occ_1984 >= 901 & occ_1984 <= 984
+(1,963 real changes made)
+
+. 
+. * 1985
+. gen occ_broad_1985 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1985 = 1 if occ_1985 >= 1 & occ_1985 <= 195
+(1,027 real changes made)
+
+. replace occ_broad_1985 = 2 if occ_1985 >= 201 & occ_1985 <= 245
+(565 real changes made)
+
+. replace occ_broad_1985 = 3 if occ_1985 >= 260 & occ_1985 <= 285
+(470 real changes made)
+
+. replace occ_broad_1985 = 4 if occ_1985 >= 301 & occ_1985 <= 395
+(1,900 real changes made)
+
+. replace occ_broad_1985 = 5 if occ_1985 >= 401 & occ_1985 <= 575
+(927 real changes made)
+
+. replace occ_broad_1985 = 6 if occ_1985 >= 601 & occ_1985 <= 715
+(1,463 real changes made)
+
+. replace occ_broad_1985 = 7 if occ_1985 >= 740 & occ_1985 <= 785
+(701 real changes made)
+
+. replace occ_broad_1985 = 8 if occ_1985 >= 801 & occ_1985 <= 824
+(149 real changes made)
+
+. replace occ_broad_1985 = 9 if occ_1985 >= 901 & occ_1985 <= 984
+(1,819 real changes made)
+
+. 
+. * 1986
+. gen occ_broad_1986 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1986 = 1 if occ_1986 >= 1 & occ_1986 <= 195
+(1,201 real changes made)
+
+. replace occ_broad_1986 = 2 if occ_1986 >= 201 & occ_1986 <= 245
+(591 real changes made)
+
+. replace occ_broad_1986 = 3 if occ_1986 >= 260 & occ_1986 <= 285
+(442 real changes made)
+
+. replace occ_broad_1986 = 4 if occ_1986 >= 301 & occ_1986 <= 395
+(1,787 real changes made)
+
+. replace occ_broad_1986 = 5 if occ_1986 >= 401 & occ_1986 <= 575
+(1,038 real changes made)
+
+. replace occ_broad_1986 = 6 if occ_1986 >= 601 & occ_1986 <= 715
+(1,374 real changes made)
+
+. replace occ_broad_1986 = 7 if occ_1986 >= 740 & occ_1986 <= 785
+(714 real changes made)
+
+. replace occ_broad_1986 = 8 if occ_1986 >= 801 & occ_1986 <= 824
+(128 real changes made)
+
+. replace occ_broad_1986 = 9 if occ_1986 >= 901 & occ_1986 <= 984
+(1,715 real changes made)
+
+. 
+. * 1987
+. gen occ_broad_1987 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1987 = 1 if occ_1987 >= 1 & occ_1987 <= 195
+(1,334 real changes made)
+
+. replace occ_broad_1987 = 2 if occ_1987 >= 201 & occ_1987 <= 245
+(817 real changes made)
+
+. replace occ_broad_1987 = 3 if occ_1987 >= 260 & occ_1987 <= 285
+(427 real changes made)
+
+. replace occ_broad_1987 = 4 if occ_1987 >= 301 & occ_1987 <= 395
+(1,876 real changes made)
+
+. replace occ_broad_1987 = 5 if occ_1987 >= 401 & occ_1987 <= 575
+(1,186 real changes made)
+
+. replace occ_broad_1987 = 6 if occ_1987 >= 601 & occ_1987 <= 715
+(1,121 real changes made)
+
+. replace occ_broad_1987 = 7 if occ_1987 >= 740 & occ_1987 <= 785
+(606 real changes made)
+
+. replace occ_broad_1987 = 8 if occ_1987 >= 801 & occ_1987 <= 824
+(108 real changes made)
+
+. replace occ_broad_1987 = 9 if occ_1987 >= 901 & occ_1987 <= 984
+(1,454 real changes made)
+
+. 
+. * 1988
+. gen occ_broad_1988 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1988 = 1 if occ_1988 >= 1 & occ_1988 <= 195
+(1,356 real changes made)
+
+. replace occ_broad_1988 = 2 if occ_1988 >= 201 & occ_1988 <= 245
+(966 real changes made)
+
+. replace occ_broad_1988 = 3 if occ_1988 >= 260 & occ_1988 <= 285
+(415 real changes made)
+
+. replace occ_broad_1988 = 4 if occ_1988 >= 301 & occ_1988 <= 395
+(1,825 real changes made)
+
+. replace occ_broad_1988 = 5 if occ_1988 >= 401 & occ_1988 <= 575
+(1,016 real changes made)
+
+. replace occ_broad_1988 = 6 if occ_1988 >= 601 & occ_1988 <= 715
+(1,274 real changes made)
+
+. replace occ_broad_1988 = 7 if occ_1988 >= 740 & occ_1988 <= 785
+(617 real changes made)
+
+. replace occ_broad_1988 = 8 if occ_1988 >= 801 & occ_1988 <= 824
+(127 real changes made)
+
+. replace occ_broad_1988 = 9 if occ_1988 >= 901 & occ_1988 <= 984
+(1,393 real changes made)
+
+. 
+. * 1989
+. gen occ_broad_1989 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1989 = 1 if occ_1989 >= 1 & occ_1989 <= 195
+(1,375 real changes made)
+
+. replace occ_broad_1989 = 2 if occ_1989 >= 201 & occ_1989 <= 245
+(961 real changes made)
+
+. replace occ_broad_1989 = 3 if occ_1989 >= 260 & occ_1989 <= 285
+(400 real changes made)
+
+. replace occ_broad_1989 = 4 if occ_1989 >= 301 & occ_1989 <= 395
+(1,749 real changes made)
+
+. replace occ_broad_1989 = 5 if occ_1989 >= 401 & occ_1989 <= 575
+(1,028 real changes made)
+
+. replace occ_broad_1989 = 6 if occ_1989 >= 601 & occ_1989 <= 715
+(1,347 real changes made)
+
+. replace occ_broad_1989 = 7 if occ_1989 >= 740 & occ_1989 <= 785
+(560 real changes made)
+
+. replace occ_broad_1989 = 8 if occ_1989 >= 801 & occ_1989 <= 824
+(128 real changes made)
+
+. replace occ_broad_1989 = 9 if occ_1989 >= 901 & occ_1989 <= 984
+(1,498 real changes made)
+
+. 
+. * 1990
+. gen occ_broad_1990 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1990 = 1 if occ_1990 >= 1 & occ_1990 <= 195
+(1,417 real changes made)
+
+. replace occ_broad_1990 = 2 if occ_1990 >= 201 & occ_1990 <= 245
+(988 real changes made)
+
+. replace occ_broad_1990 = 3 if occ_1990 >= 260 & occ_1990 <= 285
+(427 real changes made)
+
+. replace occ_broad_1990 = 4 if occ_1990 >= 301 & occ_1990 <= 395
+(1,698 real changes made)
+
+. replace occ_broad_1990 = 5 if occ_1990 >= 401 & occ_1990 <= 575
+(1,061 real changes made)
+
+. replace occ_broad_1990 = 6 if occ_1990 >= 601 & occ_1990 <= 715
+(1,287 real changes made)
+
+. replace occ_broad_1990 = 7 if occ_1990 >= 740 & occ_1990 <= 785
+(529 real changes made)
+
+. replace occ_broad_1990 = 8 if occ_1990 >= 801 & occ_1990 <= 824
+(96 real changes made)
+
+. replace occ_broad_1990 = 9 if occ_1990 >= 901 & occ_1990 <= 984
+(1,445 real changes made)
+
+. 
+. * 1991
+. gen occ_broad_1991 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1991 = 1 if occ_1991 >= 1 & occ_1991 <= 195
+(1,287 real changes made)
+
+. replace occ_broad_1991 = 2 if occ_1991 >= 201 & occ_1991 <= 245
+(894 real changes made)
+
+. replace occ_broad_1991 = 3 if occ_1991 >= 260 & occ_1991 <= 285
+(322 real changes made)
+
+. replace occ_broad_1991 = 4 if occ_1991 >= 301 & occ_1991 <= 395
+(1,444 real changes made)
+
+. replace occ_broad_1991 = 5 if occ_1991 >= 401 & occ_1991 <= 575
+(862 real changes made)
+
+. replace occ_broad_1991 = 6 if occ_1991 >= 601 & occ_1991 <= 715
+(1,017 real changes made)
+
+. replace occ_broad_1991 = 7 if occ_1991 >= 740 & occ_1991 <= 785
+(509 real changes made)
+
+. replace occ_broad_1991 = 8 if occ_1991 >= 801 & occ_1991 <= 824
+(90 real changes made)
+
+. replace occ_broad_1991 = 9 if occ_1991 >= 901 & occ_1991 <= 984
+(1,197 real changes made)
+
+. 
+. * 1992
+. gen occ_broad_1992 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1992 = 1 if occ_1992 >= 1 & occ_1992 <= 195
+(1,349 real changes made)
+
+. replace occ_broad_1992 = 2 if occ_1992 >= 201 & occ_1992 <= 245
+(892 real changes made)
+
+. replace occ_broad_1992 = 3 if occ_1992 >= 260 & occ_1992 <= 285
+(357 real changes made)
+
+. replace occ_broad_1992 = 4 if occ_1992 >= 301 & occ_1992 <= 395
+(1,381 real changes made)
+
+. replace occ_broad_1992 = 5 if occ_1992 >= 401 & occ_1992 <= 575
+(903 real changes made)
+
+. replace occ_broad_1992 = 6 if occ_1992 >= 601 & occ_1992 <= 715
+(992 real changes made)
+
+. replace occ_broad_1992 = 7 if occ_1992 >= 740 & occ_1992 <= 785
+(522 real changes made)
+
+. replace occ_broad_1992 = 8 if occ_1992 >= 801 & occ_1992 <= 824
+(79 real changes made)
+
+. replace occ_broad_1992 = 9 if occ_1992 >= 901 & occ_1992 <= 984
+(1,184 real changes made)
+
+. 
+. * 1993
+. gen occ_broad_1993 = .
+(12,686 missing values generated)
+
+. replace occ_broad_1993 = 1 if occ_1993 >= 1 & occ_1993 <= 195
+(1,276 real changes made)
+
+. replace occ_broad_1993 = 2 if occ_1993 >= 201 & occ_1993 <= 245
+(909 real changes made)
+
+. replace occ_broad_1993 = 3 if occ_1993 >= 260 & occ_1993 <= 285
+(313 real changes made)
+
+. replace occ_broad_1993 = 4 if occ_1993 >= 301 & occ_1993 <= 395
+(1,394 real changes made)
+
+. replace occ_broad_1993 = 5 if occ_1993 >= 401 & occ_1993 <= 575
+(856 real changes made)
+
+. replace occ_broad_1993 = 6 if occ_1993 >= 601 & occ_1993 <= 715
+(942 real changes made)
+
+. replace occ_broad_1993 = 7 if occ_1993 >= 740 & occ_1993 <= 785
+(557 real changes made)
+
+. replace occ_broad_1993 = 8 if occ_1993 >= 801 & occ_1993 <= 824
+(71 real changes made)
+
+. replace occ_broad_1993 = 9 if occ_1993 >= 901 & occ_1993 <= 984
+(1,231 real changes made)
+
+. 
+. * Apply labels
+. label define occ_broad_lbl     1 "Professional/Technical"     2 "Managers/Adm
+> inistrators"     3 "Sales Workers"     4 "Clerical Workers"     5 "Craftsmen"
+>      6 "Operatives"     7 "Laborers"     8 "Farm Workers"     9 "Service Work
+> ers"
+
+. 
+. label values occ_broad_1979 occ_broad_lbl
+
+. label values occ_broad_1980 occ_broad_lbl
+
+. label values occ_broad_1981 occ_broad_lbl
+
+. label values occ_broad_1982 occ_broad_lbl
+
+. label values occ_broad_1983 occ_broad_lbl
+
+. label values occ_broad_1984 occ_broad_lbl
+
+. label values occ_broad_1985 occ_broad_lbl
+
+. label values occ_broad_1986 occ_broad_lbl
+
+. label values occ_broad_1987 occ_broad_lbl
+
+. label values occ_broad_1988 occ_broad_lbl
+
+. label values occ_broad_1989 occ_broad_lbl
+
+. label values occ_broad_1990 occ_broad_lbl
+
+. label values occ_broad_1991 occ_broad_lbl
+
+. label values occ_broad_1992 occ_broad_lbl
+
+. label values occ_broad_1993 occ_broad_lbl
+
+. 
+. di "Broad occupation categories created"
+Broad occupation categories created
+
+. 
+. /*===========================================================================
+> ===
+> PART 9: CREATE BROAD INDUSTRY CATEGORIES (1-digit from 3-digit codes)
+> 1970 Census Industry Codes → Broad Categories:
+> 017-029: Agriculture, Forestry, Fisheries (1)
+> 047-058: Mining (2)
+> 067-078: Construction (3)
+> 107-398: Manufacturing (4)
+> 407-499: Transportation, Communication, Utilities (5)
+> 507-699: Wholesale and Retail Trade (6)
+> 707-719: Finance, Insurance, Real Estate (7)
+> 727-767: Business and Repair Services (8)
+> 769-799: Personal Services (9)
+> 807-817: Entertainment and Recreation (10)
+> 828-899: Professional Services (11)
+> 907-947: Public Administration (12)
+> =============================================================================
+> =*/
+. 
+. * 1979
+. gen ind_broad_1979 = .
+(12,686 missing values generated)
+
+. replace ind_broad_1979 = 1 if ind_1979 >= 17 & ind_1979 <= 29
+(244 real changes made)
+
+. replace ind_broad_1979 = 2 if ind_1979 >= 47 & ind_1979 <= 58
+(26 real changes made)
+
+. replace ind_broad_1979 = 3 if ind_1979 >= 67 & ind_1979 <= 78
+(235 real changes made)
+
+. replace ind_broad_1979 = 4 if ind_1979 >= 107 & ind_1979 <= 398
+(856 real changes made)
+
+. replace ind_broad_1979 = 5 if ind_1979 >= 407 & ind_1979 <= 499
+(138 real changes made)
+
+. replace ind_broad_1979 = 6 if ind_1979 >= 507 & ind_1979 <= 699
+(1,796 real changes made)
+
+. replace ind_broad_1979 = 7 if ind_1979 >= 707 & ind_1979 <= 719
+(194 real changes made)
+
+. replace ind_broad_1979 = 8 if ind_1979 >= 727 & ind_1979 <= 767
+(249 real changes made)
+
+. replace ind_broad_1979 = 9 if ind_1979 >= 769 & ind_1979 <= 799
+(436 real changes made)
+
+. replace ind_broad_1979 = 10 if ind_1979 >= 807 & ind_1979 <= 817
+(104 real changes made)
+
+. replace ind_broad_1979 = 11 if ind_1979 >= 828 & ind_1979 <= 899
+(749 real changes made)
+
+. replace ind_broad_1979 = 12 if ind_1979 >= 907 & ind_1979 <= 947
+(140 real changes made)
+
+. 
+. * 1980-1993 (abbreviated - same pattern)
+. foreach yr in 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 199
+> 2 1993 {
+  2.     gen ind_broad_`yr' = .
+  3.     replace ind_broad_`yr' = 1 if ind_`yr' >= 17 & ind_`yr' <= 29
+  4.     replace ind_broad_`yr' = 2 if ind_`yr' >= 47 & ind_`yr' <= 58
+  5.     replace ind_broad_`yr' = 3 if ind_`yr' >= 67 & ind_`yr' <= 78
+  6.     replace ind_broad_`yr' = 4 if ind_`yr' >= 107 & ind_`yr' <= 398
+  7.     replace ind_broad_`yr' = 5 if ind_`yr' >= 407 & ind_`yr' <= 499
+  8.     replace ind_broad_`yr' = 6 if ind_`yr' >= 507 & ind_`yr' <= 699
+  9.     replace ind_broad_`yr' = 7 if ind_`yr' >= 707 & ind_`yr' <= 719
+ 10.     replace ind_broad_`yr' = 8 if ind_`yr' >= 727 & ind_`yr' <= 767
+ 11.     replace ind_broad_`yr' = 9 if ind_`yr' >= 769 & ind_`yr' <= 799
+ 12.     replace ind_broad_`yr' = 10 if ind_`yr' >= 807 & ind_`yr' <= 817
+ 13.     replace ind_broad_`yr' = 11 if ind_`yr' >= 828 & ind_`yr' <= 899
+ 14.     replace ind_broad_`yr' = 12 if ind_`yr' >= 907 & ind_`yr' <= 947
+ 15. }
+(12,686 missing values generated)
+(207 real changes made)
+(36 real changes made)
+(268 real changes made)
+(990 real changes made)
+(188 real changes made)
+(2,006 real changes made)
+(258 real changes made)
+(300 real changes made)
+(334 real changes made)
+(113 real changes made)
+(903 real changes made)
+(148 real changes made)
+(12,686 missing values generated)
+(193 real changes made)
+(61 real changes made)
+(300 real changes made)
+(1,086 real changes made)
+(229 real changes made)
+(2,024 real changes made)
+(331 real changes made)
+(329 real changes made)
+(319 real changes made)
+(111 real changes made)
+(1,149 real changes made)
+(205 real changes made)
+(12,686 missing values generated)
+(384 real changes made)
+(104 real changes made)
+(515 real changes made)
+(1,554 real changes made)
+(371 real changes made)
+(2,783 real changes made)
+(419 real changes made)
+(563 real changes made)
+(469 real changes made)
+(213 real changes made)
+(1,505 real changes made)
+(408 real changes made)
+(12,686 missing values generated)
+(386 real changes made)
+(99 real changes made)
+(530 real changes made)
+(1,480 real changes made)
+(387 real changes made)
+(2,719 real changes made)
+(471 real changes made)
+(603 real changes made)
+(539 real changes made)
+(210 real changes made)
+(1,575 real changes made)
+(421 real changes made)
+(12,686 missing values generated)
+(305 real changes made)
+(103 real changes made)
+(525 real changes made)
+(2,010 real changes made)
+(369 real changes made)
+(2,206 real changes made)
+(458 real changes made)
+(677 real changes made)
+(623 real changes made)
+(234 real changes made)
+(1,572 real changes made)
+(456 real changes made)
+(12,686 missing values generated)
+(246 real changes made)
+(100 real changes made)
+(631 real changes made)
+(1,671 real changes made)
+(417 real changes made)
+(2,291 real changes made)
+(492 real changes made)
+(665 real changes made)
+(519 real changes made)
+(136 real changes made)
+(1,524 real changes made)
+(334 real changes made)
+(12,686 missing values generated)
+(234 real changes made)
+(76 real changes made)
+(622 real changes made)
+(1,669 real changes made)
+(450 real changes made)
+(2,103 real changes made)
+(556 real changes made)
+(683 real changes made)
+(468 real changes made)
+(129 real changes made)
+(1,579 real changes made)
+(422 real changes made)
+(12,686 missing values generated)
+(243 real changes made)
+(39 real changes made)
+(625 real changes made)
+(1,707 real changes made)
+(519 real changes made)
+(1,857 real changes made)
+(549 real changes made)
+(746 real changes made)
+(567 real changes made)
+(141 real changes made)
+(1,523 real changes made)
+(415 real changes made)
+(12,686 missing values generated)
+(254 real changes made)
+(71 real changes made)
+(652 real changes made)
+(1,704 real changes made)
+(537 real changes made)
+(1,835 real changes made)
+(578 real changes made)
+(696 real changes made)
+(461 real changes made)
+(156 real changes made)
+(1,580 real changes made)
+(472 real changes made)
+(12,686 missing values generated)
+(229 real changes made)
+(47 real changes made)
+(705 real changes made)
+(1,757 real changes made)
+(561 real changes made)
+(1,787 real changes made)
+(570 real changes made)
+(698 real changes made)
+(485 real changes made)
+(127 real changes made)
+(1,675 real changes made)
+(411 real changes made)
+(12,686 missing values generated)
+(222 real changes made)
+(62 real changes made)
+(682 real changes made)
+(1,724 real changes made)
+(563 real changes made)
+(1,723 real changes made)
+(566 real changes made)
+(694 real changes made)
+(412 real changes made)
+(118 real changes made)
+(1,724 real changes made)
+(457 real changes made)
+(12,686 missing values generated)
+(197 real changes made)
+(45 real changes made)
+(598 real changes made)
+(1,382 real changes made)
+(516 real changes made)
+(1,434 real changes made)
+(483 real changes made)
+(563 real changes made)
+(362 real changes made)
+(126 real changes made)
+(1,527 real changes made)
+(411 real changes made)
+(12,686 missing values generated)
+(228 real changes made)
+(57 real changes made)
+(541 real changes made)
+(1,417 real changes made)
+(497 real changes made)
+(1,308 real changes made)
+(464 real changes made)
+(614 real changes made)
+(312 real changes made)
+(110 real changes made)
+(1,606 real changes made)
+(510 real changes made)
+(12,686 missing values generated)
+(199 real changes made)
+(37 real changes made)
+(586 real changes made)
+(1,355 real changes made)
+(506 real changes made)
+(1,289 real changes made)
+(461 real changes made)
+(590 real changes made)
+(357 real changes made)
+(87 real changes made)
+(1,610 real changes made)
+(472 real changes made)
+
+. 
+. * Apply labels
+. label define ind_broad_lbl     1 "Agriculture/Forestry/Fisheries"     2 "Mini
+> ng"     3 "Construction"     4 "Manufacturing"     5 "Transport/Communication
+> /Utilities"     6 "Wholesale/Retail Trade"     7 "Finance/Insurance/Real Esta
+> te"     8 "Business/Repair Services"     9 "Personal Services"     10 "Entert
+> ainment/Recreation"     11 "Professional Services"     12 "Public Administrat
+> ion"
+
+. 
+. foreach yr in 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 199
+> 1 1992 1993 {
+  2.     label values ind_broad_`yr' ind_broad_lbl
+  3. }
+
+. 
+. di ""
+
+
+. di "Broad occupation distribution (1990):"
+Broad occupation distribution (1990):
+
+. tab occ_broad_1990
+
+         occ_broad_1990 |      Freq.     Percent        Cum.
+------------------------+-----------------------------------
+ Professional/Technical |      1,417       15.84       15.84
+Managers/Administrators |        988       11.04       26.88
+          Sales Workers |        427        4.77       31.65
+       Clerical Workers |      1,698       18.98       50.63
+              Craftsmen |      1,061       11.86       62.48
+             Operatives |      1,287       14.38       76.87
+               Laborers |        529        5.91       82.78
+           Farm Workers |         96        1.07       83.85
+        Service Workers |      1,445       16.15      100.00
+------------------------+-----------------------------------
+                  Total |      8,948      100.00
+
+. 
+. di ""
+
+
+. di "Broad industry distribution (1990):"
+Broad industry distribution (1990):
+
+. tab ind_broad_1990
+
+                   ind_broad_1990 |      Freq.     Percent        Cum.
+----------------------------------+-----------------------------------
+   Agriculture/Forestry/Fisheries |        222        2.48        2.48
+                           Mining |         62        0.69        3.17
+                     Construction |        682        7.62       10.80
+                    Manufacturing |      1,724       19.27       30.07
+Transport/Communication/Utilities |        563        6.29       36.36
+           Wholesale/Retail Trade |      1,723       19.26       55.62
+    Finance/Insurance/Real Estate |        566        6.33       61.94
+         Business/Repair Services |        694        7.76       69.70
+                Personal Services |        412        4.60       74.30
+         Entertainment/Recreation |        118        1.32       75.62
+            Professional Services |      1,724       19.27       94.89
+            Public Administration |        457        5.11      100.00
+----------------------------------+-----------------------------------
+                            Total |      8,947      100.00
+
+. 
+. save "merged_data_with_occind.dta", replace
+file merged_data_with_occind.dta saved
+
+. 
+. * Marital status
+. rename r0217500 mstat_1979
+
+. rename r0405600 mstat_1980
+
+. rename r0618600 mstat_1981
+
+. rename r0898400 mstat_1982
+
+. rename r1144900 mstat_1983
+
+. rename r1520100 mstat_1984
+
+. rename r1890800 mstat_1985
+
+. rename r2257900 mstat_1986
+
+. rename r2445300 mstat_1987
+
+. rename r2870900 mstat_1988
+
+. rename r3074600 mstat_1989
+
+. rename r3401300 mstat_1990
+
+. rename r3656700 mstat_1991
+
+. rename r4007200 mstat_1992
+
+. rename r4418300 mstat_1993
+
+. rename r5081300 mstat_1994
+
+. rename r5166600 mstat_1996
+
+. rename r6479200 mstat_1998
+
+. rename r7006900 mstat_2000
+
+. rename r7704200 mstat_2002
+
+. rename r8496600 mstat_2004
+
+. rename t0988400 mstat_2006
+
+. rename t2210400 mstat_2008
+
+. rename t3108300 mstat_2010
+
+. rename t4112800 mstat_2012
+
+. rename t5023200 mstat_2014
+
+. rename t5771100 mstat_2016
+
+. rename t8219200 mstat_2018
+
+. rename t8788400 mstat_2020
+
+. rename t9300200 mstat_2022
+
+. 
+. * Page
+. rename r0216500 page_1979
+
+. rename r0406510 page_1980
+
+. rename r0619010 page_1981
+
+. rename r0898310 page_1982
+
+. rename r1145110 page_1983
+
+. rename r1520310 page_1984
+
+. rename r1891010 page_1985
+
+. rename r2258110 page_1986
+
+. rename r2445510 page_1987
+
+. rename r2871300 page_1988
+
+. rename r3075000 page_1989
+
+. rename r3401700 page_1990
+
+. rename r3657100 page_1991
+
+. rename r4007600 page_1992
+
+. rename r4418700 page_1993
+
+. rename r5081700 page_1994
+
+. rename r5167000 page_1996
+
+. rename r6479800 page_1998
+
+. rename r7007500 page_2000
+
+. rename r7704800 page_2002
+
+. rename r8497200 page_2004
+
+. rename t0989000 page_2006
+
+. rename t2210800 page_2008
+
+. rename t3108700 page_2010
+
+. rename t4113200 page_2012
+
+. rename t5023600 page_2014
+
+. rename t5771500 page_2016
+
+. rename t8219400 page_2018
+
+. rename t8788600 page_2020
+
+. rename t9300400 page_2022
+
+. 
+. * Depx
+. rename r0218001 depx_1979
+
+. rename r0407601 depx_1980
+
+. rename r0647101 depx_1981
+
+. rename r0898838 depx_1982
+
+. rename r1146830 depx_1983
+
+. rename r1522037 depx_1984
+
+. rename r1892737 depx_1985
+
+. rename r2259837 depx_1986
+
+. rename r2448037 depx_1987
+
+. rename r2877600 depx_1988
+
+. rename r3076842 depx_1989
+
+. rename r3407700 depx_1990
+
+. rename r3659047 depx_1991
+
+. rename r4009447 depx_1992
+
+. rename r4444700 depx_1993
+
+. rename r5087500 depx_1994
+
+. rename r5172800 depx_1996
+
+. rename r6486400 depx_1998
+
+. rename r7014200 depx_2000
+
+. rename r7711800 depx_2002
+
+. rename r8504300 depx_2004
+
+. rename t0996000 depx_2006
+
+. rename t2217800 depx_2008
+
+. rename t3115800 depx_2010
+
+. rename t4120300 depx_2012
+
+. rename t5031500 depx_2014
+
+. rename t5779700 depx_2016
+
+. rename t8226800 depx_2018
+
+. rename t8796100 depx_2020
+
+. rename t9307900 depx_2022
+
+. 
+. * Wages & salary (IN PAST CALENDAR YEAR)
+. rename r0155400 pwages_1978
+
+. rename r0312300 pwages_1979
+
+. rename r0482600 pwages_1980
+
+. rename r0782101 pwages_1981
+
+. rename r1024001 pwages_1982
+
+. rename r1410701 pwages_1983
+
+. rename r1778501 pwages_1984
+
+. rename r2141601 pwages_1985
+
+. rename r2350301 pwages_1986
+
+. rename r2722501 pwages_1987
+
+. rename r2971401 pwages_1988
+
+. rename r3279401 pwages_1989
+
+. rename r3559001 pwages_1990
+
+. rename r3897101 pwages_1991
+
+. rename r4295101 pwages_1992
+
+. rename r4982801 pwages_1993
+
+. rename r5626201 pwages_1995
+
+. rename r6364601 pwages_1997
+
+. rename r6909701 pwages_1999
+
+. rename r7607800 pwages_2001
+
+. rename r8316300 pwages_2003
+
+. rename t0912400 pwages_2005
+
+. rename t2076700 pwages_2007
+
+. rename t3045300 pwages_2009
+
+. rename t3977400 pwages_2011
+
+. rename t4915800 pwages_2013
+
+. rename t5619500 pwages_2015
+
+. rename t8115400 pwages_2017
+
+. rename t8645700 pwages_2019
+
+. rename t9198400 pwages_2021
+
+. 
+. rename r0155500 swages_1978
+
+. rename r0312710 swages_1979
+
+. rename r0482910 swages_1980
+
+. rename r0784301 swages_1981
+
+. rename r1026201 swages_1982
+
+. rename r1412901 swages_1983
+
+. rename r1780701 swages_1984
+
+. rename r2143801 swages_1985
+
+. rename r2352501 swages_1986
+
+. rename r2724701 swages_1987
+
+. rename r2973601 swages_1988
+
+. rename r3281601 swages_1989
+
+. rename r3561201 swages_1990
+
+. rename r3899301 swages_1991
+
+. rename r4314401 swages_1992
+
+. rename r4996001 swages_1993
+
+. rename r5650801 swages_1995
+
+. rename r6374901 swages_1997
+
+. rename r6917801 swages_1999
+
+. rename r7617300 swages_2001
+
+. rename r8325800 swages_2003
+
+. rename t0920800 swages_2005
+
+. rename t2085500 swages_2007
+
+. rename t3056000 swages_2009
+
+. rename t3987600 swages_2011
+
+. rename t4924900 swages_2013
+
+. rename t5630100 swages_2015
+
+. rename t8135900 swages_2017
+
+. rename t8671700 swages_2019
+
+. rename t9223100 swages_2021
+
+. 
+. * Self‐employment income
+. rename r0156000 psemp_1978
+
+. rename r0312600 psemp_1979
+
+. rename r0483200 psemp_1980
+
+. rename r0782401 psemp_1981
+
+. rename r1024301 psemp_1982
+
+. rename r1411001 psemp_1983
+
+. rename r1778801 psemp_1984
+
+. rename r2141901 psemp_1985
+
+. rename r2350601 psemp_1986
+
+. rename r2722801 psemp_1987
+
+. rename r2971701 psemp_1988
+
+. rename r3279701 psemp_1989
+
+. rename r3559301 psemp_1990
+
+. rename r3897401 psemp_1991
+
+. rename r4295501 psemp_1992
+
+. rename r4983201 psemp_1993
+
+. rename r5626601 psemp_1995
+
+. rename r6365001 psemp_1997
+
+. rename r6911101 psemp_1999
+
+. rename r7609000 psemp_2001
+
+. rename r8318200 psemp_2003
+
+. rename t0913900 psemp_2005
+
+. rename t2078800 psemp_2007
+
+. rename t3047500 psemp_2009
+
+. rename t3979400 psemp_2011
+
+. rename t4917800 psemp_2013
+
+. rename t5621700 psemp_2015
+
+. rename t8116700 psemp_2017
+
+. rename t8646800 psemp_2019
+
+. rename t9199700 psemp_2021
+
+. 
+. rename r0156100 ssemp_1978
+
+. rename r0313000 ssemp_1979
+
+. rename r0483500 ssemp_1980
+
+. rename r0784601 ssemp_1981
+
+. rename r1026501 ssemp_1982
+
+. rename r1413201 ssemp_1983
+
+. rename r1781001 ssemp_1984
+
+. rename r2144101 ssemp_1985
+
+. rename r2352801 ssemp_1986
+
+. rename r2725001 ssemp_1987
+
+. rename r2973901 ssemp_1988
+
+. rename r3281901 ssemp_1989
+
+. rename r3561501 ssemp_1990
+
+. rename r3899601 ssemp_1991
+
+. rename r4314901 ssemp_1992
+
+. rename r4996601 ssemp_1993
+
+. rename r5651401 ssemp_1995
+
+. rename r6375301 ssemp_1997
+
+. rename r6919201 ssemp_1999
+
+. rename r7618500 ssemp_2001
+
+. rename r8328000 ssemp_2003
+
+. rename t0922200 ssemp_2005
+
+. rename t2087700 ssemp_2007
+
+. rename t3058300 ssemp_2009
+
+. rename t3989900 ssemp_2011
+
+. rename t4927200 ssemp_2013
+
+. rename t5632400 ssemp_2015
+
+. rename t8137300 ssemp_2017
+
+. rename t8673100 ssemp_2019
+
+. rename t9224500 ssemp_2021
+
+. 
+. * UI
+. rename g0001400 unemp_1978
+
+. rename g0009200 unemp_1979
+
+. rename g0017000 unemp_1980
+
+. rename g0024800 unemp_1981
+
+. rename g0032600 unemp_1982
+
+. rename g0040400 unemp_1983
+
+. rename g0048200 unemp_1984
+
+. rename g0056000 unemp_1985
+
+. rename g0063800 unemp_1986
+
+. rename g0071600 unemp_1987
+
+. rename g0079400 unemp_1988
+
+. rename g0087200 unemp_1989
+
+. rename g0095000 unemp_1990
+
+. rename g0102800 unemp_1991
+
+. rename g0110600 unemp_1992
+
+. rename g0118400 unemp_1993
+
+. rename g0119700 unemp_1994
+
+. rename g0135200 unemp_1995
+
+. rename g0135300 unemp_1996
+
+. rename g0150800 unemp_1997
+
+. rename g0150900 unemp_1998
+
+. rename g0166400 unemp_1999
+
+. rename g0166500 unemp_2000
+
+. rename g0182000 unemp_2001
+
+. rename g0182100 unemp_2002
+
+. rename g0197600 unemp_2003
+
+. rename g0197700 unemp_2004
+
+. rename g0213300 unemp_2005
+
+. rename g0213400 unemp_2006
+
+. rename g0226700 unemp_2007
+
+. rename g0236600 unemp_2008
+
+. rename g0241700 unemp_2009
+
+. rename g0253800 unemp_2010
+
+. rename g0262100 unemp_2011
+
+. rename g0269500 unemp_2012
+
+. rename g0277000 unemp_2013
+
+. rename g0286200 unemp_2014
+
+. rename g0293800 unemp_2015
+
+. rename g0300700 unemp_2016
+
+. rename g0301900 unemp_2017
+
+. rename g0317700 unemp_2018
+
+. rename g0318800 unemp_2019
+
+. rename g0336300 unemp_2020
+
+. rename g0337500 unemp_2021
+
+. rename g0355400 unemp_2022
+
+. rename g0356400 unemp_2023
+
+. 
+. rename g0002700 sui_1978
+
+. rename g0010500 sui_1979
+
+. rename g0018300 sui_1980
+
+. rename g0026100 sui_1981
+
+. rename g0033900 sui_1982
+
+. rename g0041700 sui_1983
+
+. rename g0049500 sui_1984
+
+. rename g0057300 sui_1985
+
+. rename g0065100 sui_1986
+
+. rename g0072900 sui_1987
+
+. rename g0080700 sui_1988
+
+. rename g0088500 sui_1989
+
+. rename g0096300 sui_1990
+
+. rename g0104100 sui_1991
+
+. rename g0111900 sui_1992
+
+. rename g0121000 sui_1993
+
+. rename g0122300 sui_1994
+
+. rename g0137900 sui_1996
+
+. rename g0153400 sui_1997
+
+. rename g0153500 sui_1998
+
+. rename g0169100 sui_2000
+
+. rename g0184600 sui_2001
+
+. rename g0184700 sui_2002
+
+. rename g0200200 sui_2003
+
+. rename g0200300 sui_2004
+
+. rename g0215900 sui_2005
+
+. rename g0216000 sui_2006
+
+. rename g0226900 sui_2007
+
+. rename g0237600 sui_2008
+
+. rename g0241800 sui_2009
+
+. rename g0255100 sui_2010
+
+. rename g0263400 sui_2011
+
+. rename g0270800 sui_2012
+
+. rename g0278000 sui_2013
+
+. rename g0287500 sui_2014
+
+. rename g0294900 sui_2015
+
+. rename g0303200 sui_2016
+
+. rename g0304400 sui_2017
+
+. rename g0320100 sui_2018
+
+. rename g0321200 sui_2019
+
+. rename g0338800 sui_2020
+
+. rename g0340000 sui_2021
+
+. rename g0357700 sui_2022
+
+. rename g0358700 sui_2023
+
+. 
+. * Gross Social Security
+. rename g0006600 gssi_1978
+
+. rename g0014400 gssi_1979
+
+. rename g0022200 gssi_1980
+
+. rename g0030000 gssi_1981
+
+. rename g0037800 gssi_1982
+
+. rename g0045600 gssi_1983
+
+. rename g0053400 gssi_1984
+
+. rename g0061200 gssi_1985
+
+. rename g0069000 gssi_1986
+
+. rename g0076800 gssi_1987
+
+. rename g0084600 gssi_1988
+
+. rename g0092400 gssi_1989
+
+. rename g0100200 gssi_1990
+
+. rename g0108000 gssi_1991
+
+. rename g0115800 gssi_1992
+
+. rename g0128800 gssi_1993
+
+. rename g0130100 gssi_1994
+
+. rename g0145600 gssi_1995
+
+. rename g0145700 gssi_1996
+
+. rename g0161200 gssi_1997
+
+. rename g0161300 gssi_1998
+
+. rename g0176800 gssi_1999
+
+. rename g0176900 gssi_2000
+
+. rename g0192400 gssi_2001
+
+. rename g0192500 gssi_2002
+
+. rename g0208000 gssi_2003
+
+. rename g0208100 gssi_2004
+
+. rename g0223700 gssi_2005
+
+. rename g0223800 gssi_2006
+
+. rename g0227700 gssi_2007
+
+. rename g0240600 gssi_2008
+
+. rename g0242000 gssi_2009
+
+. rename g0259000 gssi_2010
+
+. rename g0267100 gssi_2011
+
+. rename g0274700 gssi_2012
+
+. rename g0280900 gssi_2013
+
+. rename g0291400 gssi_2014
+
+. rename g0298200 gssi_2015
+
+. rename g0310600 gssi_2016
+
+. rename g0311800 gssi_2017
+
+. rename g0327300 gssi_2018
+
+. rename g0328400 gssi_2019
+
+. rename g0346400 gssi_2020
+
+. rename g0347700 gssi_2021
+
+. rename g0364500 gssi_2022
+
+. rename g0365500 gssi_2023
+
+. 
+. * AFDC
+. rename g0004000 afdc_1978
+
+. rename g0011800 afdc_1979
+
+. rename g0019600 afdc_1980
+
+. rename g0027400 afdc_1981
+
+. rename g0035200 afdc_1982
+
+. rename g0043000 afdc_1983
+
+. rename g0050800 afdc_1984
+
+. rename g0058600 afdc_1985
+
+. rename g0066400 afdc_1986
+
+. rename g0074200 afdc_1987
+
+. rename g0082000 afdc_1988
+
+. rename g0089800 afdc_1989
+
+. rename g0097600 afdc_1990
+
+. rename g0105400 afdc_1991
+
+. rename g0113200 afdc_1992
+
+. rename g0123600 afdc_1993
+
+. rename g0124900 afdc_1994
+
+. rename g0140400 afdc_1995
+
+. rename g0140500 afdc_1996
+
+. rename g0156000 afdc_1997
+
+. rename g0156100 afdc_1998
+
+. rename g0171600 afdc_1999
+
+. rename g0171700 afdc_2000
+
+. rename g0187200 afdc_2001
+
+. rename g0187300 afdc_2002
+
+. rename g0202800 afdc_2003
+
+. rename g0202900 afdc_2004
+
+. rename g0218500 afdc_2005
+
+. rename g0218600 afdc_2006
+
+. rename g0227100 afdc_2007
+
+. rename g0238600 afdc_2008
+
+. rename g0248900 afdc_2009
+
+. rename g0256400 afdc_2010
+
+. rename g0264700 afdc_2011
+
+. rename g0272100 afdc_2012
+
+. rename g0278900 afdc_2013
+
+. rename g0288800 afdc_2014
+
+. rename g0296000 afdc_2015
+
+. rename g0305700 afdc_2016
+
+. rename g0306800 afdc_2017
+
+. rename g0322500 afdc_2018
+
+. rename g0323600 afdc_2019
+
+. rename g0341300 afdc_2020
+
+. rename g0342500 afdc_2021
+
+. rename g0360000 afdc_2022
+
+. rename g0360900 afdc_2023
+
+. 
+. * FOOD STAMPS
+. rename g0005300 foodstamp_1978
+
+. rename g0013100 foodstamp_1979
+
+. rename g0020900 foodstamp_1980
+
+. rename g0028700 foodstamp_1981
+
+. rename g0036500 foodstamp_1982
+
+. rename g0044300 foodstamp_1983
+
+. rename g0052100 foodstamp_1984
+
+. rename g0059900 foodstamp_1985
+
+. rename g0067700 foodstamp_1986
+
+. rename g0075500 foodstamp_1987
+
+. rename g0083300 foodstamp_1988
+
+. rename g0091100 foodstamp_1989
+
+. rename g0098900 foodstamp_1990
+
+. rename g0106700 foodstamp_1991
+
+. rename g0114500 foodstamp_1992
+
+. rename g0126200 foodstamp_1993
+
+. rename g0127500 foodstamp_1994
+
+. rename g0143000 foodstamp_1995
+
+. rename g0143100 foodstamp_1996
+
+. rename g0158600 foodstamp_1997
+
+. rename g0158700 foodstamp_1998
+
+. rename g0174200 foodstamp_1999
+
+. rename g0174300 foodstamp_2000
+
+. rename g0189800 foodstamp_2001
+
+. rename g0189900 foodstamp_2002
+
+. rename g0205400 foodstamp_2003
+
+. rename g0205500 foodstamp_2004
+
+. rename g0221100 foodstamp_2005
+
+. rename g0221200 foodstamp_2006
+
+. rename g0227400 foodstamp_2007
+
+. rename g0239600 foodstamp_2008
+
+. rename g0241900 foodstamp_2009
+
+. rename g0257700 foodstamp_2010
+
+. rename g0260500 foodstamp_2011
+
+. rename g0273400 foodstamp_2012
+
+. rename g0279900 foodstamp_2013
+
+. rename g0290100 foodstamp_2014
+
+. rename g0297100 foodstamp_2015
+
+. rename g0308100 foodstamp_2016
+
+. rename g0309300 foodstamp_2017
+
+. rename g0324900 foodstamp_2018
+
+. rename g0326000 foodstamp_2019
+
+. rename g0343800 foodstamp_2020
+
+. rename g0345100 foodstamp_2021
+
+. rename g0362200 foodstamp_2022
+
+. rename g0363200 foodstamp_2023
+
+. 
+. * CALCULATE TRANSFERS
+. forvalues yr = 1978/1993 {
+  2.     capture gen transfers_`yr' = afdc_`yr' + foodstamp_`yr'
+  3. }
+
+. forvalues yr = 1994/2023 {
+  2.     capture gen transfers_`yr' = afdc_`yr' + foodstamp_`yr'
+  3. }
+
+. 
+. drop afdc_* foodstamp_*
+
+. 
+. * Spouse & children DOB
+. rename r4506800 spomonth_1994
+
+. rename r4506801 spoyear_1994
+
+. rename r5206700 spomonth_1996
+
+. rename r5206701 spoyear_1996
+
+. rename r5805700 spomonth_1998
+
+. rename r5805701 spoyear_1998
+
+. rename r6538000 spomonth_2000
+
+. rename r6538001 spoyear_2000
+
+. rename r7101200 spomonth_2002
+
+. rename r7101201 spoyear_2002
+
+. rename r7808100 spomonth_2004
+
+. rename r7808101 spoyear_2004
+
+. rename t0012000 spomonth_2006
+
+. rename t0012001 spoyear_2006
+
+. rename t1210500 spomonth_2008
+
+. rename t1210501 spoyear_2008
+
+. rename t2270400 spomonth_2010
+
+. rename t2270401 spoyear_2010
+
+. rename t3206900 spomonth_2012
+
+. rename t3206901 spoyear_2012
+
+. rename t4194900 spomonth_2014
+
+. rename t4194901 spoyear_2014
+
+. rename t5173500 spomonth_2016
+
+. rename t5173501 spoyear_2016
+
+. rename t7741300 spomonth_2018
+
+. rename t7741301 spoyear_2018
+
+. rename t8352600 spomonth_2020
+
+. rename t8352601 spoyear_2020
+
+. rename t8904500 spomonth_2022
+
+. rename t8904501 spoyear_2022
+
+. 
+. rename r5083601 child1month_1994
+
+. rename r5083602 child1year_1994
+
+. rename r5168901 child1month_1996
+
+. rename r5168902 child1year_1996
+
+. rename r6481701 child1month_1998
+
+. rename r6481702 child1year_1998
+
+. rename r7009401 child1month_2000
+
+. rename r7009402 child1year_2000
+
+. rename r7706701 child1month_2002
+
+. rename r7706702 child1year_2002
+
+. rename r8499101 child1month_2004
+
+. rename r8499102 child1year_2004
+
+. rename r9900001 child1month_2006
+
+. rename r9900002 child1year_2006
+
+. rename t0990801 child1month_2008
+
+. rename t0990802 child1year_2008
+
+. rename t2212601 child1month_2010
+
+. rename t2212602 child1year_2010
+
+. rename t3110501 child1month_2012
+
+. rename t3110502 child1year_2012
+
+. rename t4115001 child1month_2014
+
+. rename t4115002 child1year_2014
+
+. rename t5026301 child1month_2016
+
+. rename t5026302 child1year_2016
+
+. rename t5774401 child1month_2018
+
+. rename t5774402 child1year_2018
+
+. rename t8790801 child1month_2020
+
+. rename t8790802 child1year_2020
+
+. rename t9302601 child1month_2022
+
+. rename t9302602 child1year_2022
+
+. 
+. rename r5084101 child2month_1994
+
+. rename r5084102 child2year_1994
+
+. rename r5169401 child2month_1996
+
+. rename r5169402 child2year_1996
+
+. rename r6482201 child2month_1998
+
+. rename r6482202 child2year_1998
+
+. rename r7009901 child2month_2000
+
+. rename r7009902 child2year_2000
+
+. rename r7707201 child2month_2002
+
+. rename r7707202 child2year_2002
+
+. rename r8499601 child2month_2004
+
+. rename r8499602 child2year_2004
+
+. rename r9900801 child2month_2006
+
+. rename r9900802 child2year_2006
+
+. rename t0991301 child2month_2008
+
+. rename t0991302 child2year_2008
+
+. rename t2213101 child2month_2010
+
+. rename t2213102 child2year_2010
+
+. rename t3111001 child2month_2012
+
+. rename t3111002 child2year_2012
+
+. rename t4115501 child2month_2014
+
+. rename t4115502 child2year_2014
+
+. rename t5026801 child2month_2016
+
+. rename t5026802 child2year_2016
+
+. rename t5774901 child2month_2018
+
+. rename t5774902 child2year_2018
+
+. rename t8791301 child2month_2020
+
+. rename t8791302 child2year_2020
+
+. rename t9303101 child2month_2022
+
+. rename t9303102 child2year_2022
+
+. 
+. rename r5084601 child3month_1994
+
+. rename r5084602 child3year_1994
+
+. rename r5169901 child3month_1996
+
+. rename r5169902 child3year_1996
+
+. rename r6482701 child3month_1998
+
+. rename r6482702 child3year_1998
+
+. rename r7010401 child3month_2000
+
+. rename r7010402 child3year_2000
+
+. rename r7707701 child3month_2002
+
+. rename r7707702 child3year_2002
+
+. rename r8500101 child3month_2004
+
+. rename r8500102 child3year_2004
+
+. rename r9901601 child3month_2006
+
+. rename r9901602 child3year_2006
+
+. rename t0991801 child3month_2008
+
+. rename t0991802 child3year_2008
+
+. rename t2213601 child3month_2010
+
+. rename t2213602 child3year_2010
+
+. rename t3111501 child3month_2012
+
+. rename t3111502 child3year_2012
+
+. rename t4116001 child3month_2014
+
+. rename t4116002 child3year_2014
+
+. rename t5027301 child3month_2016
+
+. rename t5027302 child3year_2016
+
+. rename t5775401 child3month_2018
+
+. rename t5775402 child3year_2018
+
+. rename t8791801 child3month_2020
+
+. rename t8791802 child3year_2020
+
+. rename t9303601 child3month_2022
+
+. rename t9303602 child3year_2022
+
+. 
+. /*===========================================================================
+> ===
+> FIX #4: REALIGN DEMOGRAPHIC VARIABLES FOR BIENNIAL YEARS
+> =============================================================================
+> =
+> For biennial surveys, income variables refer to the prior calendar year.
+> NLSY 1996 survey → 1995 income, 1998 survey → 1997 income, etc.
+> 
+> PAGE: For income year analysis, we need the age at the midpoint of the income
+>       year, not at interview time. For someone interviewed in 1996 who report
+> s
+>       1995 income, we subtract 1 from their interview age.
+> 
+> CORRECTED APPROACH:
+> - For biennial years, create page for income year as survey_page - 1
+> - mstat, depx are point-in-time measures (less critical, but also realigned)
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "REALIGNING DEMOGRAPHIC VARIABLES FOR BIENNIAL YEARS (CORRECTED)"
+REALIGNING DEMOGRAPHIC VARIABLES FOR BIENNIAL YEARS (CORRECTED)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * First, keep original survey-year ages for reference
+. foreach yr in 1996 1998 2000 2002 2004 2006 2008 2010 2012 2014 2016 2018 202
+> 0 2022 {
+  2.     local incyr = `yr' - 1
+  3.     
+.     * FIX #4: Subtract 1 from age to get income-year age
+.     gen page_`incyr' = page_`yr' - 1
+  4.     drop page_`yr'
+  5.     
+.     * mstat: Realign to income year (marital status less time-sensitive)
+.     rename mstat_`yr' mstat_`incyr'
+  6.     
+.     * depx: Realign to income year
+.     rename depx_`yr' depx_`incyr'
+  7.     
+.     * Spouse/child DOB: Realign to income year
+.     rename spomonth_`yr' spomonth_`incyr'
+  8.     rename spoyear_`yr' spoyear_`incyr'
+  9.     rename child1month_`yr' child1month_`incyr'
+ 10.     rename child1year_`yr' child1year_`incyr'
+ 11.     rename child2month_`yr' child2month_`incyr'
+ 12.     rename child2year_`yr' child2year_`incyr'
+ 13.     rename child3month_`yr' child3month_`incyr'
+ 14.     rename child3year_`yr' child3year_`incyr'
+ 15. }
+
+. 
+. di "Demographic variables realigned to income years."
+Demographic variables realigned to income years.
+
+. di "IMPORTANT: Biennial ages are now INCOME-YEAR ages (survey age - 1)."
+IMPORTANT: Biennial ages are now INCOME-YEAR ages (survey age - 1).
+
+. 
+. /*===========================================================================
+> ===
+> RESHAPE WIDE TO LONG
+> =============================================================================
+> =
+> FIX #3: Include hgc_ in the reshape for year-specific education
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "RESHAPING TO LONG FORMAT"
+RESHAPING TO LONG FORMAT
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * Reshape Wide to Long by year
+. * NOTE: Added hgc_ to reshape for year-specific education
+. reshape long     unemp_ mstat_ page_ depx_ pwages_ swages_     psemp_ ssemp_ 
+> sui_ gssi_ transfers_ nonprop_     pensions_ rentpaid_     spomonth_ spoyear_
+>      child1month_ child1year_     child2month_ child2year_     child3month_ c
+> hild3year_     hrs_ cumhrs_ hgc_,     i(taxsimid) j(year)
+(j = 1978 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992
+>  1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2
+> 008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021 2022 202
+> 3)
+(variable mstat_1978 not found)
+(variable page_1978 not found)
+(variable depx_1978 not found)
+(variable nonprop_1978 not found)
+(variable pensions_1978 not found)
+(variable rentpaid_1978 not found)
+(variable spomonth_1978 not found)
+(variable spoyear_1978 not found)
+(variable child1month_1978 not found)
+(variable child1year_1978 not found)
+(variable child2month_1978 not found)
+(variable child2year_1978 not found)
+(variable child3month_1978 not found)
+(variable child3year_1978 not found)
+(variable hgc_1978 not found)
+(variable nonprop_1979 not found)
+(variable pensions_1979 not found)
+(variable rentpaid_1979 not found)
+(variable spomonth_1979 not found)
+(variable spoyear_1979 not found)
+(variable child1month_1979 not found)
+(variable child1year_1979 not found)
+(variable child2month_1979 not found)
+(variable child2year_1979 not found)
+(variable child3month_1979 not found)
+(variable child3year_1979 not found)
+(variable nonprop_1980 not found)
+(variable pensions_1980 not found)
+(variable rentpaid_1980 not found)
+(variable spomonth_1980 not found)
+(variable spoyear_1980 not found)
+(variable child1month_1980 not found)
+(variable child1year_1980 not found)
+(variable child2month_1980 not found)
+(variable child2year_1980 not found)
+(variable child3month_1980 not found)
+(variable child3year_1980 not found)
+(variable nonprop_1981 not found)
+(variable pensions_1981 not found)
+(variable rentpaid_1981 not found)
+(variable spomonth_1981 not found)
+(variable spoyear_1981 not found)
+(variable child1month_1981 not found)
+(variable child1year_1981 not found)
+(variable child2month_1981 not found)
+(variable child2year_1981 not found)
+(variable child3month_1981 not found)
+(variable child3year_1981 not found)
+(variable nonprop_1982 not found)
+(variable pensions_1982 not found)
+(variable rentpaid_1982 not found)
+(variable spomonth_1982 not found)
+(variable spoyear_1982 not found)
+(variable child1month_1982 not found)
+(variable child1year_1982 not found)
+(variable child2month_1982 not found)
+(variable child2year_1982 not found)
+(variable child3month_1982 not found)
+(variable child3year_1982 not found)
+(variable nonprop_1983 not found)
+(variable pensions_1983 not found)
+(variable rentpaid_1983 not found)
+(variable spomonth_1983 not found)
+(variable spoyear_1983 not found)
+(variable child1month_1983 not found)
+(variable child1year_1983 not found)
+(variable child2month_1983 not found)
+(variable child2year_1983 not found)
+(variable child3month_1983 not found)
+(variable child3year_1983 not found)
+(variable nonprop_1984 not found)
+(variable pensions_1984 not found)
+(variable rentpaid_1984 not found)
+(variable spomonth_1984 not found)
+(variable spoyear_1984 not found)
+(variable child1month_1984 not found)
+(variable child1year_1984 not found)
+(variable child2month_1984 not found)
+(variable child2year_1984 not found)
+(variable child3month_1984 not found)
+(variable child3year_1984 not found)
+(variable nonprop_1985 not found)
+(variable pensions_1985 not found)
+(variable rentpaid_1985 not found)
+(variable spomonth_1985 not found)
+(variable spoyear_1985 not found)
+(variable child1month_1985 not found)
+(variable child1year_1985 not found)
+(variable child2month_1985 not found)
+(variable child2year_1985 not found)
+(variable child3month_1985 not found)
+(variable child3year_1985 not found)
+(variable nonprop_1986 not found)
+(variable pensions_1986 not found)
+(variable rentpaid_1986 not found)
+(variable spomonth_1986 not found)
+(variable spoyear_1986 not found)
+(variable child1month_1986 not found)
+(variable child1year_1986 not found)
+(variable child2month_1986 not found)
+(variable child2year_1986 not found)
+(variable child3month_1986 not found)
+(variable child3year_1986 not found)
+(variable nonprop_1987 not found)
+(variable pensions_1987 not found)
+(variable rentpaid_1987 not found)
+(variable spomonth_1987 not found)
+(variable spoyear_1987 not found)
+(variable child1month_1987 not found)
+(variable child1year_1987 not found)
+(variable child2month_1987 not found)
+(variable child2year_1987 not found)
+(variable child3month_1987 not found)
+(variable child3year_1987 not found)
+(variable nonprop_1988 not found)
+(variable pensions_1988 not found)
+(variable rentpaid_1988 not found)
+(variable spomonth_1988 not found)
+(variable spoyear_1988 not found)
+(variable child1month_1988 not found)
+(variable child1year_1988 not found)
+(variable child2month_1988 not found)
+(variable child2year_1988 not found)
+(variable child3month_1988 not found)
+(variable child3year_1988 not found)
+(variable nonprop_1989 not found)
+(variable pensions_1989 not found)
+(variable rentpaid_1989 not found)
+(variable spomonth_1989 not found)
+(variable spoyear_1989 not found)
+(variable child1month_1989 not found)
+(variable child1year_1989 not found)
+(variable child2month_1989 not found)
+(variable child2year_1989 not found)
+(variable child3month_1989 not found)
+(variable child3year_1989 not found)
+(variable nonprop_1990 not found)
+(variable pensions_1990 not found)
+(variable rentpaid_1990 not found)
+(variable spomonth_1990 not found)
+(variable spoyear_1990 not found)
+(variable child1month_1990 not found)
+(variable child1year_1990 not found)
+(variable child2month_1990 not found)
+(variable child2year_1990 not found)
+(variable child3month_1990 not found)
+(variable child3year_1990 not found)
+(variable nonprop_1991 not found)
+(variable pensions_1991 not found)
+(variable rentpaid_1991 not found)
+(variable spomonth_1991 not found)
+(variable spoyear_1991 not found)
+(variable child1month_1991 not found)
+(variable child1year_1991 not found)
+(variable child2month_1991 not found)
+(variable child2year_1991 not found)
+(variable child3month_1991 not found)
+(variable child3year_1991 not found)
+(variable nonprop_1992 not found)
+(variable pensions_1992 not found)
+(variable rentpaid_1992 not found)
+(variable spomonth_1992 not found)
+(variable spoyear_1992 not found)
+(variable child1month_1992 not found)
+(variable child1year_1992 not found)
+(variable child2month_1992 not found)
+(variable child2year_1992 not found)
+(variable child3month_1992 not found)
+(variable child3year_1992 not found)
+(variable nonprop_1993 not found)
+(variable pensions_1993 not found)
+(variable rentpaid_1993 not found)
+(variable spomonth_1993 not found)
+(variable spoyear_1993 not found)
+(variable child1month_1993 not found)
+(variable child1year_1993 not found)
+(variable child2month_1993 not found)
+(variable child2year_1993 not found)
+(variable child3month_1993 not found)
+(variable child3year_1993 not found)
+(variable pwages_1994 not found)
+(variable swages_1994 not found)
+(variable psemp_1994 not found)
+(variable ssemp_1994 not found)
+(variable nonprop_1994 not found)
+(variable pensions_1994 not found)
+(variable rentpaid_1994 not found)
+(variable hrs_1994 not found)
+(variable sui_1995 not found)
+(variable nonprop_1995 not found)
+(variable pensions_1995 not found)
+(variable rentpaid_1995 not found)
+(variable mstat_1996 not found)
+(variable page_1996 not found)
+(variable depx_1996 not found)
+(variable pwages_1996 not found)
+(variable swages_1996 not found)
+(variable psemp_1996 not found)
+(variable ssemp_1996 not found)
+(variable nonprop_1996 not found)
+(variable pensions_1996 not found)
+(variable rentpaid_1996 not found)
+(variable spomonth_1996 not found)
+(variable spoyear_1996 not found)
+(variable child1month_1996 not found)
+(variable child1year_1996 not found)
+(variable child2month_1996 not found)
+(variable child2year_1996 not found)
+(variable child3month_1996 not found)
+(variable child3year_1996 not found)
+(variable hrs_1996 not found)
+(variable hgc_1996 not found)
+(variable nonprop_1997 not found)
+(variable pensions_1997 not found)
+(variable rentpaid_1997 not found)
+(variable mstat_1998 not found)
+(variable page_1998 not found)
+(variable depx_1998 not found)
+(variable pwages_1998 not found)
+(variable swages_1998 not found)
+(variable psemp_1998 not found)
+(variable ssemp_1998 not found)
+(variable nonprop_1998 not found)
+(variable pensions_1998 not found)
+(variable rentpaid_1998 not found)
+(variable spomonth_1998 not found)
+(variable spoyear_1998 not found)
+(variable child1month_1998 not found)
+(variable child1year_1998 not found)
+(variable child2month_1998 not found)
+(variable child2year_1998 not found)
+(variable child3month_1998 not found)
+(variable child3year_1998 not found)
+(variable hrs_1998 not found)
+(variable hgc_1998 not found)
+(variable sui_1999 not found)
+(variable nonprop_1999 not found)
+(variable pensions_1999 not found)
+(variable rentpaid_1999 not found)
+(variable mstat_2000 not found)
+(variable page_2000 not found)
+(variable depx_2000 not found)
+(variable pwages_2000 not found)
+(variable swages_2000 not found)
+(variable psemp_2000 not found)
+(variable ssemp_2000 not found)
+(variable nonprop_2000 not found)
+(variable pensions_2000 not found)
+(variable rentpaid_2000 not found)
+(variable spomonth_2000 not found)
+(variable spoyear_2000 not found)
+(variable child1month_2000 not found)
+(variable child1year_2000 not found)
+(variable child2month_2000 not found)
+(variable child2year_2000 not found)
+(variable child3month_2000 not found)
+(variable child3year_2000 not found)
+(variable hrs_2000 not found)
+(variable hgc_2000 not found)
+(variable nonprop_2001 not found)
+(variable pensions_2001 not found)
+(variable rentpaid_2001 not found)
+(variable mstat_2002 not found)
+(variable page_2002 not found)
+(variable depx_2002 not found)
+(variable pwages_2002 not found)
+(variable swages_2002 not found)
+(variable psemp_2002 not found)
+(variable ssemp_2002 not found)
+(variable nonprop_2002 not found)
+(variable pensions_2002 not found)
+(variable rentpaid_2002 not found)
+(variable spomonth_2002 not found)
+(variable spoyear_2002 not found)
+(variable child1month_2002 not found)
+(variable child1year_2002 not found)
+(variable child2month_2002 not found)
+(variable child2year_2002 not found)
+(variable child3month_2002 not found)
+(variable child3year_2002 not found)
+(variable hrs_2002 not found)
+(variable hgc_2002 not found)
+(variable nonprop_2003 not found)
+(variable pensions_2003 not found)
+(variable rentpaid_2003 not found)
+(variable mstat_2004 not found)
+(variable page_2004 not found)
+(variable depx_2004 not found)
+(variable pwages_2004 not found)
+(variable swages_2004 not found)
+(variable psemp_2004 not found)
+(variable ssemp_2004 not found)
+(variable nonprop_2004 not found)
+(variable pensions_2004 not found)
+(variable rentpaid_2004 not found)
+(variable spomonth_2004 not found)
+(variable spoyear_2004 not found)
+(variable child1month_2004 not found)
+(variable child1year_2004 not found)
+(variable child2month_2004 not found)
+(variable child2year_2004 not found)
+(variable child3month_2004 not found)
+(variable child3year_2004 not found)
+(variable hrs_2004 not found)
+(variable hgc_2004 not found)
+(variable nonprop_2005 not found)
+(variable pensions_2005 not found)
+(variable rentpaid_2005 not found)
+(variable mstat_2006 not found)
+(variable page_2006 not found)
+(variable depx_2006 not found)
+(variable pwages_2006 not found)
+(variable swages_2006 not found)
+(variable psemp_2006 not found)
+(variable ssemp_2006 not found)
+(variable nonprop_2006 not found)
+(variable pensions_2006 not found)
+(variable rentpaid_2006 not found)
+(variable spomonth_2006 not found)
+(variable spoyear_2006 not found)
+(variable child1month_2006 not found)
+(variable child1year_2006 not found)
+(variable child2month_2006 not found)
+(variable child2year_2006 not found)
+(variable child3month_2006 not found)
+(variable child3year_2006 not found)
+(variable hrs_2006 not found)
+(variable hgc_2006 not found)
+(variable nonprop_2007 not found)
+(variable pensions_2007 not found)
+(variable rentpaid_2007 not found)
+(variable mstat_2008 not found)
+(variable page_2008 not found)
+(variable depx_2008 not found)
+(variable pwages_2008 not found)
+(variable swages_2008 not found)
+(variable psemp_2008 not found)
+(variable ssemp_2008 not found)
+(variable nonprop_2008 not found)
+(variable pensions_2008 not found)
+(variable rentpaid_2008 not found)
+(variable spomonth_2008 not found)
+(variable spoyear_2008 not found)
+(variable child1month_2008 not found)
+(variable child1year_2008 not found)
+(variable child2month_2008 not found)
+(variable child2year_2008 not found)
+(variable child3month_2008 not found)
+(variable child3year_2008 not found)
+(variable hrs_2008 not found)
+(variable hgc_2008 not found)
+(variable nonprop_2009 not found)
+(variable pensions_2009 not found)
+(variable rentpaid_2009 not found)
+(variable mstat_2010 not found)
+(variable page_2010 not found)
+(variable depx_2010 not found)
+(variable pwages_2010 not found)
+(variable swages_2010 not found)
+(variable psemp_2010 not found)
+(variable ssemp_2010 not found)
+(variable nonprop_2010 not found)
+(variable pensions_2010 not found)
+(variable rentpaid_2010 not found)
+(variable spomonth_2010 not found)
+(variable spoyear_2010 not found)
+(variable child1month_2010 not found)
+(variable child1year_2010 not found)
+(variable child2month_2010 not found)
+(variable child2year_2010 not found)
+(variable child3month_2010 not found)
+(variable child3year_2010 not found)
+(variable hrs_2010 not found)
+(variable hgc_2010 not found)
+(variable nonprop_2011 not found)
+(variable pensions_2011 not found)
+(variable rentpaid_2011 not found)
+(variable mstat_2012 not found)
+(variable page_2012 not found)
+(variable depx_2012 not found)
+(variable pwages_2012 not found)
+(variable swages_2012 not found)
+(variable psemp_2012 not found)
+(variable ssemp_2012 not found)
+(variable nonprop_2012 not found)
+(variable pensions_2012 not found)
+(variable rentpaid_2012 not found)
+(variable spomonth_2012 not found)
+(variable spoyear_2012 not found)
+(variable child1month_2012 not found)
+(variable child1year_2012 not found)
+(variable child2month_2012 not found)
+(variable child2year_2012 not found)
+(variable child3month_2012 not found)
+(variable child3year_2012 not found)
+(variable hrs_2012 not found)
+(variable hgc_2012 not found)
+(variable nonprop_2013 not found)
+(variable pensions_2013 not found)
+(variable rentpaid_2013 not found)
+(variable mstat_2014 not found)
+(variable page_2014 not found)
+(variable depx_2014 not found)
+(variable pwages_2014 not found)
+(variable swages_2014 not found)
+(variable psemp_2014 not found)
+(variable ssemp_2014 not found)
+(variable nonprop_2014 not found)
+(variable pensions_2014 not found)
+(variable rentpaid_2014 not found)
+(variable spomonth_2014 not found)
+(variable spoyear_2014 not found)
+(variable child1month_2014 not found)
+(variable child1year_2014 not found)
+(variable child2month_2014 not found)
+(variable child2year_2014 not found)
+(variable child3month_2014 not found)
+(variable child3year_2014 not found)
+(variable hrs_2014 not found)
+(variable hgc_2014 not found)
+(variable nonprop_2015 not found)
+(variable pensions_2015 not found)
+(variable rentpaid_2015 not found)
+(variable mstat_2016 not found)
+(variable page_2016 not found)
+(variable depx_2016 not found)
+(variable pwages_2016 not found)
+(variable swages_2016 not found)
+(variable psemp_2016 not found)
+(variable ssemp_2016 not found)
+(variable nonprop_2016 not found)
+(variable pensions_2016 not found)
+(variable rentpaid_2016 not found)
+(variable spomonth_2016 not found)
+(variable spoyear_2016 not found)
+(variable child1month_2016 not found)
+(variable child1year_2016 not found)
+(variable child2month_2016 not found)
+(variable child2year_2016 not found)
+(variable child3month_2016 not found)
+(variable child3year_2016 not found)
+(variable hrs_2016 not found)
+(variable hgc_2016 not found)
+(variable nonprop_2017 not found)
+(variable pensions_2017 not found)
+(variable rentpaid_2017 not found)
+(variable mstat_2018 not found)
+(variable page_2018 not found)
+(variable depx_2018 not found)
+(variable pwages_2018 not found)
+(variable swages_2018 not found)
+(variable psemp_2018 not found)
+(variable ssemp_2018 not found)
+(variable nonprop_2018 not found)
+(variable pensions_2018 not found)
+(variable rentpaid_2018 not found)
+(variable spomonth_2018 not found)
+(variable spoyear_2018 not found)
+(variable child1month_2018 not found)
+(variable child1year_2018 not found)
+(variable child2month_2018 not found)
+(variable child2year_2018 not found)
+(variable child3month_2018 not found)
+(variable child3year_2018 not found)
+(variable hrs_2018 not found)
+(variable hgc_2018 not found)
+(variable nonprop_2019 not found)
+(variable pensions_2019 not found)
+(variable rentpaid_2019 not found)
+(variable mstat_2020 not found)
+(variable page_2020 not found)
+(variable depx_2020 not found)
+(variable pwages_2020 not found)
+(variable swages_2020 not found)
+(variable psemp_2020 not found)
+(variable ssemp_2020 not found)
+(variable nonprop_2020 not found)
+(variable pensions_2020 not found)
+(variable rentpaid_2020 not found)
+(variable spomonth_2020 not found)
+(variable spoyear_2020 not found)
+(variable child1month_2020 not found)
+(variable child1year_2020 not found)
+(variable child2month_2020 not found)
+(variable child2year_2020 not found)
+(variable child3month_2020 not found)
+(variable child3year_2020 not found)
+(variable hrs_2020 not found)
+(variable hgc_2020 not found)
+(variable nonprop_2021 not found)
+(variable pensions_2021 not found)
+(variable rentpaid_2021 not found)
+(variable hgc_2021 not found)
+(variable mstat_2022 not found)
+(variable page_2022 not found)
+(variable depx_2022 not found)
+(variable pwages_2022 not found)
+(variable swages_2022 not found)
+(variable psemp_2022 not found)
+(variable ssemp_2022 not found)
+(variable nonprop_2022 not found)
+(variable pensions_2022 not found)
+(variable rentpaid_2022 not found)
+(variable spomonth_2022 not found)
+(variable spoyear_2022 not found)
+(variable child1month_2022 not found)
+(variable child1year_2022 not found)
+(variable child2month_2022 not found)
+(variable child2year_2022 not found)
+(variable child3month_2022 not found)
+(variable child3year_2022 not found)
+(variable hrs_2022 not found)
+(variable cumhrs_2022 not found)
+(variable hgc_2022 not found)
+(variable mstat_2023 not found)
+(variable page_2023 not found)
+(variable depx_2023 not found)
+(variable pwages_2023 not found)
+(variable swages_2023 not found)
+(variable psemp_2023 not found)
+(variable ssemp_2023 not found)
+(variable nonprop_2023 not found)
+(variable pensions_2023 not found)
+(variable rentpaid_2023 not found)
+(variable spomonth_2023 not found)
+(variable spoyear_2023 not found)
+(variable child1month_2023 not found)
+(variable child1year_2023 not found)
+(variable child2month_2023 not found)
+(variable child2year_2023 not found)
+(variable child3month_2023 not found)
+(variable child3year_2023 not found)
+(variable hrs_2023 not found)
+(variable cumhrs_2023 not found)
+(variable hgc_2023 not found)
+
+Data                               Wide   ->   Long
+-----------------------------------------------------------------------------
+Number of observations           12,686   ->   583,556     
+Number of variables                 926   ->   337         
+j variable (46 values)                    ->   year
+xij variables:
+   unemp_1978 unemp_1979 ... unemp_2023   ->   unemp_
+   mstat_1978 mstat_1979 ... mstat_2023   ->   mstat_
+      page_1978 page_1979 ... page_2023   ->   page_
+      depx_1978 depx_1979 ... depx_2023   ->   depx_
+pwages_1978 pwages_1979 ... pwages_2023   ->   pwages_
+swages_1978 swages_1979 ... swages_2023   ->   swages_
+   psemp_1978 psemp_1979 ... psemp_2023   ->   psemp_
+   ssemp_1978 ssemp_1979 ... ssemp_2023   ->   ssemp_
+         sui_1978 sui_1979 ... sui_2023   ->   sui_
+      gssi_1978 gssi_1979 ... gssi_2023   ->   gssi_
+transfers_1978 transfers_1979 ... transfers_2023->transfers_
+nonprop_1978 nonprop_1979 ... nonprop_2023->   nonprop_
+pensions_1978 pensions_1979 ... pensions_2023->pensions_
+rentpaid_1978 rentpaid_1979 ... rentpaid_2023->rentpaid_
+spomonth_1978 spomonth_1979 ... spomonth_2023->spomonth_
+spoyear_1978 spoyear_1979 ... spoyear_2023->   spoyear_
+child1month_1978 child1month_1979 ... child1month_2023->child1month_
+child1year_1978 child1year_1979 ... child1year_2023->child1year_
+child2month_1978 child2month_1979 ... child2month_2023->child2month_
+child2year_1978 child2year_1979 ... child2year_2023->child2year_
+child3month_1978 child3month_1979 ... child3month_2023->child3month_
+child3year_1978 child3year_1979 ... child3year_2023->child3year_
+         hrs_1978 hrs_1979 ... hrs_2023   ->   hrs_
+cumhrs_1978 cumhrs_1979 ... cumhrs_2023   ->   cumhrs_
+         hgc_1978 hgc_1979 ... hgc_2023   ->   hgc_
+-----------------------------------------------------------------------------
+
+. 
+. * turn year into numeric
+. destring year, replace
+year already numeric; no replace
+
+. 
+. * Compute ages for spouse & kids
+. gen refdate    = mdy(7,1,year)
+
+. gen dob_spouse = mdy(spomonth_,  1, spoyear_)
+(577,186 missing values generated)
+
+. gen dob_c1     = mdy(child1month_, 1, child1year_)
+(489,431 missing values generated)
+
+. gen dob_c2     = mdy(child2month_, 1, child2year_)
+(510,710 missing values generated)
+
+. gen dob_c3     = mdy(child3month_, 1, child3year_)
+(547,965 missing values generated)
+
+. 
+. gen sage = floor((refdate - dob_spouse)/365.25)
+(577,186 missing values generated)
+
+. gen age1 = floor((refdate - dob_c1    )/365.25)
+(489,431 missing values generated)
+
+. gen age2 = floor((refdate - dob_c2    )/365.25)
+(510,710 missing values generated)
+
+. gen age3 = floor((refdate - dob_c3    )/365.25)
+(547,965 missing values generated)
+
+. 
+. /*===========================================================================
+> ===
+> FIX #6: SPOUSE AGE VALIDATION
+> =============================================================================
+> =
+> TAXSIM crashes if spouse age is unreasonable (e.g., 118 years old).
+> Add validation to ensure sage is within reasonable bounds.
+> TAXSIM expects spouse age between 15 and ~100.
+> =============================================================================
+> =*/
+. 
+. * Zero out invalid spouse ages (negative or unreasonably high)
+. replace sage = 0 if sage < 0
+(0 real changes made)
+
+. replace sage = 0 if sage > 100  // Upper bound - no spouse over 100
+(577,188 real changes made)
+
+. 
+. * Also validate that sage is missing if spouse DOB was missing
+. * (dob_spouse would be missing, resulting in sage = .)
+. replace sage = 0 if missing(sage)
+(0 real changes made)
+
+. 
+. di ""
+
+
+. di "Spouse age validation applied:"
+Spouse age validation applied:
+
+. di "  - Negative ages set to 0"
+  - Negative ages set to 0
+
+. di "  - Ages > 100 set to 0"
+  - Ages > 100 set to 0
+
+. di "  - Missing ages set to 0"
+  - Missing ages set to 0
+
+. summarize sage, detail
+
+                            sage
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%            0              0
+ 5%            0              0
+10%            0              0       Obs             583,556
+25%            0              0       Sum of wgt.     583,556
+
+50%            0                      Mean           .4557952
+                        Largest       Std. dev.      4.466828
+75%            0             93
+90%            0             93       Variance       19.95255
+95%            0             94       Skewness       10.23234
+99%           28             97       Kurtosis       111.1034
+
+. 
+. foreach a of varlist age1 age2 age3 {
+  2.     replace `a' = 0 if `a' < 0
+  3. }
+(311 real changes made)
+(488 real changes made)
+(371 real changes made)
+
+. 
+. * drop intermediate date vars
+. drop spomonth_ spoyear_ dob_spouse dob_c1 dob_c2 dob_c3 refdate      child1mo
+> nth_ child1year_ child2month_ child2year_ child3month_ child3year_
+
+. 
+. replace sage  = 0 if missing(sage)  | sage  < 0 | sage > 100
+(0 real changes made)
+
+. replace age1  = 0 if missing(age1)  | age1  < 0 | age1 > 100
+(489,431 real changes made)
+
+. replace age2  = 0 if missing(age2)  | age2  < 0 | age2 > 100
+(510,710 real changes made)
+
+. replace age3  = 0 if missing(age3)  | age3  < 0 | age3 > 100
+(547,965 real changes made)
+
+. 
+. * Rename to TAXSIM's exact input names
+. rename unemp_     pui
+
+. rename sui_       sui
+
+. rename pwages_    pwages
+
+. rename swages_    swages
+
+. rename psemp_     psemp
+
+. rename ssemp_     ssemp
+
+. rename gssi_      gssi
+
+. rename transfers_ transfers
+
+. rename nonprop_   nonprop
+
+. rename pensions_  pensions
+
+. rename rentpaid_  rentpaid
+
+. rename mstat_     mstat_nlsy
+
+. rename page_      page
+
+. rename depx_      depx
+
+. rename hrs_       hrs
+
+. rename cumhrs_    cumhrs
+
+. rename hgc_       hgc
+
+. 
+. * Label HGC
+. label var hgc "Highest grade completed (year-specific)"
+
+. 
+. * Build dependent‐age counts
+. gen dep6  = 0
+
+. gen dep13 = 0
+
+. gen dep17 = 0
+
+. gen dep18 = 0
+
+. gen dep19 = 0
+
+. foreach a in age1 age2 age3 {
+  2.     replace dep6  = dep6  + (`a' <  6)
+  3.     replace dep13 = dep13 + (`a' < 13)
+  4.     replace dep17 = dep17 + (`a' < 17)
+  5.     replace dep18 = dep18 + (`a' < 18)
+  6.     replace dep19 = dep19 + (`a' < 19)
+  7. }
+(495,389 real changes made)
+(510,450 real changes made)
+(523,040 real changes made)
+(526,218 real changes made)
+(529,496 real changes made)
+(518,302 real changes made)
+(533,564 real changes made)
+(543,881 real changes made)
+(546,333 real changes made)
+(548,963 real changes made)
+(552,887 real changes made)
+(561,214 real changes made)
+(566,361 real changes made)
+(567,605 real changes made)
+(568,806 real changes made)
+
+. replace depx = dep19 if dep19 > depx
+(332,551 real changes made)
+
+. 
+. /*===========================================================================
+> ===
+> FIX #1: CORRECT MARITAL STATUS MAPPING FOR TAXSIM
+> =============================================================================
+> =
+> NLSY79 marital status codes:
+>   0 = Never married
+>   1 = Married, spouse present  
+>   2 = Separated
+>   3 = Divorced
+>   4 = Widowed
+> 
+> TAXSIM marital status codes:
+>   1 = Single
+>   2 = Married filing jointly
+> 
+> CORRECTED MAPPING:
+>   NLSY 1 (Married, spouse present) → TAXSIM 2 (MFJ)
+>   All others → TAXSIM 1 (Single)
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "CORRECTING MARITAL STATUS MAPPING (FIX #1)"
+CORRECTING MARITAL STATUS MAPPING (FIX #1)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * Show original distribution
+. di "Original NLSY marital status distribution:"
+Original NLSY marital status distribution:
+
+. tab mstat_nlsy, missing
+
+ mstat_nlsy |      Freq.     Percent        Cum.
+------------+-----------------------------------
+         -5 |    103,134       17.67       17.67
+         -4 |          2        0.00       17.67
+         -3 |         40        0.01       17.68
+         -2 |          4        0.00       17.68
+         -1 |          1        0.00       17.68
+          1 |    109,856       18.83       36.51
+          2 |    119,838       20.54       57.04
+          3 |     47,705        8.17       65.22
+          . |    202,976       34.78      100.00
+------------+-----------------------------------
+      Total |    583,556      100.00
+
+. 
+. * CORRECTED marital status mapping
+. gen byte mstat = .
+(583,556 missing values generated)
+
+. replace mstat = 2 if mstat_nlsy == 1       // Married, spouse present → MFJ
+(109,856 real changes made)
+
+. replace mstat = 1 if mstat_nlsy == 0       // Never married → Single
+(0 real changes made)
+
+. replace mstat = 1 if mstat_nlsy == 2       // Separated → Single
+(119,838 real changes made)
+
+. replace mstat = 1 if mstat_nlsy == 3       // Divorced → Single
+(47,705 real changes made)
+
+. replace mstat = 1 if mstat_nlsy == 4       // Widowed → Single
+(0 real changes made)
+
+. replace mstat = 1 if mstat_nlsy < 0        // Missing codes → Single (conserv
+> ative)
+(103,181 real changes made)
+
+. replace mstat = 1 if missing(mstat)        // Any remaining → Single
+(202,976 real changes made)
+
+. 
+. di ""
+
+
+. di "CORRECTED TAXSIM marital status distribution:"
+CORRECTED TAXSIM marital status distribution:
+
+. tab mstat
+
+      mstat |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |    473,700       81.17       81.17
+          2 |    109,856       18.83      100.00
+------------+-----------------------------------
+      Total |    583,556      100.00
+
+. 
+. di ""
+
+
+. di "Cross-tabulation (NLSY → TAXSIM):"
+Cross-tabulation (NLSY → TAXSIM):
+
+. tab mstat_nlsy mstat
+
+           |         mstat
+mstat_nlsy |         1          2 |     Total
+-----------+----------------------+----------
+        -5 |   103,134          0 |   103,134 
+        -4 |         2          0 |         2 
+        -3 |        40          0 |        40 
+        -2 |         4          0 |         4 
+        -1 |         1          0 |         1 
+         1 |         0    109,856 |   109,856 
+         2 |   119,838          0 |   119,838 
+         3 |    47,705          0 |    47,705 
+-----------+----------------------+----------
+     Total |   270,724    109,856 |   380,580 
+
+. 
+. * Now zero out spouse variables for non-married
+. replace sage    = 0 if mstat != 2
+(3,747 real changes made)
+
+. replace swages  = 0 if mstat != 2
+(450,063 real changes made)
+
+. replace ssemp   = 0 if mstat != 2
+(473,438 real changes made)
+
+. 
+. /*===========================================================================
+> ===
+> FIX #6 (continued): COMPREHENSIVE SPOUSE VARIABLE VALIDATION
+> =============================================================================
+> =
+> Ensure all spouse-related variables are valid for TAXSIM:
+> - sage must be 0 for single filers
+> - sage must be between 15-100 for married filers (or 0 if unknown)
+> - Spouse income must be 0 for single filers
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "SPOUSE VARIABLE VALIDATION (FIX #6)"
+SPOUSE VARIABLE VALIDATION (FIX #6)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * For married filers, validate spouse age is reasonable
+. * If sage is unreasonable for a married person, set to respondent's age as pr
+> oxy
+. replace sage = page if mstat == 2 & (sage < 15 | sage > 100) & page >= 18 & p
+> age <= 100
+(94,175 real changes made)
+
+. replace sage = 0 if mstat == 2 & sage > 100
+(0 real changes made)
+
+. replace sage = 0 if mstat == 2 & sage < 15 & sage != 0
+(0 real changes made)
+
+. 
+. * Final safety check: ensure no invalid sage values
+. replace sage = 0 if sage < 0 | sage > 100 | missing(sage)
+(0 real changes made)
+
+. 
+. di ""
+
+
+. di "Spouse age distribution after all validations:"
+Spouse age distribution after all validations:
+
+. tabstat sage, by(mstat) stat(mean min max n)
+
+Summary for variables: sage
+Group variable: mstat 
+
+   mstat |      Mean       Min       Max         N
+---------+----------------------------------------
+       1 |         0         0         0    473700
+       2 |   24.3856         0        97    109856
+---------+----------------------------------------
+   Total |  4.590656         0        97    583556
+--------------------------------------------------
+
+. 
+. di ""
+
+
+. di "Checking for any remaining invalid spouse ages (should be 0):"
+Checking for any remaining invalid spouse ages (should be 0):
+
+. count if sage < 0 | sage > 100
+  0
+
+. if r(N) > 0 {
+.     di as error "WARNING: " r(N) " observations still have invalid sage"
+. }
+
+. else {
+.     di "GOOD: All spouse ages are valid (0-100 range)"
+GOOD: All spouse ages are valid (0-100 range)
+. }
+
+. 
+. * Drop original NLSY mstat
+. drop mstat_nlsy
+
+. 
+. * Create TAXSIM placeholder variables
+. foreach v in opt1 opt1v opt2 opt2v {
+  2.     gen `v' = 0
+  3. }
+
+. 
+. gen otherprop = 0
+
+. gen stcg      = 0
+
+. gen ltcg      = 0
+
+. gen proptax   = 0
+
+. gen otheritem = 0
+
+. gen childcare = 0
+
+. gen pprofinc  = 0
+
+. gen sprofinc  = 0
+
+. gen scorp     = 0
+
+. gen pbusinc   = 0
+
+. gen sbusinc   = 0
+
+. 
+. * Zero‐fill any remaining missing inputs
+. foreach v in pui sui pwages swages psemp ssemp              gssi transfers no
+> nprop              pensions rentpaid              mstat page depx stcg ltcg p
+> roptax              otheritem childcare pprofinc sprofinc scorp {
+  2.     replace `v' = 0 if missing(`v')
+  3. }
+(0 real changes made)
+(25,372 real changes made)
+(202,976 real changes made)
+(2,327 real changes made)
+(202,976 real changes made)
+(2,327 real changes made)
+(0 real changes made)
+(0 real changes made)
+(583,556 real changes made)
+(583,556 real changes made)
+(583,556 real changes made)
+(0 real changes made)
+(202,976 real changes made)
+(202,976 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. local survvars page depx pui pwages swages pbusinc sbusinc sui gssi          
+>        transfers nonprop pensions                 rentpaid
+
+. 
+. foreach v of local survvars {
+  2.     replace `v' = 0 if `v' < 0
+  3. }
+(103,136 real changes made)
+(0 real changes made)
+(566,024 real changes made)
+(123,901 real changes made)
+(100,138 real changes made)
+(0 real changes made)
+(0 real changes made)
+(551,827 real changes made)
+(565,714 real changes made)
+(546,855 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. /*===========================================================================
+> ===
+> FIX #5: POTENTIAL EXPERIENCE WITH YEAR-SPECIFIC EDUCATION
+> =============================================================================
+> =
+> Use current-year HGC (from hgc variable) instead of lifetime max_education
+> This ensures experience is calculated correctly for young workers still in sc
+> hool
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "CREATING POTENTIAL EXPERIENCE WITH YEAR-SPECIFIC EDUCATION (FIX #5)"
+CREATING POTENTIAL EXPERIENCE WITH YEAR-SPECIFIC EDUCATION (FIX #5)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * FIX #5: Use year-specific education
+. * pot_exp = Age - Years of Education - 6 (school starting age)
+. gen pot_exp = page - hgc - 6 if !missing(page) & !missing(hgc)
+(498,394 missing values generated)
+
+. 
+. * For missing hgc, fall back to max_education
+. replace pot_exp = page - max_education - 6 if missing(pot_exp) & !missing(pag
+> e) & !missing(max_education)
+(497,704 real changes made)
+
+. 
+. * Floor at zero (can't have negative experience)
+. replace pot_exp = 0 if pot_exp < 0 & !missing(pot_exp)
+(310,533 real changes made)
+
+. 
+. * Set to missing for unreasonable ages
+. replace pot_exp = . if page < 16 | page > 65
+(309,184 real changes made, 309,184 to missing)
+
+. 
+. label var pot_exp "Potential experience (age - current education - 6)"
+
+. 
+. * Create experience squared and cubed for Mincer regressions
+. gen pot_exp2 = pot_exp^2
+(309,874 missing values generated)
+
+. gen pot_exp3 = pot_exp^3
+(309,874 missing values generated)
+
+. label var pot_exp2 "Potential experience squared"
+
+. label var pot_exp3 "Potential experience cubed"
+
+. 
+. * Create early career indicator (first 10 years of potential experience)
+. gen early_career = (pot_exp <= 10) if !missing(pot_exp)
+(309,874 missing values generated)
+
+. label var early_career "Early career (0-10 years potential experience)"
+
+. 
+. * Diagnostic: Check for negative raw values before floor
+. di ""
+
+
+. di "Diagnostic: Distribution of potential experience:"
+Diagnostic: Distribution of potential experience:
+
+. summarize pot_exp, detail
+
+     Potential experience (age - current education - 6)
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%            0              0
+ 5%            0              0
+10%            1              0       Obs             273,682
+25%            4              0       Sum of wgt.     273,682
+
+50%           11                      Mean           14.01133
+                        Largest       Std. dev.      12.01984
+75%           22             54
+90%           34             54       Variance       144.4766
+95%           38             55       Skewness       .7853958
+99%           43             55       Kurtosis       2.523837
+
+. 
+. * Create AFQT variable (use 2006 revised percentile, most recent revision)
+. gen afqt = afqt_pct_2006
+(35,512 missing values generated)
+
+. replace afqt = afqt_pct_1989 if missing(afqt)
+(0 real changes made)
+
+. replace afqt = afqt_pct_1980 if missing(afqt)
+(0 real changes made)
+
+. label var afqt "AFQT percentile (best available revision)"
+
+. 
+. * Create AFQT quartiles for heterogeneity analysis
+. preserve
+
+. keep taxsimid afqt
+
+. duplicates drop taxsimid, force
+
+Duplicates in terms of taxsimid
+
+(570,870 observations deleted)
+
+. xtile afqt_quartile = afqt, nq(4)
+
+. tempfile afqt_q
+
+. save `afqt_q', replace
+(file
+    C:\Users\yuhao\AppData\Local\Temp\stata_worker_default_gq83faku\ST_b434_0
+    > 00008.tmp not found)
+file
+    C:\Users\yuhao\AppData\Local\Temp\stata_worker_default_gq83faku\ST_b434_0
+    > 00008.tmp saved as .dta format
+
+. restore
+
+. 
+. merge m:1 taxsimid using `afqt_q', keep(master match) nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           583,556  
+    -----------------------------------------
+
+. 
+. label define afqt_q_lbl 1 "Q1 (Lowest)" 2 "Q2" 3 "Q3" 4 "Q4 (Highest)"
+
+. label values afqt_quartile afqt_q_lbl
+
+. label var afqt_quartile "AFQT quartile"
+
+. 
+. * Standardize AFQT for regression (mean=0, sd=1)
+. preserve
+
+. keep taxsimid afqt
+
+. duplicates drop taxsimid, force
+
+Duplicates in terms of taxsimid
+
+(570,870 observations deleted)
+
+. summarize afqt
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+        afqt |     11,914    42395.61    28784.53          0     100000
+
+. gen afqt_std = (afqt - r(mean)) / r(sd) if !missing(afqt)
+(772 missing values generated)
+
+. keep taxsimid afqt_std
+
+. tempfile afqt_s
+
+. save `afqt_s', replace
+(file
+    C:\Users\yuhao\AppData\Local\Temp\stata_worker_default_gq83faku\ST_b434_0
+    > 0000a.tmp not found)
+file
+    C:\Users\yuhao\AppData\Local\Temp\stata_worker_default_gq83faku\ST_b434_0
+    > 0000a.tmp saved as .dta format
+
+. restore
+
+. 
+. merge m:1 taxsimid using `afqt_s', keep(master match) nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           583,556  
+    -----------------------------------------
+
+. label var afqt_std "AFQT standardized (mean=0, sd=1)"
+
+. 
+. * Create education categories for sheepskin analysis
+. * Use year-specific hgc where available, fall back to max_education
+. gen educ_years = hgc
+(498,394 missing values generated)
+
+. replace educ_years = max_education if missing(educ_years)
+(497,704 real changes made)
+
+. label var educ_years "Years of education (current year)"
+
+. 
+. * Degree completion dummies (sheepskin effects)
+. gen hs_diploma = (educ_years == 12) if !missing(educ_years)
+(690 missing values generated)
+
+. gen some_coll = (educ_years >= 13 & educ_years <= 15) if !missing(educ_years)
+(690 missing values generated)
+
+. gen ba_degree = (educ_years == 16) if !missing(educ_years)
+(690 missing values generated)
+
+. gen grad_degree = (educ_years >= 17) if !missing(educ_years)
+(690 missing values generated)
+
+. 
+. label var hs_diploma "Completed exactly 12 years (HS diploma)"
+
+. label var some_coll "13-15 years (some college, no BA)"
+
+. label var ba_degree "Completed exactly 16 years (BA degree)"
+
+. label var grad_degree "17+ years (graduate degree)"
+
+. 
+. * Create lagged hours for signaling analysis
+. sort taxsimid year
+
+. 
+. * Create lagged cumulative hours (previous observation's cumhrs)
+. by taxsimid: gen cumhrs_lag = cumhrs[_n-1]
+(25,372 missing values generated)
+
+. label var cumhrs_lag "Cumulative hours (lagged one survey period)"
+
+. 
+. * Track time span for recent hours (important for biennial data)
+. by taxsimid: gen year_span = year - year[_n-1]
+(12,686 missing values generated)
+
+. label var year_span "Years since last observation"
+
+. 
+. * Recent hours = current cumhrs - lagged cumhrs
+. gen recent_hrs = cumhrs - cumhrs_lag if !missing(cumhrs) & !missing(cumhrs_la
+> g)
+(38,058 missing values generated)
+
+. replace recent_hrs = hrs if missing(recent_hrs) & !missing(hrs)
+(9,885 real changes made)
+
+. label var recent_hrs "Hours worked since last observation"
+
+. 
+. * Create annual-equivalent recent hours for comparability
+. gen recent_hrs_annual = recent_hrs / year_span if year_span > 0 & !missing(re
+> cent_hrs)
+(38,058 missing values generated)
+
+. replace recent_hrs_annual = recent_hrs if year_span == 1 | missing(year_span)
+(9,885 real changes made)
+
+. label var recent_hrs_annual "Recent hours (annualized)"
+
+. 
+. * Create log versions for elasticity analysis
+. gen log_recent_hrs = ln(recent_hrs) if recent_hrs > 0
+(273,770 missing values generated)
+
+. label var log_recent_hrs "Log of recent hours"
+
+. 
+. * Create experience bins for variance analysis
+. gen exp_bin = .
+(583,556 missing values generated)
+
+. replace exp_bin = 1 if pot_exp >= 0 & pot_exp <= 5
+(85,066 real changes made)
+
+. replace exp_bin = 2 if pot_exp > 5 & pot_exp <= 10
+(50,802 real changes made)
+
+. replace exp_bin = 3 if pot_exp > 10 & pot_exp <= 15
+(38,915 real changes made)
+
+. replace exp_bin = 4 if pot_exp > 15 & pot_exp <= 20
+(24,253 real changes made)
+
+. replace exp_bin = 5 if pot_exp > 20 & pot_exp <= 25
+(18,981 real changes made)
+
+. replace exp_bin = 6 if pot_exp > 25 & pot_exp <= 30
+(17,433 real changes made)
+
+. replace exp_bin = 7 if pot_exp > 30 & !missing(pot_exp)
+(38,232 real changes made)
+
+. 
+. label define exp_bin_lbl 1 "0-5 yrs" 2 "6-10 yrs" 3 "11-15 yrs" 4 "16-20 yrs"
+>                           5 "21-25 yrs" 6 "26-30 yrs" 7 "30+ yrs"
+
+. label values exp_bin exp_bin_lbl
+
+. label var exp_bin "Experience bin (5-year intervals)"
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "VARIABLES CREATED WITH CORRECTIONS"
+VARIABLES CREATED WITH CORRECTIONS
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di ""
+
+
+. di "Key corrections applied:"
+Key corrections applied:
+
+. di "  1. Marital status: NLSY code 1 (married) → TAXSIM code 2 (MFJ)"
+  1. Marital status: NLSY code 1 (married) → TAXSIM code 2 (MFJ)
+
+. di "  2. Cumulative hours: Interpolated estimates for non-survey years"
+  2. Cumulative hours: Interpolated estimates for non-survey years
+
+. di "  3. HGC in long format: Year-specific education available"
+  3. HGC in long format: Year-specific education available
+
+. di "  4. Age alignment: Biennial ages are income-year ages (survey age - 1)"
+  4. Age alignment: Biennial ages are income-year ages (survey age - 1)
+
+. di "  5. Potential experience: Uses current-year education, not lifetime max"
+  5. Potential experience: Uses current-year education, not lifetime max
+
+. di "  6. Spouse age validation: Bounds checking (0-100) prevents TAXSIM crash
+> "
+  6. Spouse age validation: Bounds checking (0-100) prevents TAXSIM crash
+
+. di ""
+
+
+. di "Key variables for analysis:"
+Key variables for analysis:
+
+. di "  pot_exp        - Potential experience (age - current education - 6)"
+  pot_exp        - Potential experience (age - current education - 6)
+
+. di "  hgc            - Year-specific highest grade completed"
+  hgc            - Year-specific highest grade completed
+
+. di "  afqt_std       - Standardized AFQT score"
+  afqt_std       - Standardized AFQT score
+
+. di "  afqt_quartile  - AFQT quartile (1-4)"
+  afqt_quartile  - AFQT quartile (1-4)
+
+. di "  early_career   - Indicator for first 10 years of experience"
+  early_career   - Indicator for first 10 years of experience
+
+. di "  recent_hrs     - Hours worked since last observation"
+  recent_hrs     - Hours worked since last observation
+
+. di "  recent_hrs_annual - Annualized recent hours (for cross-period compariso
+> n)"
+  recent_hrs_annual - Annualized recent hours (for cross-period comparison)
+
+. di "  exp_bin        - Experience bins for variance analysis"
+  exp_bin        - Experience bins for variance analysis
+
+. di ""
+
+
+. 
+. * Create UI variable for TAXSIM
+. gen double ui = pui
+
+. 
+. /*===========================================================================
+> ===
+> FINAL TAXSIM VARIABLE VALIDATION
+> =============================================================================
+> =
+> Ensure all variables required by TAXSIM are within valid ranges.
+> This prevents TAXSIM from crashing with "Unbelievable" value errors.
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "FINAL TAXSIM VARIABLE VALIDATION"
+FINAL TAXSIM VARIABLE VALIDATION
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * Validate page (primary taxpayer age) - should be 0-100
+. replace page = 0 if page < 0 | page > 100 | missing(page)
+(0 real changes made)
+
+. 
+. * Validate sage (spouse age) - should be 0-100
+. replace sage = 0 if sage < 0 | sage > 100 | missing(sage)
+(0 real changes made)
+
+. 
+. * Validate depx (number of dependents) - should be 0-15
+. replace depx = 0 if depx < 0 | missing(depx)
+(0 real changes made)
+
+. replace depx = 15 if depx > 15
+(0 real changes made)
+
+. 
+. * Validate income variables - should be non-negative
+. foreach v in pwages swages psemp ssemp pui sui gssi pensions {
+  2.     replace `v' = 0 if `v' < 0 | missing(`v')
+  3. }
+(0 real changes made)
+(0 real changes made)
+(370,110 real changes made)
+(107,321 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. * Validate mstat - should be 1 or 2 only
+. replace mstat = 1 if mstat != 1 & mstat != 2
+(0 real changes made)
+
+. 
+. * Child ages should be 0-25 (TAXSIM uses these for child-related credits)
+. foreach v in age1 age2 age3 {
+  2.     replace `v' = 0 if `v' < 0 | `v' > 25 | missing(`v')
+  3. }
+(31,429 real changes made)
+(17,859 real changes made)
+(6,911 real changes made)
+
+. 
+. di ""
+
+
+. di "VALIDATION SUMMARY:"
+VALIDATION SUMMARY:
+
+. di "-------------------"
+-------------------
+
+. 
+. * Check for any remaining issues
+. local has_issues = 0
+
+. 
+. * Check sage
+. count if sage < 0 | sage > 100
+  0
+
+. if r(N) > 0 {
+.     di as error "  sage: " r(N) " invalid values"
+.     local has_issues = 1
+. }
+
+. else {
+.     di "  sage: OK (all values 0-100)"
+  sage: OK (all values 0-100)
+. }
+
+. 
+. * Check page  
+. count if page < 0 | page > 100
+  0
+
+. if r(N) > 0 {
+.     di as error "  page: " r(N) " invalid values"
+.     local has_issues = 1
+. }
+
+. else {
+.     di "  page: OK (all values 0-100)"
+  page: OK (all values 0-100)
+. }
+
+. 
+. * Check mstat
+. count if mstat != 1 & mstat != 2
+  0
+
+. if r(N) > 0 {
+.     di as error "  mstat: " r(N) " invalid values"
+.     local has_issues = 1
+. }
+
+. else {
+.     di "  mstat: OK (all values 1 or 2)"
+  mstat: OK (all values 1 or 2)
+. }
+
+. 
+. * Check spouse wages consistency
+. count if mstat == 1 & swages > 0
+  0
+
+. if r(N) > 0 {
+.     di as error "  swages: " r(N) " single filers with spouse wages > 0"
+.     replace swages = 0 if mstat == 1
+.     di "         (corrected: set to 0)"
+. }
+
+. else {
+.     di "  swages: OK (0 for all single filers)"
+  swages: OK (0 for all single filers)
+. }
+
+. 
+. * Check spouse age consistency
+. count if mstat == 1 & sage > 0
+  0
+
+. if r(N) > 0 {
+.     di as error "  sage: " r(N) " single filers with spouse age > 0"
+.     replace sage = 0 if mstat == 1
+.     di "         (corrected: set to 0)"
+. }
+
+. else {
+.     di "  sage: OK (0 for all single filers)"
+  sage: OK (0 for all single filers)
+. }
+
+. 
+. di ""
+
+
+. if `has_issues' == 1 {
+.     di as error "WARNING: Some issues were found and corrected. Check output 
+> above."
+. }
+
+. else {
+.     di "All TAXSIM variables validated successfully."
+All TAXSIM variables validated successfully.
+. }
+
+. di ""
+
+
+. 
+. save "nlsy_long_pre_taxsim.dta", replace
+file nlsy_long_pre_taxsim.dta saved
+
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "DATA PROCESSING COMPLETE"
+DATA PROCESSING COMPLETE
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "Output: nlsy_long_pre_taxsim.dta (saved to ${datadir})"
+Output: nlsy_long_pre_taxsim.dta (saved to D:\Stata Data\labor_signaling_projec
+> t\data)
+
+. di "End time: $S_DATE $S_TIME"
+End time: 27 Mar 2026 00:37:50
+
+. di ""
+
+
+. 
+. log close _all
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\Data_process_log.txt
+  log type:  text
+ closed on:  27 Mar 2026, 00:37:50
+-------------------------------------------------------------------------------

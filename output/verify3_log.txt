@@ -1,0 +1,1422 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\verify3_log.txt
+  log type:  text
+ opened on:   9 Mar 2026, 22:44:14
+
+. di "Start: $S_DATE $S_TIME"
+Start:  9 Mar 2026 22:44:14
+
+. 
+. use "${datadir}\analysis_annual.dta", clear
+
+. 
+. * Annual main
+. ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t spline1-spline9 i.year_t married single ///
+>     [aweight=income_weight], cluster(taxsimid)
+(sum of wgt is   6.5852e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     31,832
+                                                  Wald chi2(24)   =    1006.58
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.1307
+                                                  Root MSE        =     .45346
+
+                           (Std. err. adjusted for 7,223 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |  -.1734079   .1235282    -1.40   0.160    -.4155188    .0687031
+log_income_t |  -.5868745    .129912    -4.52   0.000    -.8414974   -.3322516
+     spline1 |   .2885552   .2701225     1.07   0.285    -.2408751    .8179855
+     spline2 |  -.2113008   .2704571    -0.78   0.435     -.741387    .3187854
+     spline3 |   .4702111   .2412204     1.95   0.051    -.0025721    .9429944
+     spline4 |  -.3002127   .2519226    -1.19   0.233    -.7939719    .1935465
+     spline5 |   .1420621   .2136782     0.66   0.506    -.2767395    .5608636
+     spline6 |  -.0239037   .1815727    -0.13   0.895    -.3797796    .3319721
+     spline7 |  -.1275914   .1737925    -0.73   0.463    -.4682183    .2130356
+     spline8 |   .4969802   .1576822     3.15   0.002     .1879288    .8060315
+     spline9 |  -.5665562   .1246266    -4.55   0.000    -.8108199   -.3222925
+             |
+      year_t |
+       1979  |  -.0079901   .0771468    -0.10   0.918     -.159195    .1432149
+       1980  |    .080378   .0796163     1.01   0.313    -.0756671    .2364231
+       1981  |   .1492201   .0815914     1.83   0.067    -.0106961    .3091363
+       1982  |   .3210112   .0817546     3.93   0.000     .1607752    .4812472
+       1983  |   .3823053   .0824988     4.63   0.000     .2206106    .5440001
+       1984  |   .4121909   .0823482     5.01   0.000     .2507915    .5735903
+       1985  |   .4299652   .0820533     5.24   0.000     .2691437    .5907866
+       1986  |    .411729   .0817438     5.04   0.000     .2515141    .5719439
+       1987  |   .4149947   .0828147     5.01   0.000     .2526808    .5773085
+       1988  |   .4260441   .0830307     5.13   0.000      .263307    .5887813
+       1989  |   .4104017   .0832722     4.93   0.000     .2471912    .5736121
+       1990  |   .4244758   .0832704     5.10   0.000     .2612688    .5876828
+             |
+     married |   .0681183   .0090235     7.55   0.000     .0504326    .0858039
+      single |          0  (omitted)
+       _cons |   5.390056   1.157175     4.66   0.000     3.122036    7.658077
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 1979.year_t 1980.year_t 1981.year_t
+            1982.year_t 1983.year_t 1984.year_t 1985.year_t 1986.year_t
+            1987.year_t 1988.year_t 1989.year_t 1990.year_t married
+            log_ntr_instrument
+
+. estimates store annual_main
+
+. 
+. * Annual age groups
+. forval ag = 1/3 {
+  2.     capture noisily ivregress 2sls log_income_change ///
+>         (log_ntr_change = log_ntr_instrument) ///
+>         log_income_t spline1-spline9 i.year_t married single ///
+>         [aweight=income_weight] if age_group == `ag', cluster(taxsimid)
+  3.     di "_rc for age group `ag': " _rc
+  4.     if _rc == 0 {
+  5.         estimates store annual_age`ag'
+  6.         di "  => annual_age`ag' stored"
+  7.     }
+  8. }
+(sum of wgt is   2.2139e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     13,900
+                                                  Wald chi2(24)   =     543.53
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0947
+                                                  Root MSE        =     .55845
+
+                           (Std. err. adjusted for 5,656 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .1707152   .1921206     0.89   0.374    -.2058344    .5472647
+log_income_t |  -.5510648    .136757    -4.03   0.000    -.8191036   -.2830261
+     spline1 |   .5313346   .3263643     1.63   0.104    -.1083277    1.170997
+     spline2 |  -.5096371   .3705607    -1.38   0.169    -1.235923    .2166485
+     spline3 |   .5362188   .3982685     1.35   0.178    -.2443731    1.316811
+     spline4 |  -.4495055   .4436704    -1.01   0.311    -1.319084    .4200726
+     spline5 |   .4578191    .388913     1.18   0.239    -.3044364    1.220075
+     spline6 |  -.4696247   .3632874    -1.29   0.196    -1.181655    .2424056
+     spline7 |   .1285547   .4154547     0.31   0.757    -.6857216     .942831
+     spline8 |  -.1029574   .4330958    -0.24   0.812    -.9518096    .7458948
+     spline9 |   -.504307   .3303923    -1.53   0.127    -1.151864    .1432499
+             |
+      year_t |
+       1979  |   -.038218   .0793423    -0.48   0.630    -.1937261      .11729
+       1980  |   .0435241   .0820344     0.53   0.596    -.1172604    .2043087
+       1981  |   .1112194   .0835834     1.33   0.183    -.0526011      .27504
+       1982  |   .3094426   .0851464     3.63   0.000     .1425588    .4763264
+       1983  |   .3777662   .0868056     4.35   0.000     .2076305     .547902
+       1984  |   .4102738   .0855379     4.80   0.000     .2426226     .577925
+       1985  |   .3986643   .0857569     4.65   0.000     .2305839    .5667448
+       1986  |    .377532   .0855732     4.41   0.000     .2098115    .5452525
+       1987  |   .4216574   .0879953     4.79   0.000     .2491899    .5941249
+       1988  |   .4032229   .0889604     4.53   0.000     .2288637    .5775821
+       1989  |   .3967087   .0958201     4.14   0.000     .2089049    .5845126
+       1990  |   .4634261   .1221945     3.79   0.000     .2239292     .702923
+             |
+     married |   .0923183   .0137876     6.70   0.000     .0652951    .1193416
+      single |          0  (omitted)
+       _cons |   5.058256   1.218694     4.15   0.000      2.66966    7.446851
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 1979.year_t 1980.year_t 1981.year_t
+            1982.year_t 1983.year_t 1984.year_t 1985.year_t 1986.year_t
+            1987.year_t 1988.year_t 1989.year_t 1990.year_t married
+            log_ntr_instrument
+_rc for age group 1: 0
+  => annual_age1 stored
+(sum of wgt is   3.3249e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     14,273
+                                                  Wald chi2(20)   =     527.18
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.1491
+                                                  Root MSE        =     .39477
+
+                           (Std. err. adjusted for 5,519 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |  -.3386637   .1483695    -2.28   0.022    -.6294626   -.0478648
+log_income_t |  -.8941871   .7042027    -1.27   0.204    -2.274399    .4860248
+     spline1 |   .4971987   .8856286     0.56   0.575    -1.238601    2.232999
+     spline2 |   .0129714   .4207667     0.03   0.975    -.8117161    .8376589
+     spline3 |   .3226148    .291261     1.11   0.268    -.2482462    .8934758
+     spline4 |  -.1634483   .3117696    -0.52   0.600    -.7745056     .447609
+     spline5 |  -.1140902   .2763106    -0.41   0.680     -.655649    .4274686
+     spline6 |   .3123568    .236373     1.32   0.186    -.1509258    .7756394
+     spline7 |    -.33488   .2126164    -1.58   0.115    -.7516005    .0818405
+     spline8 |   .6381396   .1881333     3.39   0.001     .2694051    1.006874
+     spline9 |  -.7103295   .1502657    -4.73   0.000    -1.004845   -.4158141
+             |
+      year_t |
+       1983  |   .0770037   .0757026     1.02   0.309    -.0713706     .225378
+       1984  |   .0932732   .0772751     1.21   0.227    -.0581832    .2447295
+       1985  |   .1294407   .0782963     1.65   0.098    -.0240172    .2828986
+       1986  |   .1127617   .0777524     1.45   0.147    -.0396303    .2651536
+       1987  |   .0881116   .0779945     1.13   0.259    -.0647547    .2409779
+       1988  |   .0954745   .0778459     1.23   0.220    -.0571007    .2480497
+       1989  |   .0723408   .0779102     0.93   0.353    -.0803605     .225042
+       1990  |   .0830415   .0781176     1.06   0.288    -.0700662    .2361492
+             |
+     married |   .0610284   .0110785     5.51   0.000     .0393149    .0827418
+      single |          0  (omitted)
+       _cons |   8.547594   6.531238     1.31   0.191    -4.253398    21.34859
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 1983.year_t 1984.year_t 1985.year_t
+            1986.year_t 1987.year_t 1988.year_t 1989.year_t 1990.year_t
+            married log_ntr_instrument
+_rc for age group 2: 0
+  => annual_age2 stored
+(sum of wgt is   1.0464e+08)
+note: spline1 omitted because of collinearity.
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =      3,659
+                                                  Wald chi2(14)   =      82.45
+                                                  Prob > chi2     =     0.0000
+                                                  Root MSE        =      .4389
+
+                           (Std. err. adjusted for 1,917 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .8507779   .8773159     0.97   0.332    -.8687298    2.570286
+log_income_t |  -.7233335   3.001719    -0.24   0.810    -6.606596    5.159929
+     spline1 |          0  (omitted)
+     spline2 |  -.6567683   3.227299    -0.20   0.839    -6.982158    5.668621
+     spline3 |   1.883283   .9854915     1.91   0.056    -.0482449    3.814811
+     spline4 |  -.8092958    .773081    -1.05   0.295    -2.324507    .7059151
+     spline5 |   .3525478   .7221067     0.49   0.625    -1.062755    1.767851
+     spline6 |  -.2148672   .5006289    -0.43   0.668    -1.196082    .7663474
+     spline7 |  -.0594011   .4955656    -0.12   0.905    -1.030692    .9118895
+     spline8 |   .4582393   .3439806     1.33   0.183    -.2159502    1.132429
+     spline9 |  -.5999965   .2565839    -2.34   0.019    -1.102892   -.0971013
+             |
+      year_t |
+       1988  |   .0441882   .0403653     1.09   0.274    -.0349263    .1233027
+       1989  |   .0131746   .0392144     0.34   0.737    -.0636842    .0900335
+       1990  |   .0125654   .0387137     0.32   0.746     -.063312    .0884429
+             |
+     married |   .0646918   .0297508     2.17   0.030     .0063813    .1230024
+      single |          0  (omitted)
+       _cons |   7.129011   28.18702     0.25   0.800    -48.11653    62.37455
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline2 spline3 spline4 spline5 spline6 spline7
+            spline8 spline9 1988.year_t 1989.year_t 1990.year_t married
+            log_ntr_instrument
+_rc for age group 3: 0
+  => annual_age3 stored
+
+. 
+. * Annual reform periods
+. capture noisily ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t i.year_t married single ///
+>     [aweight=income_weight] if year_t <= 1980, cluster(taxsimid)
+(sum of wgt is   3.0734e+07)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =      2,684
+                                                  Wald chi2(5)    =      55.22
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0019
+                                                  Root MSE        =      .8941
+
+                           (Std. err. adjusted for 1,817 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .3319187   .3576747     0.93   0.353    -.3691108    1.032948
+log_income_t |  -.6284189   .0885523    -7.10   0.000    -.8019782   -.4548596
+             |
+      year_t |
+       1979  |  -.0068393   .0806729    -0.08   0.932    -.1649553    .1512766
+       1980  |   .1030551   .0849253     1.21   0.225    -.0633955    .2695056
+             |
+     married |   .0619382   .0461033     1.34   0.179    -.0284226    .1522991
+      single |          0  (omitted)
+       _cons |   5.810561   .7954506     7.30   0.000     4.251507    7.369616
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 1979.year_t 1980.year_t married log_ntr_instrument
+
+. di "_rc for pre_erta: " _rc
+_rc for pre_erta: 0
+
+. if _rc == 0 {
+.     estimates store annual_pre_erta
+.     di "  => annual_pre_erta stored"
+  => annual_pre_erta stored
+. }
+
+. 
+. capture noisily ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t i.year_t married single ///
+>     [aweight=income_weight] if year_t >= 1981 & year_t <= 1983, cluster(taxsi
+> mid)
+(sum of wgt is   8.4250e+07)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =      5,431
+                                                  Wald chi2(5)    =     258.49
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.2578
+                                                  Root MSE        =      .4893
+
+                           (Std. err. adjusted for 3,050 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |  -.6820899   .2517856    -2.71   0.007    -1.175581   -.1885991
+log_income_t |  -.3126601   .0296384   -10.55   0.000    -.3707502     -.25457
+             |
+      year_t |
+       1982  |   .1487538   .0243031     6.12   0.000     .1011205     .196387
+       1983  |    .195536   .0307133     6.37   0.000     .1353391    .2557329
+             |
+     married |   .0634775   .0170376     3.73   0.000     .0300843    .0968706
+      single |          0  (omitted)
+       _cons |   3.038786   .2753172    11.04   0.000     2.499174    3.578397
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 1982.year_t 1983.year_t married log_ntr_instrument
+
+. di "_rc for erta: " _rc
+_rc for erta: 0
+
+. if _rc == 0 {
+.     estimates store annual_erta
+.     di "  => annual_erta stored"
+  => annual_erta stored
+. }
+
+. 
+. capture noisily ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t i.year_t married single ///
+>     [aweight=income_weight] if year_t >= 1984 & year_t <= 1986, cluster(taxsi
+> mid)
+(sum of wgt is   1.7249e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =      8,885
+                                                  Wald chi2(5)    =     290.70
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0298
+                                                  Root MSE        =     .45448
+
+                           (Std. err. adjusted for 4,498 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |    .571073   .2958288     1.93   0.054    -.0087409    1.150887
+log_income_t |  -.4198233   .0680268    -6.17   0.000    -.5531534   -.2864933
+             |
+      year_t |
+       1985  |   .0212306   .0153787     1.38   0.167    -.0089111    .0513724
+       1986  |   .0081691   .0171328     0.48   0.633    -.0254105    .0417488
+             |
+     married |    .122265    .016225     7.54   0.000     .0904646    .1540654
+      single |          0  (omitted)
+       _cons |   4.292937   .6572754     6.53   0.000     3.004701    5.581173
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 1985.year_t 1986.year_t married log_ntr_instrument
+
+. di "_rc for tra86: " _rc
+_rc for tra86: 0
+
+. if _rc == 0 {
+.     estimates store annual_tra86
+.     di "  => annual_tra86 stored"
+  => annual_tra86 stored
+. }
+
+. 
+. capture noisily ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t i.year_t married single ///
+>     [aweight=income_weight] if year_t >= 1987, cluster(taxsimid)
+(sum of wgt is   3.7104e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     14,832
+                                                  Wald chi2(6)    =     168.11
+                                                  Prob > chi2     =     0.0000
+                                                  Root MSE        =      .4374
+
+                           (Std. err. adjusted for 5,409 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .6834197   .5947576     1.15   0.251    -.4822837    1.849123
+log_income_t |  -.2223709   .0274379    -8.10   0.000    -.2761481   -.1685936
+             |
+      year_t |
+       1988  |   .0107041   .0108717     0.98   0.325     -.010604    .0320122
+       1989  |  -.0088948   .0122489    -0.73   0.468    -.0329021    .0151126
+       1990  |   .0000328    .013908     0.00   0.998    -.0272262    .0272919
+             |
+     married |   .0545339   .0136177     4.00   0.000     .0278437    .0812242
+      single |          0  (omitted)
+       _cons |   2.384633   .2751692     8.67   0.000     1.845311    2.923955
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 1988.year_t 1989.year_t 1990.year_t married
+            log_ntr_instrument
+
+. di "_rc for post_tra86: " _rc
+_rc for post_tra86: 0
+
+. if _rc == 0 {
+.     estimates store annual_post_tra86
+.     di "  => annual_post_tra86 stored"
+  => annual_post_tra86 stored
+. }
+
+. 
+. * Annual income groups
+. gen income_group = 1 if broad_income_t >= 10000 & broad_income_t < 50000
+(2,553 missing values generated)
+
+. replace income_group = 2 if broad_income_t >= 50000 & broad_income_t < 100000
+(834 real changes made)
+
+. replace income_group = 3 if broad_income_t >= 100000
+(42 real changes made)
+
+. 
+. foreach ig in 1 2 3 {
+  2.     capture noisily ivregress 2sls log_income_change ///
+>         (log_ntr_change = log_ntr_instrument) ///
+>         log_income_t spline1-spline9 i.year_t married single ///
+>         [aweight=income_weight] if income_group == `ig', cluster(taxsimid)
+  3.     di "_rc for inc`ig': " _rc
+  4.     if _rc == 0 {
+  5.         estimates store annual_inc`ig'
+  6.         di "  => annual_inc`ig' stored"
+  7.     }
+  8. }
+(sum of wgt is   5.8437e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     29,279
+                                                  Wald chi2(24)   =     921.42
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0687
+                                                  Root MSE        =      .4294
+
+                           (Std. err. adjusted for 6,993 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   -.051586   .1202224    -0.43   0.668    -.2872176    .1840455
+log_income_t |  -.9932531   .3449876    -2.88   0.004    -1.669416   -.3170899
+     spline1 |   .9258878   .5103808     1.81   0.070    -.0744403    1.926216
+     spline2 |  -.4713781   .2997199    -1.57   0.116    -1.058818    .1160622
+     spline3 |   .5242764   .2439232     2.15   0.032     .0461957    1.002357
+     spline4 |  -.3376644   .2541249    -1.33   0.184    -.8357401    .1604113
+     spline5 |   .1948565   .2154755     0.90   0.366    -.2274678    .6171807
+     spline6 |   -.088986   .1827413    -0.49   0.626    -.4471522    .2691803
+     spline7 |   .0348542   .1729657     0.20   0.840    -.3041525    .3738608
+     spline8 |   .0616982   .1479895     0.42   0.677    -.2283559    .3517524
+     spline9 |   .0541462   .1395848     0.39   0.698    -.2194349    .3277273
+             |
+      year_t |
+       1979  |   .0421201   .1436642     0.29   0.769    -.2394566    .3236968
+       1980  |     .15457   .1394725     1.11   0.268     -.118791     .427931
+       1981  |   .2038212   .1393614     1.46   0.144    -.0693222    .4769645
+       1982  |   .3657876    .138848     2.63   0.008     .0936504    .6379247
+       1983  |    .431104   .1395557     3.09   0.002     .1575798    .7046282
+       1984  |   .4717993    .138959     3.40   0.001     .1994447     .744154
+       1985  |   .4659311   .1388216     3.36   0.001     .1938458    .7380164
+       1986  |   .4591088    .138778     3.31   0.001     .1871089    .7311088
+       1987  |   .4528138   .1397832     3.24   0.001     .1788437    .7267839
+       1988  |   .4608599   .1398904     3.29   0.001     .1866797    .7350402
+       1989  |   .4395336   .1400746     3.14   0.002     .1649924    .7140749
+       1990  |   .4519431   .1400343     3.23   0.001     .1774809    .7264053
+             |
+     married |   .0722378   .0075706     9.54   0.000     .0573998    .0870759
+      single |          0  (omitted)
+       _cons |   9.103295   3.188128     2.86   0.004     2.854679    15.35191
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 1979.year_t 1980.year_t 1981.year_t
+            1982.year_t 1983.year_t 1984.year_t 1985.year_t 1986.year_t
+            1987.year_t 1988.year_t 1989.year_t 1990.year_t married
+            log_ntr_instrument
+_rc for inc1: 0
+  => annual_inc1 stored
+(sum of wgt is   5.4297e+07)
+note: spline1 omitted because of collinearity.
+note: spline2 omitted because of collinearity.
+note: spline3 omitted because of collinearity.
+note: spline4 omitted because of collinearity.
+note: spline5 omitted because of collinearity.
+note: spline6 omitted because of collinearity.
+note: spline7 omitted because of collinearity.
+note: spline8 omitted because of collinearity.
+note: spline9 omitted because of collinearity.
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =        834
+                                                  Wald chi2(15)   =      53.55
+                                                  Prob > chi2     =     0.0000
+                                                  Root MSE        =     .73697
+
+                             (Std. err. adjusted for 457 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   2.207498   2.135005     1.03   0.301    -1.977034     6.39203
+log_income_t |  -.7788624   .2882199    -2.70   0.007    -1.343763   -.2139618
+     spline1 |          0  (omitted)
+     spline2 |          0  (omitted)
+     spline3 |          0  (omitted)
+     spline4 |          0  (omitted)
+     spline5 |          0  (omitted)
+     spline6 |          0  (omitted)
+     spline7 |          0  (omitted)
+     spline8 |          0  (omitted)
+     spline9 |          0  (omitted)
+             |
+      year_t |
+       1979  |   -.315813   .8208287    -0.38   0.700    -1.924608    1.292982
+       1980  |  -.8432557   1.081268    -0.78   0.435    -2.962503    1.275991
+       1981  |  -.1224606   .7552674    -0.16   0.871    -1.602758    1.357836
+       1982  |   1.100956   .8192104     1.34   0.179    -.5046667    2.706579
+       1983  |   1.147779   .8692555     1.32   0.187    -.5559303    2.851489
+       1984  |   .5835006   .8326721     0.70   0.483    -1.048507    2.215508
+       1985  |   .9982136   .7627512     1.31   0.191    -.4967513    2.493178
+       1986  |   1.010384   .7176208     1.41   0.159    -.3961265    2.416895
+       1987  |   1.427581   .8297964     1.72   0.085    -.1987897    3.053952
+       1988  |   1.630017   .9168696     1.78   0.075    -.1670145    3.427048
+       1989  |   1.727647    .955044     1.81   0.070    -.1442046    3.599499
+       1990  |   1.667746   .9139507     1.82   0.068    -.1235647    3.459056
+             |
+     married |   .0697981   .0767676     0.91   0.363    -.0806636    .2202599
+      single |          0  (omitted)
+       _cons |   6.854873   2.779327     2.47   0.014     1.407492    12.30225
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 1979.year_t 1980.year_t 1981.year_t 1982.year_t
+            1983.year_t 1984.year_t 1985.year_t 1986.year_t 1987.year_t
+            1988.year_t 1989.year_t 1990.year_t married log_ntr_instrument
+_rc for inc2: 0
+  => annual_inc2 stored
+(sum of wgt is   5.5324e+06)
+note: spline1 omitted because of collinearity.
+note: spline2 omitted because of collinearity.
+note: spline3 omitted because of collinearity.
+note: spline4 omitted because of collinearity.
+note: spline5 omitted because of collinearity.
+note: spline6 omitted because of collinearity.
+note: spline7 omitted because of collinearity.
+note: spline8 omitted because of collinearity.
+note: spline9 omitted because of collinearity.
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =         42
+                                                  Wald chi2(9)    =    1114.59
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.6314
+                                                  Root MSE        =     .47331
+
+                              (Std. err. adjusted for 35 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |  -3.517731   8.338919    -0.42   0.673    -19.86171    12.82625
+log_income_t |  -.2487051   2.050538    -0.12   0.903    -4.267685    3.770275
+     spline1 |          0  (omitted)
+     spline2 |          0  (omitted)
+     spline3 |          0  (omitted)
+     spline4 |          0  (omitted)
+     spline5 |          0  (omitted)
+     spline6 |          0  (omitted)
+     spline7 |          0  (omitted)
+     spline8 |          0  (omitted)
+     spline9 |          0  (omitted)
+             |
+      year_t |
+       1985  |   .8288948   2.883955     0.29   0.774    -4.823552    6.481342
+       1986  |   .4050029    1.04011     0.39   0.697    -1.633576    2.443582
+       1987  |   .0938552   3.979454     0.02   0.981     -7.70573    7.893441
+       1988  |  -.1869495   3.695576    -0.05   0.960    -7.430145    7.056246
+       1989  |  -.4892505   3.476399    -0.14   0.888    -7.302867    6.324366
+       1990  |  -.3885924    3.61487    -0.11   0.914    -7.473608    6.696423
+             |
+     married |   .0563749    .262039     0.22   0.830    -.4572121    .5699619
+      single |          0  (omitted)
+       _cons |   2.937854    28.2885     0.10   0.917    -52.50659     58.3823
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 1985.year_t 1986.year_t 1987.year_t 1988.year_t
+            1989.year_t 1990.year_t married log_ntr_instrument
+_rc for inc3: 0
+  => annual_inc3 stored
+
+. 
+. di ""
+
+
+. di "=== Estimates in memory after ANNUAL section: ==="
+=== Estimates in memory after ANNUAL section: ===
+
+. estimates dir
+
+-------------------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-----------------------------------------------------------------
+ annual_main | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_age1 | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_age2 | ivregress log_income~e      23  Instrumental-variables 2SLS
+             |                                 regression
+ annual_age3 | ivregress log_income~e      18  Instrumental-variables 2SLS
+             |                                 regression
+annual_pre~a | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+ annual_erta | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+annual_tra86 | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+annual_po~86 | ivregress log_income~e       9  Instrumental-variables 2SLS
+             |                                 regression
+ annual_inc1 | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_inc2 | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_inc3 | ivregress log_income~e      21  Instrumental-variables 2SLS
+             |                                 regression
+-------------------------------------------------------------------------------
+
+. 
+. * Load biennial data
+. use "${datadir}\analysis_biennial.dta", clear
+
+. 
+. di ""
+
+
+. di "=== Estimates AFTER use analysis_biennial.dta: ==="
+=== Estimates AFTER use analysis_biennial.dta: ===
+
+. estimates dir
+
+-------------------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-----------------------------------------------------------------
+ annual_main | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_age1 | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_age2 | ivregress log_income~e      23  Instrumental-variables 2SLS
+             |                                 regression
+ annual_age3 | ivregress log_income~e      18  Instrumental-variables 2SLS
+             |                                 regression
+annual_pre~a | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+ annual_erta | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+annual_tra86 | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+annual_po~86 | ivregress log_income~e       9  Instrumental-variables 2SLS
+             |                                 regression
+ annual_inc1 | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_inc2 | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_inc3 | ivregress log_income~e      21  Instrumental-variables 2SLS
+             |                                 regression
+-------------------------------------------------------------------------------
+
+. 
+. * Biennial main
+. ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t spline1-spline9 i.year_t married single ///
+>     [aweight=income_weight], cluster(taxsimid)
+(sum of wgt is   2.7511e+09)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     47,201
+                                                  Wald chi2(23)   =     498.74
+                                                  Prob > chi2     =     0.0000
+                                                  Root MSE        =     .53871
+
+                           (Std. err. adjusted for 7,022 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .5438264   .1677332     3.24   0.001     .2150754    .8725774
+log_income_t |  -.3720767    .062203    -5.98   0.000    -.4939923   -.2501611
+     spline1 |   .2198103   .1212313     1.81   0.070    -.0177987    .4574192
+     spline2 |   .1448373   .1628657     0.89   0.374    -.1743737    .4640483
+     spline3 |   .0780951    .186945     0.42   0.676    -.2883103    .4445005
+     spline4 |  -.1192693   .1809095    -0.66   0.510    -.4738454    .2353067
+     spline5 |   .0286862   .1697325     0.17   0.866    -.3039834    .3613558
+     spline6 |  -.0978458   .1415678    -0.69   0.489    -.3753135     .179622
+     spline7 |  -.0310694   .1269133    -0.24   0.807     -.279815    .2176761
+     spline8 |   .1637679   .1228065     1.33   0.182    -.0769285    .4044643
+     spline9 |  -.2155175   .0831212    -2.59   0.010    -.3784321   -.0526028
+             |
+      year_t |
+       1997  |   .0483178   .0170961     2.83   0.005     .0148101    .0818256
+       1999  |   .0181584   .0195552     0.93   0.353     -.020169    .0564859
+       2001  |  -.0511518   .0198489    -2.58   0.010     -.090055   -.0122486
+       2003  |   .0282529   .0177824     1.59   0.112       -.0066    .0631058
+       2005  |  -.0079836   .0187116    -0.43   0.670    -.0446577    .0286904
+       2007  |  -.0124088   .0172558    -0.72   0.472    -.0462295    .0214119
+       2009  |   .0051399   .0179611     0.29   0.775    -.0300632     .040343
+       2011  |   .0211185   .0183456     1.15   0.250    -.0148382    .0570752
+       2013  |  -.0037829   .0210621    -0.18   0.857    -.0450639     .037498
+       2015  |   .0353809    .017985     1.97   0.049     .0001309    .0706309
+       2017  |  -.0024375   .0218835    -0.11   0.911    -.0453284    .0404535
+             |
+     married |   -.049724   .0130865    -3.80   0.000    -.0753731   -.0240748
+      single |          0  (omitted)
+       _cons |   3.776018   .6142096     6.15   0.000      2.57219    4.979847
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 1997.year_t 1999.year_t 2001.year_t
+            2003.year_t 2005.year_t 2007.year_t 2009.year_t 2011.year_t
+            2013.year_t 2015.year_t 2017.year_t married log_ntr_instrument
+
+. estimates store biennial_main
+
+. 
+. * Biennial age groups
+. forval ag = 1/3 {
+  2.     capture noisily ivregress 2sls log_income_change ///
+>         (log_ntr_change = log_ntr_instrument) ///
+>         log_income_t spline1-spline9 i.year_t married single ///
+>         [aweight=income_weight] if age_group == `ag', cluster(taxsimid)
+  3.     di "_rc for biennial age group `ag': " _rc
+  4.     if _rc == 0 {
+  5.         estimates store biennial_age`ag'
+  6.         di "  => biennial_age`ag' stored"
+  7.     }
+  8. }
+(sum of wgt is   6.0395e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     14,101
+                                                  Wald chi2(16)   =     268.87
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0600
+                                                  Root MSE        =     .51172
+
+                           (Std. err. adjusted for 5,586 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .2073021   .1557427     1.33   0.183    -.0979479    .5125521
+log_income_t |  -.2893215    .073859    -3.92   0.000    -.4340825   -.1445605
+     spline1 |   .2913863   .1650526     1.77   0.077     -.032111    .6148835
+     spline2 |  -.1935442   .2114532    -0.92   0.360    -.6079849    .2208964
+     spline3 |    .148641   .2673271     0.56   0.578    -.3753106    .6725926
+     spline4 |   .1530299   .2766007     0.55   0.580    -.3890975    .6951572
+     spline5 |  -.3063422   .2674866    -1.15   0.252    -.8306063    .2179219
+     spline6 |   .1295548   .2535289     0.51   0.609    -.3673528    .6264623
+     spline7 |    .030312   .2874019     0.11   0.916    -.5329854    .5936094
+     spline8 |  -.0509304   .2969099    -0.17   0.864    -.6328632    .5310023
+     spline9 |  -.4883295   .2326285    -2.10   0.036     -.944273   -.0323859
+             |
+      year_t |
+       1997  |   .0397068   .0145154     2.74   0.006     .0112572    .0681564
+       1999  |   .0163976   .0204185     0.80   0.422     -.023622    .0564173
+       2001  |  -.0360721   .0233627    -1.54   0.123     -.081862    .0097179
+       2003  |   .0943446   .0264823     3.56   0.000     .0424403    .1462489
+             |
+     married |  -.0644847    .017627    -3.66   0.000     -.099033   -.0299364
+      single |          0  (omitted)
+       _cons |   2.977928   .7263899     4.10   0.000      1.55423    4.401626
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 1997.year_t 1999.year_t 2001.year_t
+            2003.year_t married log_ntr_instrument
+_rc for biennial age group 1: 0
+  => biennial_age1 stored
+(sum of wgt is   1.1893e+09)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     20,269
+                                                  Wald chi2(20)   =     196.55
+                                                  Prob > chi2     =     0.0000
+                                                  Root MSE        =     .51071
+
+                           (Std. err. adjusted for 5,787 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |    .750416   .2123355     3.53   0.000      .334246    1.166586
+log_income_t |  -.3193559   .1627155    -1.96   0.050    -.6382725   -.0004393
+     spline1 |   .0087646   .2531127     0.03   0.972    -.4873272    .5048564
+     spline2 |   .3634686   .2703811     1.34   0.179    -.1664687    .8934059
+     spline3 |   .3022712   .3086357     0.98   0.327    -.3026437    .9071861
+     spline4 |  -.5396714   .2645544    -2.04   0.041    -1.058188   -.0211544
+     spline5 |   .3729217   .2341012     1.59   0.111    -.0859082    .8317516
+     spline6 |  -.4098348   .2137694    -1.92   0.055     -.828815    .0091455
+     spline7 |  -.0513159   .1726374    -0.30   0.766    -.3896789    .2870471
+     spline8 |    .440287    .159371     2.76   0.006     .1279256    .7526484
+     spline9 |  -.4620696   .0991169    -4.66   0.000    -.6563352    -.267804
+             |
+      year_t |
+       1999  |  -.0025364   .0581825    -0.04   0.965     -.116572    .1114992
+       2001  |  -.0887317   .0576239    -1.54   0.124    -.2016724     .024209
+       2003  |  -.0352801   .0560128    -0.63   0.529    -.1450632    .0745031
+       2005  |  -.0598778   .0563517    -1.06   0.288    -.1703252    .0505696
+       2007  |  -.0641783   .0559746    -1.15   0.252    -.1738864    .0455299
+       2009  |  -.0372179   .0565472    -0.66   0.510    -.1480484    .0736126
+       2011  |  -.0317552   .0584099    -0.54   0.587    -.1462365    .0827261
+       2013  |   .0300546   .0647841     0.46   0.643    -.0969198    .1570291
+             |
+     married |  -.0574172   .0170395    -3.37   0.001     -.090814   -.0240204
+      single |          0  (omitted)
+       _cons |   3.303282   1.619023     2.04   0.041     .1300562    6.476508
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 1999.year_t 2001.year_t 2003.year_t
+            2005.year_t 2007.year_t 2009.year_t 2011.year_t 2013.year_t
+            married log_ntr_instrument
+_rc for biennial age group 2: 0
+  => biennial_age2 stored
+(sum of wgt is   9.5778e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     12,831
+                                                  Wald chi2(17)   =      32.89
+                                                  Prob > chi2     =     0.0116
+                                                  Root MSE        =     .55243
+
+                           (Std. err. adjusted for 4,572 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |    .096454   .3200824     0.30   0.763    -.5308959    .7238039
+log_income_t |   .8954085   1.353748     0.66   0.508    -1.757889    3.548706
+     spline1 |  -1.140976    1.44991    -0.79   0.431    -3.982748    1.700796
+     spline2 |   .2901488   .4551451     0.64   0.524    -.6019191    1.182217
+     spline3 |  -.1537506    .463602    -0.33   0.740    -1.062394    .7548925
+     spline4 |   .0982173   .4550143     0.22   0.829    -.7935942    .9900289
+     spline5 |   .0229129   .4096675     0.06   0.955    -.7800206    .8258464
+     spline6 |   .0305588   .2821299     0.11   0.914    -.5224056    .5835232
+     spline7 |   -.140876   .2458728    -0.57   0.567    -.6227778    .3410257
+     spline8 |     .25842   .2013234     1.28   0.199    -.1361666    .6530065
+     spline9 |  -.2968146   .1186934    -2.50   0.012    -.5294495   -.0641798
+             |
+      year_t |
+       2009  |  -.0030833   .0543746    -0.06   0.955    -.1096555    .1034889
+       2011  |   .0451036   .0425042     1.06   0.289    -.0382032    .1284104
+       2013  |  -.0111728   .0434215    -0.26   0.797    -.0962773    .0739317
+       2015  |   .0506155   .0421822     1.20   0.230    -.0320601    .1332911
+       2017  |   .0036881   .0441719     0.08   0.933    -.0828872    .0902633
+             |
+     married |  -.0128814   .0203603    -0.63   0.527    -.0527869    .0270241
+      single |          0  (omitted)
+       _cons |  -9.006432   13.58051    -0.66   0.507    -35.62374    17.61087
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
+            spline7 spline8 spline9 2009.year_t 2011.year_t 2013.year_t
+            2015.year_t 2017.year_t married log_ntr_instrument
+_rc for biennial age group 3: 0
+  => biennial_age3 stored
+
+. 
+. * Biennial reform periods
+. capture noisily ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t i.year_t married single ///
+>     [aweight=income_weight] if year_t <= 1999, cluster(taxsimid)
+(sum of wgt is   5.2438e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     12,696
+                                                  Wald chi2(5)    =     107.13
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0344
+                                                  Root MSE        =     .50177
+
+                           (Std. err. adjusted for 5,584 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .1467028   .1542859     0.95   0.342    -.1556921    .4490977
+log_income_t |  -.1923517   .0204842    -9.39   0.000    -.2325001   -.1522034
+             |
+      year_t |
+       1997  |   .0561045   .0156654     3.58   0.000     .0254009    .0868081
+       1999  |   .0428547   .0174587     2.45   0.014     .0086363     .077073
+             |
+     married |  -.0364977   .0168326    -2.17   0.030     -.069489   -.0035064
+      single |          0  (omitted)
+       _cons |   2.059762   .2142162     9.62   0.000     1.639906    2.479618
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 1997.year_t 1999.year_t married log_ntr_instrument
+
+. di "_rc for biennial pre_egtrra: " _rc
+_rc for biennial pre_egtrra: 0
+
+. if _rc == 0 {
+.     estimates store biennial_pre_egtrra
+.     di "  => biennial_pre_egtrra stored"
+  => biennial_pre_egtrra stored
+. }
+
+. 
+. capture noisily ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t i.year_t married single ///
+>     [aweight=income_weight] if year_t >= 2001 & year_t <= 2007, cluster(taxsi
+> mid)
+(sum of wgt is   9.4938e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     16,904
+                                                  Wald chi2(6)    =     173.34
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0031
+                                                  Root MSE        =     .50533
+
+                           (Std. err. adjusted for 5,662 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |    .361009   .2702052     1.34   0.182    -.1685835    .8906015
+log_income_t |  -.1824142   .0148457   -12.29   0.000    -.2115113   -.1533171
+             |
+      year_t |
+       2003  |   .0787505   .0215827     3.65   0.000     .0364493    .1210518
+       2005  |   .0498184   .0198592     2.51   0.012      .010895    .0887418
+       2007  |   .0489501   .0200256     2.44   0.015     .0097007    .0881996
+             |
+     married |  -.0856304   .0193702    -4.42   0.000    -.1235952   -.0476655
+      single |          0  (omitted)
+       _cons |   1.941372   .1560758    12.44   0.000     1.635469    2.247275
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 2003.year_t 2005.year_t 2007.year_t married
+            log_ntr_instrument
+
+. di "_rc for biennial bush: " _rc
+_rc for biennial bush: 0
+
+. if _rc == 0 {
+.     estimates store biennial_bush
+.     di "  => biennial_bush stored"
+  => biennial_bush stored
+. }
+
+. 
+. capture noisily ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t i.year_t married single ///
+>     [aweight=income_weight] if year_t >= 2009 & year_t <= 2011, cluster(taxsi
+> mid)
+(sum of wgt is   4.9791e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =      7,523
+                                                  Wald chi2(4)    =      15.31
+                                                  Prob > chi2     =     0.0041
+                                                  Root MSE        =     .64725
+
+                           (Std. err. adjusted for 4,376 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   2.762623   1.187247     2.33   0.020     .4356618    5.089583
+log_income_t |  -.0365649   .0171028    -2.14   0.033    -.0700857   -.0030441
+             |
+      year_t |
+       2011  |   .0137034    .021429     0.64   0.523    -.0282966    .0557035
+             |
+     married |  -.0375226   .0258038    -1.45   0.146    -.0880971    .0130518
+      single |          0  (omitted)
+       _cons |   .3242942   .1909867     1.70   0.090    -.0500329    .6986213
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 2011.year_t married log_ntr_instrument
+
+. di "_rc for biennial recession: " _rc
+_rc for biennial recession: 0
+
+. if _rc == 0 {
+.     estimates store biennial_recession
+.     di "  => biennial_recession stored"
+  => biennial_recession stored
+. }
+
+. 
+. capture noisily ivregress 2sls log_income_change ///
+>     (log_ntr_change = log_ntr_instrument) ///
+>     log_income_t i.year_t married single ///
+>     [aweight=income_weight] if year_t >= 2013, cluster(taxsimid)
+(sum of wgt is   7.7940e+08)
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     10,078
+                                                  Wald chi2(5)    =      23.98
+                                                  Prob > chi2     =     0.0002
+                                                  Root MSE        =     .57741
+
+                           (Std. err. adjusted for 4,219 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .5505102   .4470986     1.23   0.218    -.3257869    1.426807
+log_income_t |  -.0723258   .0176649    -4.09   0.000    -.1069484   -.0377032
+             |
+      year_t |
+       2015  |   .0456094   .0223097     2.04   0.041     .0018832    .0893357
+       2017  |  -.0065002   .0281327    -0.23   0.817    -.0616393     .048639
+             |
+     married |  -.0273126   .0232453    -1.17   0.240    -.0728726    .0182475
+      single |          0  (omitted)
+       _cons |   .7351391    .192222     3.82   0.000     .3583909    1.111887
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 2015.year_t 2017.year_t married log_ntr_instrument
+
+. di "_rc for biennial tcja: " _rc
+_rc for biennial tcja: 0
+
+. if _rc == 0 {
+.     estimates store biennial_tcja
+.     di "  => biennial_tcja stored"
+  => biennial_tcja stored
+. }
+
+. 
+. * Biennial income groups
+. gen income_group = 1 if broad_income_t >= 10000 & broad_income_t < 50000
+(19,438 missing values generated)
+
+. replace income_group = 2 if broad_income_t >= 50000 & broad_income_t < 100000
+(14,436 real changes made)
+
+. replace income_group = 3 if broad_income_t >= 100000
+(5,002 real changes made)
+
+. 
+. foreach ig in 1 2 3 {
+  2.     capture noisily ivregress 2sls log_income_change ///
+>         (log_ntr_change = log_ntr_instrument) ///
+>         log_income_t spline1-spline9 i.year_t married single ///
+>         [aweight=income_weight] if income_group == `ig', cluster(taxsimid)
+  3.     di "_rc for biennial inc`ig': " _rc
+  4.     if _rc == 0 {
+  5.         estimates store biennial_inc`ig'
+  6.         di "  => biennial_inc`ig' stored"
+  7.     }
+  8. }
+(sum of wgt is   8.9829e+08)
+note: spline6 omitted because of collinearity.
+note: spline7 omitted because of collinearity.
+note: spline8 omitted because of collinearity.
+note: spline9 omitted because of collinearity.
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     27,763
+                                                  Wald chi2(19)   =     385.12
+                                                  Prob > chi2     =     0.0000
+                                                  Root MSE        =     .47588
+
+                           (Std. err. adjusted for 6,262 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   .5796304   .1447731     4.00   0.000     .2958803    .8633806
+log_income_t |  -.2486748   .0590932    -4.21   0.000    -.3644953   -.1328542
+     spline1 |   .1480723   .1191085     1.24   0.214    -.0853762    .3815207
+     spline2 |   .0937593   .1619391     0.58   0.563    -.2236355     .411154
+     spline3 |    .106587   .1869055     0.57   0.568     -.259741     .472915
+     spline4 |   -.086675   .1829109    -0.47   0.636    -.4451738    .2718237
+     spline5 |   -.127362   .2092545    -0.61   0.543    -.5374933    .2827693
+     spline6 |          0  (omitted)
+     spline7 |          0  (omitted)
+     spline8 |          0  (omitted)
+     spline9 |          0  (omitted)
+             |
+      year_t |
+       1997  |  -.0032673   .0119089    -0.27   0.784    -.0266084    .0200737
+       1999  |  -.0323765   .0114806    -2.82   0.005    -.0548781   -.0098749
+       2001  |   -.049391   .0128248    -3.85   0.000    -.0745272   -.0242548
+       2003  |  -.0262665   .0118146    -2.22   0.026    -.0494226   -.0031103
+       2005  |  -.0453574    .012983    -3.49   0.000    -.0708036   -.0199112
+       2007  |  -.0777862   .0126678    -6.14   0.000    -.1026145   -.0529578
+       2009  |  -.1299666   .0166584    -7.80   0.000    -.1626166   -.0973167
+       2011  |  -.1220051   .0176971    -6.89   0.000    -.1566907   -.0873194
+       2013  |  -.1050982   .0174283    -6.03   0.000    -.1392572   -.0709393
+       2015  |  -.1184015   .0179022    -6.61   0.000    -.1534891   -.0833139
+       2017  |  -.1901674   .0247499    -7.68   0.000    -.2386764   -.1416584
+             |
+     married |  -.0452204   .0096306    -4.70   0.000    -.0640959   -.0263448
+      single |          0  (omitted)
+       _cons |   2.592697   .5856552     4.43   0.000     1.444834     3.74056
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 1997.year_t
+            1999.year_t 2001.year_t 2003.year_t 2005.year_t 2007.year_t
+            2009.year_t 2011.year_t 2013.year_t 2015.year_t 2017.year_t
+            married log_ntr_instrument
+_rc for biennial inc1: 0
+  => biennial_inc1 stored
+(sum of wgt is   9.6426e+08)
+note: spline1 omitted because of collinearity.
+note: spline2 omitted because of collinearity.
+note: spline3 omitted because of collinearity.
+note: spline4 omitted because of collinearity.
+note: spline5 omitted because of collinearity.
+note: spline6 omitted because of collinearity.
+note: spline9 omitted because of collinearity.
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =     14,436
+                                                  Wald chi2(16)   =     118.61
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0223
+                                                  Root MSE        =     .42887
+
+                           (Std. err. adjusted for 3,679 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |   -.058436   .3155076    -0.19   0.853    -.6768195    .5599475
+log_income_t |  -.1145373   .0753816    -1.52   0.129    -.2622825    .0332079
+     spline1 |          0  (omitted)
+     spline2 |          0  (omitted)
+     spline3 |          0  (omitted)
+     spline4 |          0  (omitted)
+     spline5 |          0  (omitted)
+     spline6 |          0  (omitted)
+     spline7 |   .1183882   .1277634     0.93   0.354    -.1320234    .3687999
+     spline8 |  -.1076738   .1254264    -0.86   0.391     -.353505    .1381574
+     spline9 |          0  (omitted)
+             |
+      year_t |
+       1997  |  -.0126808   .0266229    -0.48   0.634    -.0648606     .039499
+       1999  |   .0063503   .0226414     0.28   0.779    -.0380259    .0507266
+       2001  |  -.0712181    .023994    -2.97   0.003    -.1182455   -.0241906
+       2003  |  -.0101623   .0232371    -0.44   0.662    -.0557063    .0353816
+       2005  |  -.0330733   .0219555    -1.51   0.132    -.0761052    .0099586
+       2007  |  -.0525788   .0214275    -2.45   0.014    -.0945759   -.0105817
+       2009  |  -.0566978   .0226399    -2.50   0.012    -.1010712   -.0123245
+       2011  |  -.0731279   .0230431    -3.17   0.002    -.1182917   -.0279642
+       2013  |  -.0555225   .0227334    -2.44   0.015    -.1000792   -.0109659
+       2015  |   -.061309   .0220711    -2.78   0.005    -.1045676   -.0180503
+       2017  |  -.1105316   .0251559    -4.39   0.000    -.1598363   -.0612268
+             |
+     married |    -.07719   .0147852    -5.22   0.000    -.1061685   -.0482115
+      single |          0  (omitted)
+       _cons |   1.299572    .822341     1.58   0.114    -.3121869     2.91133
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t spline7 spline8 1997.year_t 1999.year_t 2001.year_t
+            2003.year_t 2005.year_t 2007.year_t 2009.year_t 2011.year_t
+            2013.year_t 2015.year_t 2017.year_t married log_ntr_instrument
+_rc for biennial inc2: 0
+  => biennial_inc2 stored
+(sum of wgt is   8.8853e+08)
+note: spline1 omitted because of collinearity.
+note: spline2 omitted because of collinearity.
+note: spline3 omitted because of collinearity.
+note: spline4 omitted because of collinearity.
+note: spline5 omitted because of collinearity.
+note: spline6 omitted because of collinearity.
+note: spline7 omitted because of collinearity.
+note: spline8 omitted because of collinearity.
+note: spline9 omitted because of collinearity.
+note: single omitted because of collinearity.
+
+Instrumental-variables 2SLS regression            Number of obs   =      5,002
+                                                  Wald chi2(14)   =     151.43
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.1291
+                                                  Root MSE        =     .59645
+
+                           (Std. err. adjusted for 1,336 clusters in taxsimid)
+------------------------------------------------------------------------------
+             |               Robust
+log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+log_ntr_ch~e |  -.4494001   .3414672    -1.32   0.188    -1.118663    .2198632
+log_income_t |  -.2250309   .0268145    -8.39   0.000    -.2775864   -.1724754
+     spline1 |          0  (omitted)
+     spline2 |          0  (omitted)
+     spline3 |          0  (omitted)
+     spline4 |          0  (omitted)
+     spline5 |          0  (omitted)
+     spline6 |          0  (omitted)
+     spline7 |          0  (omitted)
+     spline8 |          0  (omitted)
+     spline9 |          0  (omitted)
+             |
+      year_t |
+       1997  |   .2559578   .0740388     3.46   0.001     .1108444    .4010711
+       1999  |   .2291201   .0800426     2.86   0.004     .0722394    .3860008
+       2001  |   .1673048   .0665222     2.52   0.012     .0369236    .2976859
+       2003  |    .320903   .0654038     4.91   0.000     .1927139    .4490921
+       2005  |   .2358048   .0636239     3.71   0.000     .1111043    .3605054
+       2007  |   .2637222   .0632761     4.17   0.000     .1397033     .387741
+       2009  |   .3602773   .0627028     5.75   0.000      .237382    .4831725
+       2011  |   .3944297   .0629991     6.26   0.000     .2709538    .5179057
+       2013  |   .2764601   .0651149     4.25   0.000     .1488373     .404083
+       2015  |   .4275795    .057249     7.47   0.000     .3153736    .5397855
+       2017  |   .3853662   .0597025     6.45   0.000     .2683516    .5023809
+             |
+     married |   .0097726   .0399634     0.24   0.807    -.0685543    .0880994
+      single |          0  (omitted)
+       _cons |   2.282653   .3134633     7.28   0.000     1.668276     2.89703
+------------------------------------------------------------------------------
+Endogenous: log_ntr_change
+Exogenous:  log_income_t 1997.year_t 1999.year_t 2001.year_t 2003.year_t
+            2005.year_t 2007.year_t 2009.year_t 2011.year_t 2013.year_t
+            2015.year_t 2017.year_t married log_ntr_instrument
+_rc for biennial inc3: 0
+  => biennial_inc3 stored
+
+. 
+. di ""
+
+
+. di "=== FINAL estimates dir (should have ~20 estimates): ==="
+=== FINAL estimates dir (should have ~20 estimates): ===
+
+. estimates dir
+
+-------------------------------------------------------------------------------
+             |           Dependent  Number of        
+        Name | Command    variable     param.  Title 
+-------------+-----------------------------------------------------------------
+ annual_main | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_age1 | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_age2 | ivregress log_income~e      23  Instrumental-variables 2SLS
+             |                                 regression
+ annual_age3 | ivregress log_income~e      18  Instrumental-variables 2SLS
+             |                                 regression
+annual_pre~a | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+ annual_erta | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+annual_tra86 | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+annual_po~86 | ivregress log_income~e       9  Instrumental-variables 2SLS
+             |                                 regression
+ annual_inc1 | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_inc2 | ivregress log_income~e      27  Instrumental-variables 2SLS
+             |                                 regression
+ annual_inc3 | ivregress log_income~e      21  Instrumental-variables 2SLS
+             |                                 regression
+biennial_m~n | ivregress log_income~e      26  Instrumental-variables 2SLS
+             |                                 regression
+biennial_a~1 | ivregress log_income~e      19  Instrumental-variables 2SLS
+             |                                 regression
+biennial_a~2 | ivregress log_income~e      23  Instrumental-variables 2SLS
+             |                                 regression
+biennial_a~3 | ivregress log_income~e      20  Instrumental-variables 2SLS
+             |                                 regression
+biennial_p~a | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+biennial_b~h | ivregress log_income~e       9  Instrumental-variables 2SLS
+             |                                 regression
+biennial_r~n | ivregress log_income~e       7  Instrumental-variables 2SLS
+             |                                 regression
+biennial_t~a | ivregress log_income~e       8  Instrumental-variables 2SLS
+             |                                 regression
+biennial_i~1 | ivregress log_income~e      26  Instrumental-variables 2SLS
+             |                                 regression
+biennial_i~2 | ivregress log_income~e      26  Instrumental-variables 2SLS
+             |                                 regression
+biennial_i~3 | ivregress log_income~e      26  Instrumental-variables 2SLS
+             |                                 regression
+-------------------------------------------------------------------------------
+
+. 
+. di ""
+
+
+. di "=== TEST: estimates table (no capture) ==="
+=== TEST: estimates table (no capture) ===
+
+. 
+. estimates table annual_main biennial_main, ///
+>     keep(log_ntr_change) b(%9.3f) se(%9.3f) stats(N) ///
+>     title("ETI: Annual vs Biennial")
+
+ETI: Annual vs Biennial
+
+--------------------------------------
+    Variable | annual_~n   biennia~n  
+-------------+------------------------
+log_ntr_ch~e |    -0.173       0.544  
+             |     0.124       0.168  
+-------------+------------------------
+           N |     31832       47201  
+--------------------------------------
+                          Legend: b/se
+
+. 
+. estimates table annual_age1 annual_age2 annual_age3, ///
+>     keep(log_ntr_change) b(%9.3f) se(%9.3f) stats(N) ///
+>     title("Annual: Age Groups")
+
+Annual: Age Groups
+
+--------------------------------------------------
+    Variable | annual_~1   annual_~2   annual_~3  
+-------------+------------------------------------
+log_ntr_ch~e |     0.171      -0.339       0.851  
+             |     0.192       0.148       0.877  
+-------------+------------------------------------
+           N |     13900       14273        3659  
+--------------------------------------------------
+                                      Legend: b/se
+
+. 
+. estimates table biennial_age1 biennial_age2 biennial_age3, ///
+>     keep(log_ntr_change) b(%9.3f) se(%9.3f) stats(N) ///
+>     title("Biennial: Age Groups")
+
+Biennial: Age Groups
+
+--------------------------------------------------
+    Variable | biennia~1   biennia~2   biennia~3  
+-------------+------------------------------------
+log_ntr_ch~e |     0.207       0.750       0.096  
+             |     0.156       0.212       0.320  
+-------------+------------------------------------
+           N |     14101       20269       12831  
+--------------------------------------------------
+                                      Legend: b/se
+
+. 
+. estimates table annual_pre_erta annual_erta annual_tra86 annual_post_tra86, /
+> //
+>     keep(log_ntr_change) b(%9.3f) se(%9.3f) stats(N) ///
+>     title("Annual: Reform Periods")
+
+Annual: Reform Periods
+
+--------------------------------------------------------------
+    Variable | annual_~a   annual_~a   annual~86   annual~86  
+-------------+------------------------------------------------
+log_ntr_ch~e |     0.332      -0.682       0.571       0.683  
+             |     0.358       0.252       0.296       0.595  
+-------------+------------------------------------------------
+           N |      2684        5431        8885       14832  
+--------------------------------------------------------------
+                                                  Legend: b/se
+
+. 
+. estimates table biennial_pre_egtrra biennial_bush biennial_recession biennial
+> _tcja, ///
+>     keep(log_ntr_change) b(%9.3f) se(%9.3f) stats(N) ///
+>     title("Biennial: Reform Periods")
+
+Biennial: Reform Periods
+
+--------------------------------------------------------------
+    Variable | biennia~a   biennia~h   biennia~n   biennia~a  
+-------------+------------------------------------------------
+log_ntr_ch~e |     0.147       0.361       2.763       0.551  
+             |     0.154       0.270       1.187       0.447  
+-------------+------------------------------------------------
+           N |     12696       16904        7523       10078  
+--------------------------------------------------------------
+                                                  Legend: b/se
+
+. 
+. estimates table annual_inc1 annual_inc2 annual_inc3, ///
+>     keep(log_ntr_change) b(%9.3f) se(%9.3f) stats(N) ///
+>     title("Annual: Income Groups")
+
+Annual: Income Groups
+
+--------------------------------------------------
+    Variable | annual_~1   annual_~2   annual_~3  
+-------------+------------------------------------
+log_ntr_ch~e |    -0.052       2.207      -3.518  
+             |     0.120       2.135       8.339  
+-------------+------------------------------------
+           N |     29279         834          42  
+--------------------------------------------------
+                                      Legend: b/se
+
+. 
+. estimates table biennial_inc1 biennial_inc2 biennial_inc3, ///
+>     keep(log_ntr_change) b(%9.3f) se(%9.3f) stats(N) ///
+>     title("Biennial: Income Groups")
+
+Biennial: Income Groups
+
+--------------------------------------------------
+    Variable | biennia~1   biennia~2   biennia~3  
+-------------+------------------------------------
+log_ntr_ch~e |     0.580      -0.058      -0.449  
+             |     0.145       0.316       0.341  
+-------------+------------------------------------
+           N |     27763       14436        5002  
+--------------------------------------------------
+                                      Legend: b/se
+
+. 
+. di ""
+
+
+. di "End: $S_DATE $S_TIME"
+End:  9 Mar 2026 22:44:18
+
+. log close
+      name:  <unnamed>
+       log:  D:\Stata Data\labor_signaling_project\output\verify3_log.txt
+  log type:  text
+ closed on:   9 Mar 2026, 22:44:18
+-------------------------------------------------------------------------------
