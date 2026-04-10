@@ -67,8 +67,15 @@ global cpi_1984 = r(mean)
 di "1984 CPI for real income calculations: $cpi_1984"
 
 * Real income floor in 1984 dollars
+* FIX #9: Period-specific floors
+* Annual period (ages 17-35):  $5,000 in 1984$ — Gruber-Saez use $10K in 1991$ ≈ $7.1K in 1984$
+*                                but NLSY79 young workers (1978-1993) earn $3-8K nominal;
+*                                $5K floor preserves full-time minimum-wage attachment.
+* Biennial period (ages 31-62): $10,000 in 1984$ — unchanged (appropriate for prime-age workers)
 global real_floor = 10000
-di "Real income floor: $" $real_floor " (1984 dollars)"
+global real_floor_annual = 5000
+di "Real income floor (biennial, ages 31-62): $" $real_floor " (1984 dollars)"
+di "Real income floor (annual,   ages 17-35): $" $real_floor_annual " (1984 dollars) [FIX #9]"
 
 /*==============================================================================
 PART 0b: DATA QUALITY VERIFICATION
@@ -477,17 +484,26 @@ count
 local n0 = r(N)
 di "Initial paired observations: `n0'"
 
-* Marital stability
-drop if mstat_t != mstat_t3
+* FIX #10: Marital status change — retain with indicator controls (annual period only)
+* Original: drop if mstat_t != mstat_t3 removed 21% of sample (ages 17-35, peak marriage years)
+* Fix: generate marital-change dummies; add to regression controls (Gruber-Saez 2002 App A2)
+gen mstat_change_sm = (mstat_t == 1 & mstat_t3 == 2)   // single → married
+gen mstat_change_ms = (mstat_t == 2 & mstat_t3 == 1)   // married → single / divorce
+label var mstat_change_sm "Marital change: single at t, married at t+3 [FIX #10]"
+label var mstat_change_ms "Marital change: married at t, single at t+3 [FIX #10]"
 count
 local n1 = r(N)
-di "After marital stability: `n1' (" %4.1f 100*`n1'/`n0' "% retained)"
+di "After FIX #10 (retain marital changers with controls): `n1' (" %4.1f 100*`n1'/`n0' "% retained)"
+count if mstat_change_sm == 1
+di "  Single→Married changers retained as controls: " r(N)
+count if mstat_change_ms == 1
+di "  Married→Single changers retained as controls: " r(N)
 
-* Real income floor
-drop if real_income_t < $real_floor
+* FIX #9: Period-specific real income floor ($5K for annual, vs $10K original)
+drop if real_income_t < $real_floor_annual
 count
 local n2 = r(N)
-di "After real income floor ($10K 1984$): `n2' (" %4.1f 100*`n2'/`n0' "% of initial)"
+di "After real income floor ($" $real_floor_annual " 1984$, annual) [FIX #9]: `n2' (" %4.1f 100*`n2'/`n0' "% of initial)"
 
 * Positive end-period income
 drop if broad_income_t3 <= 0
@@ -544,6 +560,47 @@ gen log_ntr_predicted = ln(ntr_predicted)
 gen log_ntr_change = log_ntr_end - log_ntr_t
 gen log_ntr_instrument = log_ntr_predicted - log_ntr_t
 
+/*------------------------------------------------------------------------------
+FIX #12: TRIM EXTREME LOG INCOME CHANGES (ANNUAL PERIOD)
+Kopczuk (2005, Table 4) uses |Δlog(z)| ≤ log(5) ≈ 1.609 as primary spec.
+Gruber-Saez (2002, fn.11) use ±1.0 in robustness. The raw range is -5.88 to
++3.00 — exp(3.0) = 20× income growth in 3 years is measurement error, not a
+tax response. These extreme obs dominate the IV regression in small samples.
+Standard: drop obs, not winsorize (consistent with all cited papers).
+------------------------------------------------------------------------------*/
+di ""
+di "FIX #12 PRE-TRIM DIAGNOSTICS (Annual Period):"
+sum log_income_change, detail
+count if abs(log_income_change) > log(5) & !missing(log_income_change)
+di "  Obs with |Δlog(z)| > log(5)=1.609 (to be dropped): " r(N)
+
+drop if abs(log_income_change) > log(5) & !missing(log_income_change)
+count
+di "After |Δlog(z)| ≤ log(5) trim [FIX #12]: " r(N) " obs"
+
+/*------------------------------------------------------------------------------
+FIX #11: LAGGED INCOME CHANGE AS MEAN-REVERSION CONTROL (ANNUAL PERIOD)
+Kopczuk (2005, Sec 4.3, Table 5); Saez (2004); Chetty et al. (2011, AER).
+The 1982 recession caused large income drops followed by 1983-85 recoveries.
+ERTA (1981) cut taxes just before the trough. Without this control, the IV
+picks up mean-reverting recovery (positive ΔlogZ) coinciding with ERTA NTR
+increases, potentially contaminating the ETI sign.
+Control: log income change from t-3 to t (the prior 3-year window's outcome).
+Obs missing the lag (first available window per person) are dropped — the
+Kopczuk standard.
+------------------------------------------------------------------------------*/
+sort taxsimid year_t
+by taxsimid: gen log_income_lag3 = log_income_t[_n-1] ///
+    if year_t - year_t[_n-1] == 3
+gen log_income_change_lag = log_income_t - log_income_lag3
+label var log_income_change_lag "Lagged 3-yr log income change (t-3 to t) [FIX #11, Kopczuk 2005]"
+
+di ""
+di "FIX #11: Lagged income change statistics:"
+sum log_income_change_lag, detail
+count if missing(log_income_change_lag)
+di "  Obs without lag (first window per person, will be dropped in regression): " r(N)
+
 * Controls
 gen income_weight = min(broad_income_t, 1000000)
 gen married = (mstat_t == 2)
@@ -587,8 +644,10 @@ di "============================================================================
 di ""
 di "FIRST STAGE (Annual Period):"
 di "----------------------------"
+di "[FIX #10: mstat_change_sm/ms added] [FIX #11: log_income_change_lag added]"
 regress log_ntr_change log_ntr_instrument ///
     log_income_t spline1-spline9 i.year_t married single ///
+    mstat_change_sm mstat_change_ms log_income_change_lag ///
     [aweight=income_weight], cluster(taxsimid)
 test log_ntr_instrument
 global F_annual = r(F)
@@ -599,9 +658,11 @@ di "First-stage F-statistic: " %8.2f $F_annual
 di ""
 di "2SLS - MAIN SPECIFICATION (Annual Period):"
 di "-------------------------------------------"
+di "[FIX #10: mstat_change_sm/ms added] [FIX #11: log_income_change_lag added]"
 ivregress 2sls log_income_change ///
     (log_ntr_change = log_ntr_instrument) ///
     log_income_t spline1-spline9 i.year_t married single ///
+    mstat_change_sm mstat_change_ms log_income_change_lag ///
     [aweight=income_weight], cluster(taxsimid)
 
 global beta_annual = _b[log_ntr_change]
@@ -621,8 +682,9 @@ forval ag = 1/3 {
     capture noisily ivregress 2sls log_income_change ///
         (log_ntr_change = log_ntr_instrument) ///
         log_income_t spline1-spline9 i.year_t married single ///
+        mstat_change_sm mstat_change_ms log_income_change_lag ///
         [aweight=income_weight] if age_group == `ag', cluster(taxsimid)
-    
+
     if _rc == 0 {
         estimates store annual_age`ag'
     }
@@ -638,6 +700,7 @@ di "Pre-ERTA (1978-1980 base years):"
 capture noisily ivregress 2sls log_income_change ///
     (log_ntr_change = log_ntr_instrument) ///
     log_income_t i.year_t married single ///
+    mstat_change_sm mstat_change_ms log_income_change_lag ///
     [aweight=income_weight] if year_t <= 1980, cluster(taxsimid)
 if _rc == 0 {
     estimates store annual_pre_erta
@@ -648,6 +711,7 @@ di "ERTA Period (1981-1983 base years):"
 capture noisily ivregress 2sls log_income_change ///
     (log_ntr_change = log_ntr_instrument) ///
     log_income_t i.year_t married single ///
+    mstat_change_sm mstat_change_ms log_income_change_lag ///
     [aweight=income_weight] if year_t >= 1981 & year_t <= 1983, cluster(taxsimid)
 if _rc == 0 {
     estimates store annual_erta
@@ -658,6 +722,7 @@ di "TRA86 Period (1984-1986 base years):"
 capture noisily ivregress 2sls log_income_change ///
     (log_ntr_change = log_ntr_instrument) ///
     log_income_t i.year_t married single ///
+    mstat_change_sm mstat_change_ms log_income_change_lag ///
     [aweight=income_weight] if year_t >= 1984 & year_t <= 1986, cluster(taxsimid)
 if _rc == 0 {
     estimates store annual_tra86
@@ -668,6 +733,7 @@ di "Post-TRA86 (1987-1990 base years):"
 capture noisily ivregress 2sls log_income_change ///
     (log_ntr_change = log_ntr_instrument) ///
     log_income_t i.year_t married single ///
+    mstat_change_sm mstat_change_ms log_income_change_lag ///
     [aweight=income_weight] if year_t >= 1987, cluster(taxsimid)
 if _rc == 0 {
     estimates store annual_post_tra86
@@ -678,15 +744,16 @@ di ""
 di "2SLS BY INCOME GROUP (Annual Period):"
 di "--------------------------------------"
 
-gen income_group = 1 if broad_income_t >= 10000 & broad_income_t < 50000
+gen income_group = 1 if broad_income_t >= 5000 & broad_income_t < 50000
 replace income_group = 2 if broad_income_t >= 50000 & broad_income_t < 100000
 replace income_group = 3 if broad_income_t >= 100000
 
 di ""
-di "Income Group: $10K-$50K"
+di "Income Group: $5K-$50K [FIX #9: floor lowered]"
 capture noisily ivregress 2sls log_income_change ///
     (log_ntr_change = log_ntr_instrument) ///
     log_income_t spline1-spline9 i.year_t married single ///
+    mstat_change_sm mstat_change_ms log_income_change_lag ///
     [aweight=income_weight] if income_group == 1, cluster(taxsimid)
 if _rc == 0 {
     estimates store annual_inc1
@@ -697,6 +764,7 @@ di "Income Group: $50K-$100K"
 capture noisily ivregress 2sls log_income_change ///
     (log_ntr_change = log_ntr_instrument) ///
     log_income_t spline1-spline9 i.year_t married single ///
+    mstat_change_sm mstat_change_ms log_income_change_lag ///
     [aweight=income_weight] if income_group == 2, cluster(taxsimid)
 if _rc == 0 {
     estimates store annual_inc2
@@ -707,6 +775,7 @@ di "Income Group: $100K+"
 capture noisily ivregress 2sls log_income_change ///
     (log_ntr_change = log_ntr_instrument) ///
     log_income_t spline1-spline9 i.year_t married single ///
+    mstat_change_sm mstat_change_ms log_income_change_lag ///
     [aweight=income_weight] if income_group == 3, cluster(taxsimid)
 if _rc == 0 {
     estimates store annual_inc3
@@ -1146,6 +1215,22 @@ di "============================================================================
 gen log_income_t = ln(broad_income_t)
 gen log_income_t2 = ln(broad_income_t2)
 gen log_income_change = log_income_t2 - log_income_t
+
+/*------------------------------------------------------------------------------
+FIX #12 (BIENNIAL PERIOD): Trim extreme log income changes
+Same standard as annual: |Δlog(z)| ≤ log(5) ≈ 1.609 (Kopczuk 2005).
+Biennial period is already well-behaved (ETI = +0.544, significant), so this
+is primarily a consistency measure. Expected impact: small.
+------------------------------------------------------------------------------*/
+di ""
+di "FIX #12 PRE-TRIM DIAGNOSTICS (Biennial Period):"
+sum log_income_change, detail
+count if abs(log_income_change) > log(5) & !missing(log_income_change)
+di "  Obs with |Δlog(z)| > log(5)=1.609 (to be dropped): " r(N)
+
+drop if abs(log_income_change) > log(5) & !missing(log_income_change)
+count
+di "After |Δlog(z)| ≤ log(5) trim [FIX #12]: " r(N) " obs"
 
 * Marginal tax rates
 gen mtr_t = mtr_fed_t

@@ -2078,6 +2078,86 @@ label var some_coll "13-15 years (some college, no BA)"
 label var ba_degree "Completed exactly 16 years (BA degree)"
 label var grad_degree "17+ years (graduate degree)"
 
+/*==============================================================================
+FIX #8: CORRECT CUMHRS FOR EMPLOYED-BUT-NO-HOURS ANNUAL OBSERVATIONS
+==============================================================================
+ROOT CAUSE: The cumhrs variable was built by zero-filling ALL missing annual
+hours before accumulation (pre-reshape). This treats survey non-response
+identically to non-employment. Person-years where pwages > 0 but hrs = 0
+are economically impossible — a worker cannot have positive wages and zero
+hours — yet they arise from this zero-fill whenever a respondent reported
+wages but skipped the hours question.
+
+Bound, Brown & Mathiowetz (2001, Handbook of Econometrics) and Card & Hyslop
+(1997) document that hours non-response in NLSY surveys is positively
+correlated with employment, not non-employment. Standard data quality
+practice is to flag and impute these cases.
+
+FIX (post-reshape long format): For annual years (1978-1993), wherever
+pwages > 0 and hrs == 0, replace hrs with the person's median annual hours
+from valid observations (hrs > 0, pwages > 0). Use the sample-wide median as
+fallback for persons with no valid obs. Then apply the correction cumulatively
+to cumhrs (cumhrs at that year and all future years increases by the imputed
+hours value). Finally recompute recent_hrs from the corrected cumhrs.
+
+NOTE: Biennial years (1995+) are unchanged — zero hours in a biennial year
+where pwages > 0 is less frequent and less consequential for the cumhrs
+denominator given the longer horizon.
+==============================================================================*/
+
+di ""
+di "=============================================================================="
+di "FIX #8: CORRECTING CUMHRS FOR EMPLOYED-BUT-NO-HOURS (ANNUAL PERIOD)"
+di "=============================================================================="
+
+* Identify eligible cases: annual year, has wages, has zero hours
+gen fix8_eligible = (year <= 1993 & pwages > 0 & !missing(pwages) & hrs == 0)
+count if fix8_eligible == 1
+di "FIX #8: " r(N) " person-years with pwages > 0 but hrs = 0 in annual period (to impute)"
+
+* Compute person-median hours from valid annual observations
+* Valid = year <= 1993, pwages > 0, hrs > 0 and not missing
+bysort taxsimid: egen person_med_hrs_fix8 = median( ///
+    cond(year <= 1993 & pwages > 0 & !missing(pwages) & hrs > 0 & !missing(hrs), ///
+         hrs, .))
+
+* Sample-wide median annual hours as fallback (for persons with no valid obs)
+quietly _pctile hrs if year <= 1993 & pwages > 0 & !missing(pwages) & ///
+    hrs > 0 & !missing(hrs), p(50)
+global sample_med_hrs_fix8 = r(r1)
+di "FIX #8: Sample-wide median annual hours (fallback) = " %6.0f $sample_med_hrs_fix8
+
+* Build imputed hours value for eligible observations
+gen hrs_correction_fix8 = .
+replace hrs_correction_fix8 = person_med_hrs_fix8 ///
+    if fix8_eligible == 1 & !missing(person_med_hrs_fix8)
+replace hrs_correction_fix8 = $sample_med_hrs_fix8 ///
+    if fix8_eligible == 1 & missing(hrs_correction_fix8)
+replace hrs_correction_fix8 = 0 if missing(hrs_correction_fix8)
+
+* Apply correction to hrs (for downstream uses of hrs directly)
+replace hrs = hrs_correction_fix8 if fix8_eligible == 1 & hrs_correction_fix8 > 0
+
+* Apply correction cumulatively to cumhrs:
+* At each affected year, cumhrs at that year and ALL later years should increase
+* by the imputed hours. We compute the cumulative sum of corrections within person.
+sort taxsimid year
+by taxsimid: gen cumhrs_correction_fix8 = sum(hrs_correction_fix8)
+replace cumhrs = cumhrs + cumhrs_correction_fix8
+
+* Diagnostics
+di ""
+di "FIX #8 RESULTS:"
+count if fix8_eligible == 1 & hrs_correction_fix8 > 0
+di "  Obs imputed (person-median or fallback): " r(N)
+summarize cumhrs_correction_fix8 if cumhrs_correction_fix8 > 0, detail
+di "  Mean cumhrs correction applied: " %8.1f r(mean) " hours"
+
+* Cleanup
+drop fix8_eligible person_med_hrs_fix8 hrs_correction_fix8 cumhrs_correction_fix8
+
+di "FIX #8 complete."
+
 * Create lagged hours for signaling analysis
 sort taxsimid year
 
