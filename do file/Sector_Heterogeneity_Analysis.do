@@ -1,47 +1,10 @@
-/*==============================================================================
-SECTOR_HETEROGENEITY_ANALYSIS.DO
-================================================================================
-Purpose: Test whether signaling externalities vary by occupation × industry.
-         This is a NOVEL CONTRIBUTION not in Sztutman (2024)'s HRS paper.
-
-THEORETICAL PREDICTIONS (Sztutman framework, cross-sector extension):
-  δ_sector = information asymmetry in sector s
-  γ_sector = δ_sector / (1 − δ_sector + ε)
-
-  HIGH-SIGNALING SECTORS (employer uncertainty is large, δ high):
-    → Professional/Technical (occ 1), Managers (occ 2)
-    → Finance/Insurance (ind 7), Business Services (ind 8)
-    → Professional Services (ind 11)
-    → Predictions: high γ, strong Altonji-Pierret slope
-
-  LOW-SIGNALING SECTORS (output is directly observable, δ low):
-    → Operatives (occ 6), Laborers (occ 7), Farm Workers (occ 8)
-    → Manufacturing (ind 4), Agriculture (ind 1)
-    → Predictions: low γ, weak Altonji-Pierret slope
-
-TESTS:
-  1. γ by occupation: Does Professional/Managerial have higher return to cumhrs?
-  2. γ by industry: Does Finance/ProfSvc have higher return than Manufacturing?
-  3. Altonji-Pierret by sector: Does AFQT × Experience slope vary by signaling intensity?
-  4. Ranking: Full ordering of sectors by both γ and AP slope
-
-DATA:
-  Restricted to 1979-1993 (occ/ind available in NLSY79 only for this window)
-  eda_deepdive_data.dta from EDA_DeepDive_OccInd.do
-
-INPUT:  data\eda_deepdive_data.dta
-OUTPUT: output\Phase4_Table1_GammaByOcc.rtf
-        output\Phase4_Table2_GammaByInd.rtf
-        output\Phase4_Table3_AltonjiPierretBySector.rtf
-        output\Phase4_Fig1_GammaRanking.png
-        output\Phase4_Fig2_APRanking.png
-        output\Phase4_Table4_SignalingRanking.csv
-        output\Sector_Heterogeneity_log.txt
-
-Author: [Research team]
-Date:   2026-04-10
-Version 1.0
-==============================================================================*/
+* Sector_Heterogeneity_Analysis.do
+* Estimates gamma and Altonji-Pierret employer-learning coefficients
+* separately by occupation and industry groups.
+* Tests whether signaling intensity varies by sector (e.g. finance vs mfg).
+* Restricted to 1979-1993 (when occ/ind codes are available).
+* Input:  data/nlsy_long_pre_taxsim.dta, data/merged_data_with_occind.dta
+* Output: Phase4 tables/figures
 
 clear all
 set more off
@@ -62,9 +25,7 @@ di "Framework: Cross-sector extension of Sztutman (2024)"
 di "Start time: $S_DATE $S_TIME"
 di ""
 
-/*==============================================================================
-PART 0: LOAD DATA AND DEFINE SAMPLE
-==============================================================================*/
+* --- Part 0: LOAD DATA AND DEFINE SAMPLE ---
 
 di "=============================================================================="
 di "PART 0: DATA SETUP"
@@ -149,12 +110,7 @@ di "  Industry   — High: Finance (7), Business Svcs (8), Prof Svcs (11)"
 di "                Low: Agriculture (1), Manufacturing (4)"
 di ""
 
-/*==============================================================================
-PART 1: γ BY OCCUPATION
-================================================================================
-γ = ∂log(w) / ∂log(cumhrs)  [FE within-person]
-PREDICTION: γ_Professional > γ_Managerial > γ_Clerical > γ_Laborers > γ_Farm
-==============================================================================*/
+* --- Part 1: γ BY OCCUPATION — γ = ∂log(w) / ∂log(cumhrs)  [FE within-person] ---
 
 di "=============================================================================="
 di "PART 1: γ BY OCCUPATION (RETURN TO CUMULATIVE HOURS)"
@@ -207,7 +163,7 @@ forvalues o = 1/9 {
 }
 
 di ""
-di "SCRUTINY: High-signaling occ γ > Low-signaling occ γ?"
+di "Check: High-signaling occ γ > Low-signaling occ γ?"
 local high_sig_g = max(gamma_occ1, gamma_occ2)
 local low_sig_g  = min(gamma_occ7, gamma_occ8)
 if !missing(`high_sig_g') & !missing(`low_sig_g') {
@@ -221,9 +177,7 @@ if !missing(`high_sig_g') & !missing(`low_sig_g') {
     }
 }
 
-/*==============================================================================
-PART 2: γ BY INDUSTRY
-==============================================================================*/
+* --- Part 2: γ BY INDUSTRY ---
 
 di ""
 di "=============================================================================="
@@ -289,20 +243,7 @@ if !missing(gamma_ind7) & !missing(gamma_ind4) {
     }
 }
 
-/*==============================================================================
-PART 3: ALTONJI-PIERRET TEST BY SECTOR
-================================================================================
-AFQT × Experience interaction by occupation and industry.
-If employer learning is stronger in high-signaling sectors:
-  → AP slope should be LARGER in Professional/Finance
-  → AP slope should be SMALLER (or zero) in Manufacturing/Farming
-
-ALTONJI-PIERRET SPECIFICATION:
-  log(w_it) = α + β₁·AFQT_i + β₂·pot_exp_it + β₃·(AFQT_i × pot_exp_it)
-             + β₄·pot_exp²_it + β₅·educ_years_it + year FE + ε_it
-  H₁: β₃ > 0 (employer learning — AFQT becomes more predictive with experience)
-  Larger β₃ in high-signaling sectors → sector-specific employer learning
-==============================================================================*/
+* --- Part 3: ALTONJI-PIERRET TEST BY SECTOR ---
 
 di ""
 di "=============================================================================="
@@ -357,7 +298,7 @@ forvalues o = 1/9 {
 }
 
 di ""
-di "SCRUTINY: High-signaling occ AP slope > Low-signaling?"
+di "Check: High-signaling occ AP slope > Low-signaling?"
 if !missing(ap_occ1) & !missing(ap_occ7) {
     if ap_occ1 > ap_occ7 | ap_occ1 > ap_occ8 {
         di "  CONSISTENT: Professional AP slope > Manual workers"
@@ -416,13 +357,92 @@ if !missing(ap_ind7) & !missing(ap_ind4) {
     di "  Difference (Finance - Mfg): " %8.5f ap_ind7 - ap_ind4
 }
 
-/*==============================================================================
-PART 4: COMBINED SIGNALING RANKING
-================================================================================
-Rank occupations and industries by BOTH γ AND AP slope.
-The joint ranking is the cleanest test: sectors with both high γ AND high AP slope
-are the strongest evidence for sector-specific signaling externalities.
-==============================================================================*/
+* --- Part 3b: AP ROBUSTNESS — RESTRICT TO 5+ YEARS OCCUPATION TENURE ---
+
+di ""
+di "=============================================================================="
+di "PART 3b: ALTONJI-PIERRET ROBUSTNESS — 5+ YEAR OCCUPATION TENURE"
+di "=============================================================================="
+di ""
+di "Motivation: Professional/Tech AP slope may be attenuated by short tenure"
+di "This spec restricts to workers with >= 5 years in same occupation"
+di ""
+
+*--- Create occupation tenure variable ---
+* Count total years each person is observed in each occupation (full spell length)
+sort taxsimid year
+capture drop occ_tenure
+bysort taxsimid occ_broad (year): gen occ_tenure = _N
+label var occ_tenure "Total years observed in this occupation (per person)"
+
+di "Occupation tenure distribution (phase4_sample):"
+sum occ_tenure if phase4_sample == 1, detail
+di "Obs with occ_tenure >= 5: "
+count if phase4_sample == 1 & occ_tenure >= 5
+di ""
+
+*--- AP regression restricted to 5+ year tenure ---
+di "AP slope b(AFQT x exp) by occupation -- RESTRICTED to 5+ year tenure:"
+di ""
+di "Occ  Label               N(>=5yr)  AP slope  SE        t     Signal"
+di "---- ------------------- --------- --------- --------- ----- ------"
+
+forvalues o = 1/9 {
+    qui count if phase4_sample == 1 & occ_broad == `o' ///
+                 & occ_tenure >= 5 & !missing(afqt_std)
+    local n_o = r(N)
+
+    if `n_o' >= 200 {
+        capture confirm variable educ_years
+        if _rc == 0 {
+            reg log_pwages afqt_std afqt_x_exp pot_exp pot_exp2 educ_years i.year ///
+                if phase4_sample == 1 & occ_broad == `o' & occ_tenure >= 5, ///
+                cluster(taxsimid)
+        }
+        else {
+            reg log_pwages afqt_std afqt_x_exp pot_exp pot_exp2 i.year ///
+                if phase4_sample == 1 & occ_broad == `o' & occ_tenure >= 5, ///
+                cluster(taxsimid)
+        }
+
+        scalar ap_occ5yr`o'   = _b[afqt_x_exp]
+        scalar apse_occ5yr`o' = _se[afqt_x_exp]
+
+        local sig = "Medium"
+        if inlist(`o', 1, 2) local sig = "High"
+        if inlist(`o', 7, 8) local sig = "Low"
+
+        di "  `o'   " %-19s "`occ_lbl_`o''" " `n_o'  " ///
+           %9.5f ap_occ5yr`o' "  " %8.5f apse_occ5yr`o' ///
+           "  " %5.2f ap_occ5yr`o'/apse_occ5yr`o' "  `sig'"
+    }
+    else {
+        di "  `o'   " %-19s "`occ_lbl_`o''" " `n_o'  [< 200 obs with 5+ yr tenure]"
+        scalar ap_occ5yr`o'   = .
+        scalar apse_occ5yr`o' = .
+    }
+}
+
+di ""
+di "COMPARISON: Full sample vs 5+ year tenure restriction:"
+di "  Professional/Tech (theory: High signaling, occ=1)"
+if !missing(ap_occ1) & !missing(ap_occ5yr1) {
+    di "    Full sample AP slope:     " %8.5f ap_occ1   "  (t = " %5.2f ap_occ1/apse_occ1 ")"
+    di "    5+ yr tenure AP slope:    " %8.5f ap_occ5yr1 "  (t = " %5.2f ap_occ5yr1/apse_occ5yr1 ")"
+    if ap_occ5yr1 > ap_occ1 {
+        di "    EXPECTED: AP slope rises with tenure restriction (more experience variation)"
+    }
+    else {
+        di "    UNEXPECTED: AP slope does NOT rise -- inconsistency may be genuine finding"
+    }
+}
+di "  Laborers (theory: Low signaling, occ=7)"
+if !missing(ap_occ7) & !missing(ap_occ5yr7) {
+    di "    Full sample AP slope:     " %8.5f ap_occ7   "  (t = " %5.2f ap_occ7/apse_occ7 ")"
+    di "    5+ yr tenure AP slope:    " %8.5f ap_occ5yr7 "  (t = " %5.2f ap_occ5yr7/apse_occ5yr7 ")"
+}
+
+* --- Part 4: COMBINED SIGNALING RANKING ---
 
 di ""
 di "=============================================================================="
@@ -466,12 +486,7 @@ list rank occ_n occ_label gamma_v ap_v signal_theory, clean noobs
 export delimited using "${outdir}\Phase4_Table4_SignalingRanking.csv", replace
 restore
 
-/*==============================================================================
-PART 5: AGGREGATED HIGH vs LOW SIGNALING COMPARISON
-================================================================================
-Pool occupations into "High" vs "Low" signaling groups and estimate γ and AP.
-This gives a single clean comparison with sufficient power.
-==============================================================================*/
+* --- Part 5: AGGREGATED HIGH vs LOW SIGNALING COMPARISON ---
 
 di ""
 di "=============================================================================="
@@ -547,9 +562,7 @@ foreach g in 1 2 3 {
     }
 }
 
-/*==============================================================================
-PART 6: OUTPUT — TABLES AND FIGURES
-==============================================================================*/
+* --- Part 6: OUTPUT — TABLES AND FIGURES ---
 
 di ""
 di "=============================================================================="
@@ -691,13 +704,11 @@ twoway ///
 graph export "${outdir}\Phase4_Fig2_APRanking.png", replace width(1400)
 restore
 
-/*==============================================================================
-PART 7: SCRUTINY SUMMARY
-==============================================================================*/
+* --- Summary ---
 
 di ""
 di "=============================================================================="
-di "PART 7: SCRUTINY SUMMARY AND STEERING DECISION"
+di "Summary"
 di "=============================================================================="
 di ""
 
@@ -726,7 +737,7 @@ di "   → OR: AFQT doesn't capture the relevant ability dimension"
 di "   → Check: AP slope in full sample (Skill_vs_Signal_Analysis.do) — if zero there too,"
 di "            AFQT is simply not a good proxy for v(θ) in this cohort"
 di ""
-di "STEERING DECISION FOR WRITEUP:"
+di "Next steps:"
 di ""
 di "  IF both γ and AP slope are higher in high-signaling sectors:"
 di "  → Strong evidence for sector-heterogeneous signaling externalities"

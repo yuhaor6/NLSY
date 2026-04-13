@@ -1,54 +1,10 @@
-/*==============================================================================
-ADVANTAGEOUS_SELECTION_TEST.DO
-================================================================================
-Purpose: Test the key empirical prediction of Sztutman (2024)'s signaling model:
-         advantageous selection at the extensive margin.
-
-THEORETICAL PREDICTION:
-  When taxes fall (retention rate rises), workers who enter (or expand) their
-  labor supply should be HIGHER ability than the existing pool — because the
-  threshold productivity needed to make work worthwhile falls, admitting
-  previously non-participating high-ability types.
-
-  Formally: E[v(θ) | ΔP > 0, tax cut] > E[v(θ) | ΔP = 0, tax cut]
-
-  Proxy for v(θ): AFQT percentile (taken 1980 — pre-market, exogenous to reforms)
-
-TEST DESIGN:
-  For each major tax reform, classify workers into:
-    Entrants:  not working pre-reform, working post-reform
-    Expanders: large positive hours/wage change (extensive-intensive hybrid)
-    Stayers:   working in both periods
-    Exiters:   working pre-reform, not working post-reform
-    Non-parts: not working in either period
-
-  Then test: AFQT(entrants) > AFQT(stayers) at tax-cut reforms
-             AFQT(exiters)  < AFQT(stayers) at tax-hike reforms
-
-REFORM CALENDAR:
-  ERTA 1981    → compare 1980 vs 1982  (tax cut, all brackets)
-  TRA 1986     → compare 1985 vs 1987  (top bracket cut; bottom raised)
-  EGTRRA 2001  → compare 2000 vs 2002  (tax cut, biennial)
-  JGTRRA 2003  → compare 2002 vs 2004  (dividends/cap gains cut, biennial)
-  TCJA 2017    → compare 2016 vs 2018  (tax cut, biennial)
-
-PLACEBO TESTS:
-  Non-reform years: 1983, 1988, 2006, 2012
-  Should find NO systematic AFQT selection → validates identification
-
-INPUT:  data\nlsy_long_pre_taxsim.dta
-        data\BLS_CPI.dta  (for real income deflation)
-OUTPUT: output\Phase3_Table1_SelectionTest.rtf
-        output\Phase3_Table2_Regression.rtf
-        output\Phase3_Table3_Placebo.rtf
-        output\Phase3_Fig1_AFQTbyGroup.png
-        output\Phase3_Fig2_SelectionPattern.png
-        output\Advantageous_Selection_log.txt
-
-Author: [Research team]
-Date:   2026-04-10
-Version 1.0
-==============================================================================*/
+* Advantageous_Selection_Test.do
+* Tests for advantageous selection into tax-change bunching (Sztutman 2024)
+* Uses AFQT scores as a proxy for ability; compares ability distribution
+* between workers who do vs. don't adjust taxable income around reforms.
+* Reforms: EGTRRA 2001, JGTRRA 2003, TCJA 2017
+* Input:  data/nlsy_long_pre_taxsim.dta
+* Output: Phase3 tables/figures
 
 clear all
 set more off
@@ -69,9 +25,7 @@ di "Framework: Sztutman (2024) Proposition 1 — advantageous selection"
 di "Start time: $S_DATE $S_TIME"
 di ""
 
-/*==============================================================================
-PART 0: DATA SETUP
-==============================================================================*/
+* --- Part 0: DATA SETUP ---
 
 di "=============================================================================="
 di "PART 0: DATA SETUP"
@@ -166,9 +120,7 @@ local pre_p2006    = 2004
 local event_p2012  = 2012
 local pre_p2012    = 2010
 
-/*==============================================================================
-PART 1: CLASSIFICATION OF WORKERS AROUND REFORM YEARS
-==============================================================================*/
+* --- Part 1: CLASSIFICATION OF WORKERS AROUND REFORM YEARS ---
 
 di "=============================================================================="
 di "PART 1: CLASSIFY WORKERS BY PARTICIPATION CHANGE"
@@ -204,9 +156,7 @@ keep taxsimid afqt afqt_std afqt_pct_1980 afqt_quartile ///
 di "Person-level dataset: " _N " individuals"
 di ""
 
-/*==============================================================================
-PART 2: CLASSIFICATION AND SUMMARY STATISTICS
-==============================================================================*/
+* --- Part 2: CLASSIFICATION AND SUMMARY STATISTICS ---
 
 di "=============================================================================="
 di "PART 2: SUMMARY STATISTICS BY PARTICIPATION GROUP"
@@ -301,14 +251,7 @@ foreach r of local reform_list {
     }
 }
 
-/*==============================================================================
-PART 3: REGRESSION-BASED SELECTION TEST
-================================================================================
-Regression of AFQT on participation-change indicators.
-Controls for age and cohort to isolate reform-driven selection from life-cycle
-entry (NLSY respondents were young in 1982, so many "entrants" are natural
-labor market entrants, not reform-induced).
-==============================================================================*/
+* --- Part 3: REGRESSION-BASED SELECTION TEST ---
 
 di ""
 di "=============================================================================="
@@ -394,13 +337,7 @@ foreach r of local reform_list {
     }
 }
 
-/*==============================================================================
-PART 4: PLACEBO TEST
-================================================================================
-Run the same test for non-reform years. Should find no systematic AFQT selection.
-If we find significant AFQT gaps in placebo years, the test is confounded by
-secular trends (e.g., AFQT-linked participation patterns unrelated to tax changes).
-==============================================================================*/
+* --- Part 4: PLACEBO TEST — Run the same test for non-reform years. Should find no systematic ---
 
 di ""
 di "=============================================================================="
@@ -449,20 +386,7 @@ di "COMPARISON: Main results vs. Placebos"
 di "If placebos show similar or larger effects → spurious identification"
 di "If placebos are near zero → reforms are driving the selection"
 
-/*==============================================================================
-PART 5: INTERACTION TEST — DOES AFQT PREDICT PARTICIPATION RESPONSE?
-================================================================================
-This is the most demanding test: among workers near the participation margin,
-do high-AFQT workers respond more on the extensive margin to tax changes?
-
-Regression:
-  ΔParticipation_i = α + β₁·AFQT + β₂·ΔlogNTR + β₃·(AFQT × ΔlogNTR) + X + ε
-
-Prediction from signaling model:
-  β₃ > 0: High-ability workers are MORE responsive on the extensive margin
-  Mechanism: high-ability workers are near the threshold when taxes fall
-             because they generate positive externality (underpriced labor)
-==============================================================================*/
+* --- Part 5: INTERACTION TEST — DOES AFQT PREDICT PARTICIPATION RESPONSE? ---
 
 di ""
 di "=============================================================================="
@@ -579,9 +503,7 @@ else {
 
 } // end if run_part5
 
-/*==============================================================================
-PART 6: OUTPUT — TABLES AND FIGURES
-==============================================================================*/
+* --- Part 6: OUTPUT — TABLES AND FIGURES ---
 
 * Return to person-level dataset for output
 di ""
@@ -694,13 +616,11 @@ di "      See Advantageous_Selection_log.txt for values."
 di "      Rerun after Phase 3 to auto-populate."
 restore
 
-/*==============================================================================
-PART 7: SCRUTINY SUMMARY
-==============================================================================*/
+* --- Summary ---
 
 di ""
 di "=============================================================================="
-di "PART 7: SCRUTINY SUMMARY AND STEERING DECISION"
+di "Summary"
 di "=============================================================================="
 di ""
 di "WHAT TO LOOK FOR IN THE LOG:"
@@ -724,7 +644,7 @@ di "4. INTERACTION TEST (Part 5):"
 di "   - Does β(AFQT × ΔlogNTR) > 0?"
 di "   - This is the most demanding test and cleanest causal identification"
 di ""
-di "STEERING DECISION FOR SUBSEQUENT PHASES:"
+di "Next steps:"
 di ""
 di "IF advantageous selection confirmed (Parts 2-3 positive, Part 4 flat):"
 di "  → Strong support for signaling externality interpretation of χ < 1"

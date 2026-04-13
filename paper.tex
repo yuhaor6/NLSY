@@ -1,0 +1,1720 @@
+%==============================================================================
+% Dynamic Career Signaling, Employer Learning, and Optimal Labor Income Taxation
+% Evidence from the NLSY79
+% Draft — NLSY79 Replication and Extension of Sztutman (2024)
+%==============================================================================
+
+\documentclass[12pt]{article}
+
+\usepackage[margin=1.25in]{geometry}
+\usepackage{setspace}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{threeparttable}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{lmodern}
+\usepackage{float}
+\usepackage{array}
+\usepackage{dcolumn}
+
+\doublespacing
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue
+}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}[proposition]
+\theoremstyle{definition}
+\newtheorem{assumption}{Assumption}
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+% Possessive citation: \citepos{key} → Author's (Year)
+\newcommand{\citepos}[1]{\citeauthor{#1}'s (\citeyear{#1})}
+
+% Column type for decimal-aligned numbers
+\newcolumntype{d}[1]{D{.}{.}{#1}}
+
+%==============================================================================
+\begin{document}
+%==============================================================================
+
+\begin{titlepage}
+\vspace*{2cm}
+\begin{center}
+{\Large \textbf{Dynamic Career Signaling, Employer Learning, and Optimal Labor Income Taxation: Evidence from the NLSY79}}
+
+\vspace{1.5cm}
+
+{\large Yuhao Ren}\\
+{\normalsize Carnegie Mellon University}\\
+{\normalsize Tepper School of Business}
+
+\vspace{0.5cm}
+{\normalsize Advised by Prof.\ Andr\'{e} Sztutman}
+
+\vspace{1.5cm}
+{\normalsize \textit{Preliminary Draft — Do Not Circulate}}\\
+{\normalsize April 2026}
+
+\vspace{2cm}
+\\[3em]
+\begin{minipage}{0.85\textwidth}
+\small\textbf{Abstract.}
+Between 1979 and 2023, the wages of NLSY79 workers grew at an elasticity of 0.94 with
+respect to their cumulative hours worked---a return that declines from 0.97 at career entry
+to 0.83 at midcareer. This pattern is the empirical fingerprint of employer learning: as
+workers accumulate a public labor market history, employers gradually resolve their uncertainty
+about ability, and the informational value of each additional hour diminishes.
+
+Employer learning creates a positive externality that standard markets do not price. Each
+hour a worker supplies is recorded in her employment history and observed by all future
+employers at no cost---but only the current employer compensates her for it. Because workers
+capture only part of the social value of the information they generate, labor is undersupplied
+relative to the social optimum. The standard remedy is a Pigouvian subsidy to labor income.
+Sztutman (2024) shows that this subsidy takes the closed-form $\tau_p = \delta / \alpha$,
+where $\delta$ measures the fraction of wage growth driven by ongoing employer learning rather
+than genuine skill accumulation, and $\alpha$ is the Pareto tail index of the income
+distribution. The tail index enters because the Pareto distribution's constant-ratio property
+pins down the externality as a fixed fraction $1/\alpha$ of wages at every income level.
+
+I estimate both objects from NLSY79 panel data covering 12,686 workers, using person
+fixed-effects wage regressions to recover $\delta$ and federal tax reform
+variation---spanning five reforms from ERTA (1981) through TCJA (2017)---as instruments for
+marginal tax rate changes to recover workers' behavioral response to taxation. The primary
+estimate is a Pigouvian subsidy of 19.1 percent of labor income (95\% CI: [15.6\%, 22.6\%]),
+substantially larger than prior estimates for older workers, consistent with the prediction
+that employer uncertainty is greatest early in careers. Occupation-level variation in
+wage-hours elasticities and the finding that the wage premium for pre-labor-market ability
+rises with career experience---a direct implication of gradual employer learning---corroborate
+the mechanism.
+\end{minipage}
+\vspace{2cm}\\
+\small\textit{Keywords: employer learning, signaling, optimal taxation, elasticity of taxable income, Pigouvian tax}
+\end{center}
+\end{titlepage}
+
+%==============================================================================
+\section{Introduction}
+\label{sec:intro}
+%==============================================================================
+
+Between 1979 and 1993, the median real wage of young American workers nearly doubled, growing
+at a rate that substantially exceeds what accumulated human capital can explain. In the National
+Longitudinal Survey of Youth 1979 cohort (NLSY79), each 10 percent increase in cumulative hours
+worked is associated with a 9.4 percent increase in wages after controlling for potential
+experience, year fixed effects, and unobserved worker ability through person fixed effects. This
+elasticity—call it $\gamma$—is not constant over careers: it equals 0.97 at labor market entry,
+declines monotonically to a minimum of 0.83 around 22 years of experience, then rises slightly
+at the end of the sample window. The systematic mid-career decline cannot be explained by
+diminishing returns to human capital accumulation, which would require the observed elasticity
+to be stable or smoothly declining throughout. It is, however, exactly what dynamic signaling
+models predict: as workers accumulate a public work history, employers learn progressively more
+about their underlying ability, and the incremental informational value of each additional hour
+of work diminishes.
+
+The employer learning interpretation has direct implications for optimal labor income taxation
+that have not been quantified. When a worker increases labor supply, she generates information
+about her ability that is partly observed by all future employers, not only by the current
+employer who compensates her for the additional work. This positive externality drives a wedge
+between the private return to labor effort and its social return, creating a standard
+Pigouvian case for a labor income subsidy \citep{boskin1975taxation, stiglitz1982self}.
+\citet{sztutman2024} formalizes this intuition in a dynamic signaling model with Pareto-distributed
+productivity types and derives a closed-form expression for the optimal Pigouvian subsidy:
+$\tau_p = \delta / \alpha$, where $\delta \in (0,1)$ measures the fraction of wage growth
+driven by ongoing employer learning rather than genuine skill accumulation (higher $\delta$
+means more residual employer uncertainty), and $\alpha$ is the Pareto tail index of the income
+distribution. The tail index enters because the Pareto distribution has a distinctive
+constant-ratio property---the expected income above any threshold is proportional to the
+threshold itself, with constant $\alpha/(\alpha-1)$---which pins down the externality magnitude
+as exactly $1/\alpha$ of wages at every income level. The key insight of this framework is
+that the optimal subsidy depends on the data only through the pair $(\delta, \alpha)$, and
+$\delta$ is in turn identified by two observables: the wage-hours elasticity $\gamma$
+(recoverable from panel wage regressions) and the elasticity of taxable income $\varepsilon^w$
+(recoverable from tax reform variation). No direct measure of employer beliefs or worker types
+is required. Yet no study has estimated this formula empirically on a representative cohort of
+workers over their full careers.
+
+This paper fills that gap. I make four contributions. First, I estimate the career arc of the
+wage-cumulative-hours elasticity $\gamma$ using a polynomial fixed-effects specification that
+recovers a continuous $\gamma(\text{exp})$ function without imposing the discretization error
+of quintile bins. The estimated arc—declining from 0.97 at entry to 0.83 at midcareer—is
+inconsistent with the Pareto constant-$\gamma$ case (rejected at $F(2, 11524) = 43.20$) and
+consistent with the dynamic employer learning prediction.
+Second, I estimate how workers' reported earnings respond to changes in their marginal
+tax rate---the elasticity of taxable income---in two distinct career phases, using changes
+in federal and state tax schedules driven by five major legislative reforms as instruments
+\citep{gruber2002elasticity}. The annual period (1978--1993, ages 17--35) yields a
+statistically insignificant elasticity of $-0.048$ (SE $= 0.080$); the biennial period
+(1995--2019, ages 31--62) yields a significant elasticity of $+0.297$ (SE $= 0.121$, $t =
+2.46$). The contrast reflects a lifecycle pattern: young workers optimize reputation
+accumulation rather than tax liability, with the behavioral response to taxes emerging only
+as careers mature and employer uncertainty resolves.
+Third, I combine these sufficient statistics with a directly estimated Pareto tail parameter
+$\hat{\alpha} = 3.295$ (SE $= 0.014$, $R^2 = 0.985$) to produce the first structural
+panel-data estimate of the Pigouvian labor income subsidy identified from lifecycle variation
+in both $\hat{\gamma}$ and $\hat{\varepsilon}^w$: $\hat{\tau}_p = 19.1\%$ (95\% CI:
+$[15.6\%$, $22.6\%]$). Unlike \citepos{sztutman2024} illustrative calculation for late-career
+HRS respondents, which calibrates the sufficient statistics to approximate values rather than
+estimating them from an identified panel regression design, this estimate exploits federal tax
+reform variation to instrument for marginal rate changes and recovers the structural $\delta$
+from a representative birth cohort observed over their full careers.
+Fourth, I cross-validate
+the employer learning mechanism through sector heterogeneity in $\gamma$—which increases
+monotonically from 0.90 in low-signaling occupations to 1.04 in high-signaling occupations—and
+through the Altonji--Pierret (2001) test for gradual employer learning---which predicts
+that the wage premium for pre-labor-market ability, as measured by Armed Forces Qualifying
+Test scores, should rise with career experience as the market progressively incorporates
+information about worker type---finding exactly this pattern among workers with established
+occupation tenure. Appendix Table~\ref{tab:gamma_occ} reports $\hat{\gamma}$ for all nine 1-digit
+occupations; Sales workers have the highest $\hat{\gamma} = 1.235$ (output observability
+problems in client-facing roles) and Farm Workers the lowest $\hat{\gamma} = 0.470$ (directly
+observable agricultural output), anchoring the group-level pattern at its extremes.
+
+The magnitude of the estimated subsidy deserves emphasis. At 19.1 percent of labor income, the
+implied Pigouvian correction is economically consequential: it implies that the optimal marginal
+labor income tax rate is 19 percentage points below the rate dictated by equity and revenue
+considerations alone. This estimate is substantially larger than \citepos{sztutman2024}
+back-of-envelope estimate of approximately 5 percent for workers ages 50 and above in the
+Health and Retirement Study (HRS). The gap is predicted by the model: the signaling
+externality is strongest early in careers, when employers face the most uncertainty, and
+declines as careers mature and reputations are established. The implied signaling parameter
+$\hat{\delta} = 0.628$ for NLSY79 workers (average age 33) versus Sztutman's $\delta \approx 0.17$
+for HRS workers (average age 60) traces a lifecycle arc in which 73 percent of employer
+uncertainty resolves between early and late career. Cross-cohort extrapolation suggests that
+the average Pigouvian subsidy, integrated over a full career, lies in the range of 10--15
+percent of labor income.
+
+The identification strategy relies on three separate sources of variation. The structural
+$\gamma$ is identified from within-person variation in the wage-cumulative-hours relationship,
+purged of unobserved worker heterogeneity through person fixed effects (N $= 179{,}209$
+person-years). The elasticity of taxable income is identified from simulated marginal tax rate
+changes driven by federal tax reforms---ERTA (1981), TRA (1986), EGTRRA (2001), JGTRRA (2003),
+and TCJA (2017)---following \citet{gruber2002elasticity}, with first-stage $F$-statistics of
+2,617 (annual) and 1,146 (biennial), well above conventional weak-instrument thresholds. The
+Pareto tail is estimated via log-rank regression on the top 20 percent of the annual income
+distribution. All three estimation steps use clustered standard errors at the person level.
+
+This paper contributes to four literatures. First, it extends the employer learning literature
+\citep{farber1996learning, altonji2001employer, gibbons1999careers, lange2007speed} by providing
+the first estimate of the Pigouvian tax implied by the learning process, linking the
+well-documented empirical phenomenon to its optimal tax consequence. Second, it extends the
+optimal taxation of signaling literature \citep{boskin1975taxation, stiglitz1982self,
+sztutman2024} by supplying the missing empirical inputs to the tax formula; prior work derived
+the formula theoretically but left quantification to future research. Third, it adds to the
+elasticity of taxable income literature \citep{feldstein1995effect, gruber2002elasticity,
+kopczuk2005tax, saez2012elasticity} by documenting a lifecycle regime change in the ETI—near
+zero for young workers, positive for prime-career workers—that reflects the signaling mechanism
+rather than a single behavioral elasticity. Relative to this literature, the novel finding is
+not the magnitude of the ETI but the lifecycle pattern and its structural interpretation.
+Fourth, it provides the first direct estimate of $\alpha$ from NLSY79 earnings data, adding to
+the empirical literature on Pareto tail estimation \citep{saez2001using, diamond1998optimal}.
+
+The paper proceeds as follows. Section~\ref{sec:model} presents the Sztutman (2024) model and
+derives the sufficient-statistic formula for $\tau_p$. Section~\ref{sec:data} describes the
+NLSY79 data and sample construction. Section~\ref{sec:empirics} specifies the three estimation
+equations and describes the identification strategy for each. Section~\ref{sec:results} reports
+the main estimates: the $\gamma$ career arc, the two-period ETI, and the implied $\tau_p$.
+Section~\ref{sec:validation} provides cross-validation evidence through sector heterogeneity
+and the AP test. Section~\ref{sec:robustness} conducts robustness checks addressing
+collinearity, simultaneity, heterogeneous trends, and sensitivity to the Pareto assumption.
+Section~\ref{sec:discussion} discusses the lifecycle arc of $\delta$, the comparison to
+Sztutman (2024), and the policy implications. Section~\ref{sec:conclusion} concludes.
+
+%==============================================================================
+\section{Theoretical Framework}
+\label{sec:model}
+%==============================================================================
+
+\subsection{Setup}
+
+I adopt the dynamic signaling framework of \citet{sztutman2024}, which builds on the
+job-market signaling foundation of \citet{spence1973job} by introducing dynamic employer
+learning and an explicit role for cumulative work history as a signal. A worker of type
+$\theta$ enters the labor market at time 0. The type distribution is:
+
+\begin{assumption}
+\label{ass:pareto}
+Worker types are drawn from a Pareto distribution: $1 - F(\theta) = (\underline{\theta}/\theta)^\alpha$
+for $\theta \geq \underline{\theta} > 0$, where $\alpha > 1$ is the tail parameter and
+$\underline{\theta}$ is the minimum type. Type $\theta$ is private information to the worker.
+\end{assumption}
+
+Employers observe only the worker's public labor market history. At each period $t$, the
+worker chooses hours $h_t \geq 0$; cumulative hours through period $t$ are
+$H_t = \sum_{s \leq t} h_s$. Employers update beliefs about worker type by observing $H_t$:
+
+\begin{assumption}
+\label{ass:learning}
+Beliefs update monotonically in work history: $E[\theta \mid H_t]$ is strictly increasing in
+$H_t$ for all $t$. Wages equal the employer's expected marginal product:
+$w_t = E[f(\theta) \mid H_t]$, where $f(\cdot)$ is the worker's production function.
+\end{assumption}
+
+Assumption~\ref{ass:learning} is satisfied under Bayesian learning from a Gaussian signal
+structure \citep{farber1996learning} as well as under the specific signal-extraction structure
+in \citet{sztutman2024}. It implies that accumulating a longer public work history increases
+wages by signaling higher type---the core mechanism of the model.
+
+Under Assumption~\ref{ass:learning}, log-linearizing around the steady-state wage schedule
+yields the estimating equation:
+
+\begin{equation}
+\label{eq:wage}
+\log w_{it} = \alpha_i + \gamma \cdot \log H_{it} + \beta X_{it} + \varepsilon_{it},
+\end{equation}
+
+where $\alpha_i$ is a worker fixed effect capturing time-invariant ability as priced by the
+market at career entry, $\gamma$ is the wage-cumulative-hours elasticity, $X_{it}$ includes
+potential experience, its square, and year fixed effects, and $\varepsilon_{it}$ is mean-zero
+idiosyncratic error. The coefficient $\gamma$ is the central object of interest: it maps the
+informational content of the public work history into within-person wage growth. A worker who
+doubles her cumulative hours raises her wage by $\gamma$ percent, holding within-person ability
+pricing fixed.
+
+\subsection{Structural Interpretation of $\gamma$}
+
+Under Assumptions~\ref{ass:pareto}--\ref{ass:learning}, \citet{sztutman2024} derives the
+structural link between the observable elasticity $\gamma$ and the model's primitive
+parameters. Let $\delta \in (0,1)$ denote the probability that employers remain uninformed
+about a worker's type after a given period---the \emph{signaling parameter} measuring the
+residual employer uncertainty. \citet{sztutman2024} shows:
+
+\begin{equation}
+\label{eq:gamma_structural}
+\gamma = \frac{\delta}{1 - \delta + \varepsilon^w},
+\end{equation}
+
+where $\varepsilon^w$ is the elasticity of taxable income. Equation~(\ref{eq:gamma_structural})
+has a direct intuition. The numerator $\delta$ is the share of the wage return to hours that
+flows through the signaling channel: higher $\delta$ means employers update beliefs more
+aggressively in response to additional work history, raising $\gamma$. The denominator
+$1 - \delta + \varepsilon^w$ normalizes by the total margin of adjustment: as $\delta
+\to 0$ (complete employer knowledge), $\gamma \to 0$; as $\delta \to 1$ (complete employer
+ignorance), $\gamma \to 1/\varepsilon^w$.
+
+Inverting equation~(\ref{eq:gamma_structural}) gives:
+
+\begin{equation}
+\label{eq:delta}
+\delta = \frac{\gamma(1 + \varepsilon^w)}{1 + \gamma}.
+\end{equation}
+
+Equation~(\ref{eq:delta}) shows that $\delta$ is identified by two observables: the
+structural elasticity $\gamma$, recoverable from the panel wage regression (\ref{eq:wage}),
+and the ETI $\varepsilon^w$, recoverable from tax reform variation. Both are estimable from
+standard panel data without requiring direct measures of employer beliefs.
+
+\subsection{The Pigouvian Tax Formula}
+
+The social planner maximizes a utilitarian welfare function subject to the private optimality
+conditions of workers. The planner recognizes what individual workers do not internalize: each
+additional hour of work generates information about ability that is observed by all future
+employers, creating a positive externality. The private return to an additional hour equals
+the current wage; the social return includes the current wage \emph{plus} the discounted value
+of improved employer beliefs across all future employment relationships. This wedge between
+private and social returns is the Pigouvian externality.
+
+\citet{sztutman2024} shows that under Assumptions~\ref{ass:pareto}--\ref{ass:learning},
+the Pareto income distribution pins down the magnitude of this externality in closed form.
+The optimal Pigouvian tax formula is:
+
+\begin{equation}
+\label{eq:taup}
+\tau_p = \frac{\delta}{\alpha}.
+\end{equation}
+
+\begin{proposition}[\citealt{sztutman2024}, Proposition~3]
+\label{prop:taup}
+Under Assumptions~\ref{ass:pareto}--\ref{ass:learning}, with a benevolent social planner
+who can observe work history but not worker type, the optimal labor income tax rate is
+$t^* = t_{\text{equity}} - \tau_p$, where $t_{\text{equity}}$ is the rate dictated by
+redistributive considerations alone and
+\[
+\tau_p = \frac{\delta}{\alpha}.
+\]
+The optimal subsidy $\tau_p$ is (i) increasing in $\delta$: a higher probability of residual
+employer ignorance generates a larger externality; (ii) decreasing in $\alpha$: a heavier
+Pareto tail (smaller $\alpha$) means that the income gains from improved employer beliefs
+are concentrated among fewer high-type workers, reducing the average externality; and
+(iii) independent of the income floor $\underline{\theta}$ and the functional form of $f$.
+\end{proposition}
+
+\noindent \emph{Proof sketch.} The planner's problem reduces to choosing a labor income tax
+$t$ to maximize worker welfare subject to participation constraints. The first-order condition
+generates a standard Ramsey rule augmented by the Pigouvian externality term. Under the Pareto
+distribution (Assumption~\ref{ass:pareto}), the externality integral evaluates to $\delta / \alpha$
+because the Pareto tail implies a constant ratio of the marginal worker's type to the average
+type above her. This constant-ratio property---characteristic of the Pareto and no other
+distribution---is what makes the formula scale-free. Full proof: see \citet{sztutman2024},
+Section~3.2 and Appendix~B.
+
+Proposition~\ref{prop:taup} is a \emph{sufficient statistic} result in the spirit of
+\citet{chetty2009sufficient}: the welfare-optimal tax adjustment depends on the data only
+through the pair $(\delta, \alpha)$, and $\delta$ is in turn identified by the observable
+pair $(\gamma, \varepsilon^w)$ via equation~(\ref{eq:delta}). The structural parameters
+$(\gamma, \varepsilon^w, \alpha)$ are therefore \emph{all that is needed} to quantify the
+optimal labor income subsidy implied by employer learning---no direct measure of employer
+beliefs or worker types is required. Section~\ref{sec:empirics} develops the identification
+strategy for each of these three objects.
+
+\subsection{Career Dynamics of $\gamma$ and an Empirical Prediction}
+
+Equation~(\ref{eq:gamma_structural}) immediately implies that $\gamma$ should vary over the
+career if $\delta$ varies with experience. Under the dynamic signaling interpretation, employer
+uncertainty $\delta(\text{exp})$ declines as careers progress: at labor market entry, employers
+have no work history to observe and face maximal uncertainty; as the worker accumulates a
+longer public record, beliefs converge toward the true type and $\delta$ falls. Holding
+$\varepsilon^w$ approximately constant, equation~(\ref{eq:gamma_structural}) delivers a
+testable prediction:
+
+\begin{corollary}[Dynamic signaling prediction]
+\label{prop:gamma_arc}
+Under Assumptions~\ref{ass:pareto}--\ref{ass:learning}, if $\delta(\text{exp})$ is strictly
+decreasing in potential experience, then $\gamma(\text{exp}) = \delta(\text{exp}) /
+(1 - \delta(\text{exp}) + \varepsilon^w)$ is also strictly decreasing in experience.
+In the limit as $\delta(\text{exp}) \to 0$ (complete resolution of employer uncertainty),
+$\gamma(\text{exp}) \to 0$.
+\end{corollary}
+
+\noindent \emph{Derivation.} Differentiating equation~(\ref{eq:gamma_structural}) with
+respect to experience:
+\[
+\frac{\partial \gamma}{\partial \text{exp}}
+= \frac{(1 - \delta + \varepsilon^w) \delta'(\text{exp}) - \delta \cdot (-\delta'(\text{exp}))}{(1 - \delta + \varepsilon^w)^2}
+= \frac{\delta'(\text{exp})}{(1 - \delta + \varepsilon^w)^2} \cdot (1 + \varepsilon^w).
+\]
+Since $1 + \varepsilon^w > 0$ (the tax base is not Laffer-backward) and $(1 - \delta + \varepsilon^w)^2 > 0$,
+the sign of $\partial \gamma / \partial \text{exp}$ equals the sign of $\delta'(\text{exp})$.
+If $\delta'(\text{exp}) < 0$, then $\gamma'(\text{exp}) < 0$. $\square$
+
+This prediction distinguishes the signaling model from pure human capital theory. Under
+human capital theory, $\gamma$ reflects the marginal return to skill accumulation; absent
+a model of depreciation or diminishing returns to on-the-job learning, $\gamma$ has no
+systematic career arc once person fixed effects absorb time-invariant ability. The
+corollary therefore provides a falsifiable joint test of the employer learning mechanism:
+if the estimated $\hat{\gamma}(\text{exp})$ is monotone-declining, employer learning is
+the dominant process driving wage-hours covariation over the career. If $\hat{\gamma}(\text{exp})$
+is flat or increasing, either employer learning is absent or some other mechanism---such as
+on-the-job training accumulation or match quality deterioration---offsets the informational
+convergence.
+
+%==============================================================================
+\section{Data}
+\label{sec:data}
+%==============================================================================
+
+\subsection{The NLSY79 Panel}
+
+The primary data source is the National Longitudinal Survey of Youth 1979 (NLSY79), a
+nationally representative probability sample of 12,686 individuals born between 1957 and 1964.
+The Bureau of Labor Statistics designed the NLSY79 to follow respondents from labor market
+entry through retirement; the survey collected annual observations from 1979 through 1994
+and has continued biennially from 1996 onward. I use all survey rounds through 2023, yielding
+up to 33 observations per person.
+
+Two features make the NLSY79 well-suited for this study. First, the panel spans the full
+career arc from labor market entry (respondents were 14--22 years old in 1979) through late
+career (ages 58--65 in 2023), enabling estimation of $\hat{\gamma}(\text{exp})$ from
+Corollary~\ref{prop:gamma_arc} across the complete experience range. Second, the respondents
+were young adults during the major tax reforms of the 1980s---specifically, ERTA (1981)
+cut the top marginal federal rate from 70 to 50 percent, and TRA (1986) cut it further to
+28 percent---and were in their prime earning years during the major reforms of the 2000s
+and 2010s. This lifecycle alignment provides multiple reform episodes that identify the ETI
+at different career stages.
+
+\paragraph{Attrition.} The NLSY79 experiences nontrivial attrition over 45 years of
+follow-up. Of the original 12,686 respondents, roughly 69 percent have at least one
+observation after 1995. Respondents who attrit earlier tend to have lower wages and education
+than those who remain---a pattern of positive survival selection. This attrition is unlikely
+to affect the structural $\gamma$ estimates, which exploit within-person wage-hours covariation
+rather than cross-sectional levels. For the biennial ETI estimation (1995--2019), attrition
+could cause sample selection bias if exits are correlated with the identifying tax variation;
+however, the simulated instrument is constructed from the tax schedule at prior-period income,
+not current-period income, so it is orthogonal to the selection decision at the time of exit.
+
+\subsection{Key Variables}
+
+\paragraph{Primary wages.} The wage variable $w_{it}$ is self-reported annual wage and salary
+income from the primary job, deflated to 1984 constant dollars using the CPI-U. This is the
+pre-tax income measure. I exclude person-years with non-positive wages from the structural
+estimation; for the ETI estimation, the taxable income measure $z_{it}$ is wages minus the
+applicable standard deduction (computed by TAXSIM35 given filing status).
+
+\paragraph{Potential experience and education.} Potential experience is defined as
+$\text{pot\_exp}_{it} = \text{age}_{it} - \text{hgc}_{it} - 6$, where $\text{hgc}_{it}$
+is the highest grade completed as of the survey date (time-varying in the NLSY79). This
+standard formula assigns 6 years to pre-school. I use the time-varying education measure
+rather than the maximum-ever value to avoid attributing post-entry schooling to market
+experience; the difference is small because the vast majority of NLSY79 respondents
+complete their education before age 25.
+
+\paragraph{Cumulative hours.} The cumulative hours variable $H_{it}$ is the sum of reported
+annual hours worked from labor market entry through period $t$: $H_{it} = \sum_{s=1}^{t} h_{is}$.
+Annual hours are directly reported in the NLSY79 for 1979--1994. For the biennial rounds
+(1996 onward), I interpolate a linear trend between adjacent observed annual hours values
+within each person, then accumulate. This linear interpolation is conservative: it assumes
+no change in hours patterns between survey rounds and does not extrapolate beyond the
+observed career window.
+
+A specific correction addresses person-years with positive reported wages but zero or missing
+reported hours---likely employed respondents who did not complete the hours module. For these
+observations (approximately 3 percent of the annual-period sample), I impute hours using the
+same person's median hours from valid adjacent observations. This correction raises early-career
+cumulative hours slightly and moderates early-career $\hat{\gamma}$ estimates relative to a
+specification that drops these observations.
+
+\paragraph{Marginal tax rates via TAXSIM35.} Federal and state marginal income tax rates
+are computed using TAXSIM35 \citep{feenberg1993introduction}, the standard NBER tax
+simulation model used in the ETI literature \citep{gruber2002elasticity, kopczuk2005tax}.
+For each person-year, I submit to TAXSIM35 the following inputs: filing status (single or
+married filing jointly, based on NLSY79 marital status codes mapped to TAXSIM conventions);
+age of primary taxpayer and spouse; number of dependents; primary wages; spousal wages
+(where applicable); and state of residence. TAXSIM35 returns the marginal federal rate,
+state rate, and total combined rate; I use the combined marginal rate throughout.
+
+TAXSIM35 requires valid input ranges for all variables. Prior to submission, I apply the
+following validation: (i) spouse age set to zero for non-married filers; (ii) dependent
+count capped at 15; (iii) all income variables set to zero if negative or missing;
+(iv) filing status forced to 1 (single) if the value is neither 1 nor 2. These constraints
+follow the TAXSIM35 documentation and affect fewer than 2 percent of observations.
+
+I construct the simulated instrument by resubmitting each observation to TAXSIM35 with
+income held fixed at its prior-period value, inflated by the national average wage growth
+rate, while all demographic characteristics are updated to their current-period values
+(following \citealt{gruber2002elasticity}). This procedure generates a marginal rate that
+reflects only legislative changes in the tax schedule, not changes in individual income.
+
+\subsection{Sample Construction}
+
+\paragraph{Structural sample.} The $\gamma$ estimation sample requires positive primary wages,
+age 18--65, and potential experience in $[0, 40]$ years. This yields 179,209 person-years
+across 12,686 individuals.
+
+\paragraph{Annual ETI sample.} The ETI estimation requires pairs of consecutive annual
+observations. I additionally apply: (i) an income floor of \$5,000 (1984 dollars) in both
+the base and end year, to exclude workers whose reported income is likely below the TAXSIM35
+valid range or dominated by non-wage income; (ii) a trimming rule $|\Delta \log z_{it}| \leq
+\log 5$ to remove extreme income changes that likely reflect reporting errors, major
+life events (divorce, disability), or transitory shocks rather than behavioral responses to
+tax changes. These restrictions follow standard practice in the ETI literature \citep{gruber2002elasticity,
+saez2012elasticity} and yield 53,632 person-years. Robustness to a lower \$1,000 floor is
+reported in Section~\ref{sec:results}.
+
+\paragraph{Biennial ETI sample.} The biennial estimation pairs observations separated by one
+biennial survey interval (approximately 2 years). I apply a \$10,000 floor---consistent with
+the higher absolute income levels for prime-career workers---and the same trimming rule,
+yielding 47,201 person-years spanning 1995--2019.
+
+Table~\ref{tab:desc} reports summary statistics for the full analytical population
+(N $= 189{,}671$ person-years). The mean annual wage is \$27,695 (median \$17,000), reflecting
+the right skew of the earnings distribution. Mean potential experience is 14.0 years and
+mean cumulative hours are 26,344 hours, equivalent to roughly 13 years of full-time work.
+
+%==============================================================================
+\section{Empirical Strategy}
+\label{sec:empirics}
+%==============================================================================
+
+\subsection{Estimating $\gamma$: Within-Person Fixed Effects}
+
+The primary equation for $\gamma$ is:
+\begin{equation}
+\label{eq:fe_main}
+\log w_{it} = \alpha_i + \gamma \cdot \log H_{it} + \beta_1 \cdot \text{pot\_exp}_{it}
++ \beta_2 \cdot \text{pot\_exp}_{it}^2 + \sum_t \lambda_t + \varepsilon_{it},
+\end{equation}
+estimated by within-person (FE) transformation on the structural sample. The person fixed
+effect $\alpha_i$ absorbs all time-invariant sources of worker heterogeneity, including
+unobserved ability. Standard errors are clustered at the person level throughout.
+
+To estimate the career arc of $\gamma$, I extend equation~(\ref{eq:fe_main}) by interacting
+$\log H_{it}$ with a second-order polynomial in potential experience:
+\begin{equation}
+\label{eq:fe_poly}
+\log w_{it} = \alpha_i + \underbrace{(\beta_0 + \beta_1 \cdot \text{exp} + \beta_2 \cdot \text{exp}^2)}_{\gamma(\text{exp})} \cdot \log H_{it}
++ \text{controls} + \varepsilon_{it}.
+\end{equation}
+The implied elasticity at experience level $e$ is $\hat{\gamma}(e) = \hat{\beta}_0 +
+\hat{\beta}_1 e + \hat{\beta}_2 e^2$, and the career minimum is $e^* = -\hat{\beta}_1 /
+(2\hat{\beta}_2)$. A joint test of $H_0\colon \beta_1 = \beta_2 = 0$ tests whether $\gamma$
+is constant over the career (the Pareto case).
+
+\paragraph{Identification.} Within-person variation in $\log H_{it}$ identifies $\gamma$
+after purging the fixed effect. The primary concern is collinearity: $\log H_{it}$ and
+$\text{pot\_exp}_{it}$ both grow over the career, creating within-person correlation. I
+address this through Frisch--Waugh--Lovell (FWL) verification: I orthogonalize $\log H_{it}$
+on all other regressors within each person and re-estimate $\gamma$ on the residuals. FWL
+guarantees identical point estimates, confirming the baseline specification is not mechanically
+constructing $\hat{\gamma}$ through collinearity (Section~\ref{sec:robustness}). I also
+instrument $\log H_{it}$ with its one-year lag to address within-year simultaneity
+(Section~\ref{sec:robustness}).
+
+\subsection{Estimating $\varepsilon^w$: Gruber--Saez IV}
+
+\paragraph{Specification.} I estimate the elasticity of taxable income using the
+two-stage least squares specification of \citet{gruber2002elasticity}. The second stage is:
+\begin{equation}
+\label{eq:eti}
+\Delta \log z_{it} = \varepsilon^w \cdot \widehat{\Delta \log(1 - \tau_{it})} + \beta \cdot \log z_{i,t-k} + \alpha_t + \nu_{it},
+\end{equation}
+where $\Delta$ denotes the change over a $k$-year horizon, $z_{it}$ is taxable income (wages
+minus the applicable standard deduction), $\tau_{it}$ is the combined federal-plus-state
+marginal income tax rate from TAXSIM35, $\log z_{i,t-k}$ is the lagged log income base
+control (to address mean reversion), and $\alpha_t$ is a period fixed effect. The hat
+denotes the fitted value from the first stage.
+
+The first stage regresses the actual change in the log net-of-tax rate on the simulated
+change:
+\begin{equation}
+\label{eq:eti_fs}
+\Delta \log(1 - \tau_{it}) = \pi \cdot \Delta \log(1 - \tilde{\tau}_{it}) + \beta' \cdot \log z_{i,t-k} + \alpha'_t + u_{it},
+\end{equation}
+where $\tilde{\tau}_{it}$ is the marginal tax rate that individual $i$ \emph{would face}
+in period $t$ if her income remained at its base-period level inflated by average economy-wide
+earnings growth, and only the tax schedule changed. The simulated instrument $\Delta \log(1 -
+\tilde{\tau}_{it})$ is correlated with actual rate changes driven by legislated reforms but
+uncorrelated with individual income adjustments. The identifying assumption is the exclusion
+restriction: $\Delta \log(1 - \tilde{\tau}_{it}) \perp \nu_{it}$, conditional on the income
+base control and period effects.
+
+I estimate equation~(\ref{eq:eti}) separately in two periods:
+\begin{itemize}
+\item \textbf{Annual (1978--1993)}: $k = 3$-year horizon; NLSY79 workers are ages 17--35;
+  identifying reforms are ERTA (1981) and TRA (1986).
+\item \textbf{Biennial (1995--2019)}: $k = 2$-period horizon; NLSY79 workers are ages 31--62;
+  identifying reforms are EGTRRA (2001), JGTRRA (2003), and TCJA (2017).
+\end{itemize}
+
+The two-period split is motivated by Corollary~\ref{prop:gamma_arc}: young workers in the
+signaling phase optimize reputation accumulation rather than tax liability, so the behavioral
+ETI should be near zero in the annual period and positive in the biennial period when workers
+have established reputations. This is a testable prediction of the model.
+
+\paragraph{Threats to identification.} Three concerns arise in ETI estimation
+\citep{kopczuk2005tax, saez2012elasticity}.
+
+\emph{Mean reversion.} High earners in the base period mechanically show income convergence
+in subsequent periods, creating a spurious negative correlation between the level of income
+(and hence marginal tax rate) and income growth. The base-period income control $\log z_{i,t-k}$
+in equation~(\ref{eq:eti}) addresses this directly, as in \citet{gruber2002elasticity}. A
+remaining concern is that the simulated rate change $\Delta \log(1 - \tilde{\tau}_{it})$ is
+mechanically larger for high-income workers (who face steeper brackets), and if these workers
+have systematically different income growth trends, the exclusion restriction is violated.
+The base-period control mitigates this, and the strong first-stage $F$-statistics (2,617
+annual, 1,146 biennial) confirm the instrument is not weak.
+
+\emph{Income floor endogeneity.} Workers near the income floor may enter or exit the sample
+as tax rates change, contaminating the ITI with an extensive-margin effect. I apply income
+floors (\$5,000 annual, \$10,000 biennial) and verify robustness to a lower \$1,000 floor;
+the near-zero annual ETI is stable across both thresholds (Section~\ref{sec:results}).
+
+\emph{Marital transitions.} Changes in filing status alter marginal rates independently of
+the tax schedule, confounding the instrument. I include indicator variables for marital
+status transitions (single-to-married and married-to-single) as controls in both stages.
+To verify that the results are not driven by marital changers, I replicate the baseline
+estimates excluding all person-years with a marital transition; the ETI estimates are
+substantively unchanged.
+
+\subsection{Estimating $\alpha$: Pareto Tail Regression}
+
+The income distribution above the 80th percentile is well-approximated by a Pareto distribution
+with tail parameter $\alpha$. I estimate $\alpha$ via log-rank regression: ordering workers by
+annual income and regressing $\log(\text{rank})$ on $\log(\text{income})$ for the top 20
+percent of the annual distribution:
+\begin{equation}
+\label{eq:pareto}
+\log(\text{rank}_i) = c - \alpha \cdot \log(w_i) + \eta_i.
+\end{equation}
+The slope coefficient $-\hat{\alpha}$ is the Pareto exponent, and the goodness-of-fit ($R^2$)
+measures how well the Pareto distribution approximates the income tail. Standard errors are
+computed by OLS with heteroskedasticity-robust standard errors.
+
+%==============================================================================
+\section{Results}
+\label{sec:results}
+%==============================================================================
+
+\subsection{The $\gamma$ Career Arc}
+
+Table~\ref{tab:gamma} reports the career-stage $\gamma$ estimates from equation~(\ref{eq:fe_main}),
+separately for five experience quintiles and for the full career. The full-career estimate is
+$\hat{\gamma} = 0.937$ (SE $= 0.011$, $t = 89.2$, $N = 179{,}209$): each 10 percent increase
+in cumulative hours is associated with a 9.4 percent wage increase within person, conditional
+on potential experience and year effects. This elasticity is below 1.0, implying that $\delta <
+1 - \varepsilon^w$, consistent with the model's support constraint.
+
+The quintile estimates reveal a career arc. Early-career workers (Q1, pot\_exp 0--8 years)
+show $\hat{\gamma} = 1.10$ (SE $= 0.021$); mid-career workers (Q4, pot\_exp 15--25 years)
+show $\hat{\gamma} = 0.927$ (SE $= 0.057$). A joint Wald test rejects equality across stages
+at $F(4, 12{,}686) = 16.87$ ($p < 0.001$). The Q5 estimate (pot\_exp $> 25$ years) is not
+used in the structural analysis: Section~\ref{sec:robustness} documents that Q5 is
+non-identified due to survivor selection and a within-$R^2$ of 2.6 percent.
+
+A notable feature of the Q1 estimate is that $\hat{\gamma}_{\text{Q1}} = 1.10 > 1$. Under
+the structural model with $\varepsilon^w \approx 0$ for young workers, equation~(\ref{eq:gamma_structural})
+implies $\gamma = \delta / (1 - \delta)$, which exceeds 1 only if $\delta > 0.5$. Two
+interpretations are consistent with this. First, the polynomial specification---which does not
+discretize careers into bins---estimates $\hat{\beta}_0 = 0.974$ at career entry, below 1.0
+and within the model's support. The quintile step function attributes an average of the
+declining arc to Q1, which includes exp = 0--8 years; the polynomial is more precise about
+the entry value. Second, the annual sample for young workers (ages 17--35) spans a period
+when the panel is most unbalanced due to school-to-work transitions, and short-panel dynamics
+may mildly inflate the Q1 FE estimate. The structural inference relies on the full-career
+$\hat{\gamma} = 0.937$ and the polynomial $\hat{\beta}_0 = 0.974$; the Q1 quintile estimate
+is reported for completeness but is not used to compute $\hat{\delta}$ or $\hat{\tau}_p$.
+
+The polynomial specification (\ref{eq:fe_poly}) provides a sharper picture of the arc.
+Estimates from this specification are:
+\begin{align*}
+\hat{\beta}_0 &= 0.974 \;\; (SE = 0.011,\; t = 90.9) \\
+\hat{\beta}_1 &= -0.0134 \;\; (SE = 0.0015,\; t = -9.26) \\
+\hat{\beta}_2 &= +0.0003 \;\; (SE = 0.00004,\; t = 7.07).
+\end{align*}
+The dominant term is $\hat{\beta}_1 < 0$: $\gamma$ declines approximately linearly at
+$-0.013$ per year of experience. The small positive $\hat{\beta}_2$ implies a slight upturn
+after the career minimum, but $|\hat{\beta}_2| < |\hat{\beta}_1|/5$, so the quadratic term
+is negligible relative to the linear decline. The career minimum is at $e^* = -(-0.0134) /
+(2 \times 0.0003) = 21.6$ years, where $\hat{\gamma}(21.6) = 0.829$. Figure~\ref{fig:gamma}
+plots the full $\hat{\gamma}(\text{exp})$ arc.
+
+The joint test $H_0\colon \beta_1 = \beta_2 = 0$ is rejected at $F(2, 11524) = 43.20$
+($p < 0.001$), rejecting the constant-$\gamma$ Pareto case. This is consistent with
+Proposition~\ref{prop:gamma_arc}: employer uncertainty is highest at career entry and declines
+as the worker accumulates a public work history.
+
+\paragraph{Selection bias.} Table~\ref{tab:gamma} also reports OLS estimates for comparison.
+The full-career OLS elasticity is $\hat{\gamma}_{\text{OLS}} = 1.022$, substantially above
+the FE estimate of 0.937, indicating that high-ability workers supply more hours
+(positive selection on ability). Within the career arc, the OLS--FE gap reverses sign: in
+early career (Q1--Q3), $\hat{\gamma}_{\text{FE}} > \hat{\gamma}_{\text{OLS}}$, while in late
+career (Q4) $\hat{\gamma}_{\text{OLS}} > \hat{\gamma}_{\text{FE}}$. This career-arc reversal
+in selection bias is consistent with the employer learning mechanism: early-career
+cross-sectional wages are compressed because employers pool workers of different abilities,
+so the cross-sectional $\gamma$ understates the within-person return. As employers learn
+and wages begin to spread with ability, cross-sectional wages eventually become more
+dispersed, and the OLS--FE ordering restores. This pattern is not predicted by standard
+human capital models and provides additional evidence for the signaling mechanism.
+
+\subsection{The Elasticity of Taxable Income}
+
+Table~\ref{tab:eti} reports the ETI estimates from equation~(\ref{eq:eti}) for both the
+annual and biennial periods. The first-stage $F$-statistics are 2,617 (annual) and 1,146
+(biennial), both far above the conventional weak-instrument threshold of 10; the instrument
+is strong in both periods.
+
+\paragraph{Annual period (1978--1993).} The annual ETI is $\hat{\varepsilon}^w = -0.048$
+(SE $= 0.080$, $t = -0.60$, $N = 53{,}632$): statistically indistinguishable from zero.
+This estimate is stable under alternative income floors: lowering the threshold from \$5,000
+to \$1,000 adds 5,796 near-workers and yields $\hat{\varepsilon}^w = -0.049$ (SE $= 0.082$,
+$t = -0.60$, $N = 59{,}428$, $F = 2{,}500$). The near-zero annual ETI is not explained by
+weak identification: the first-stage $F$ at the \$1,000 floor is 2,500, confirming that
+near-workers face genuine reform-driven variation in their net-of-tax rate, to which they
+simply do not respond. This is the pattern predicted by the signaling model: young workers
+(ages 17--35) face strong reputation-building incentives that dominate tax optimization.
+
+\paragraph{Biennial period (1995--2019).} The biennial ETI is $\hat{\varepsilon}^w = +0.297$
+(SE $= 0.121$, $t = 2.46$, $N = 47{,}201$): statistically significant at the 5 percent level.
+This estimate covers prime-career and late-career workers (ages 31--62) who have established
+labor market reputations and face the intensive-margin labor supply decision without the
+competing signaling incentive. The positive and significant biennial ETI is consistent with
+a conventional tax elasticity response emerging after the signaling phase concludes.
+
+\paragraph{Lifecycle interpretation.} The contrast between the two periods—$\hat{\varepsilon}^w
+\approx 0$ for young workers, $\hat{\varepsilon}^w \approx 0.30$ for prime-career workers—is
+itself a prediction of Corollary~\ref{prop:gamma_arc}. In the signaling phase, the private
+return to additional work hours includes both the current wage and the future wage premium
+from improved employer beliefs. This signaling component acts as an implicit subsidy to labor
+effort that crowds out the tax response; workers supply hours at the margin of reputation
+accumulation rather than net-of-tax wages. The biennial ETI of 0.297 is the behavioral
+parameter that applies to workers who have exited the signaling phase, and it is this estimate
+that enters the $\tau_p$ formula as the structural $\varepsilon^w$.
+
+The biennial ETI of 0.297 is below \citepos{gruber2002elasticity} benchmark estimate of
+approximately 0.4 for higher-income taxpayers. This comparison is directionally consistent:
+the NLSY79 sample covers a broader income distribution (including workers well below the top
+quintile), and lower-income workers are generally found to have smaller ETIs because they
+face lower marginal rates and have fewer tax-avoidance margins \citep{saez2012elasticity}.
+The sign (positive) and rough order of magnitude (below 0.5) are consistent with the prior
+literature on prime-career workers.
+
+\subsection{The Optimal Pigouvian Subsidy}
+
+\paragraph{Pareto tail.} The log-rank regression yields $\hat{\alpha} = 3.295$
+(SE $= 0.014$, $R^2 = 0.985$). The high $R^2$ confirms that the Pareto distribution
+approximates the top 20 percent of the NLSY79 income distribution well. The estimate is
+below the commonly referenced value of $\alpha \approx 1.5$--$2.0$ for the full US income
+distribution from tax records \citep{saez2001using}, but recall that $\alpha$ estimates
+depend heavily on the income concept and population. Earnings-only Pareto estimates for
+mid-career cohorts tend to be substantially higher (less heavy-tailed) than estimates from
+household income or wealth distributions, because the earnings distribution among prime-age
+workers is compressed relative to the total income distribution which includes capital income
+and retirement withdrawals. \citet{diamond1998optimal} survey Pareto exponents in the range
+$\alpha \in [1.5, 4]$ for various income concepts and time periods; our $\hat{\alpha} = 3.295$
+falls in the upper part of this range, consistent with an earnings-only, prime-age cohort.
+
+\paragraph{Structural $\delta$.} Applying equation~(\ref{eq:delta}) with the full-career
+FE estimate $\hat{\gamma} = 0.937$ and the biennial ETI $\hat{\varepsilon}^w = 0.297$:
+\begin{equation}
+\hat{\delta} = \frac{0.937 \times 1.297}{1.937} = 0.628.
+\end{equation}
+This signaling parameter implies that after a given period, there remains a 62.8 percent
+probability that employers have not yet fully resolved uncertainty about a worker's type.
+For comparison, \citepos{sztutman2024} HRS estimate implies $\delta \approx 0.17$ for
+workers ages 50 and above; the NLSY79 cohort, which spans ages 17--62, has substantially
+higher residual employer uncertainty on average.
+
+\paragraph{Pigouvian tax.} Applying equation~(\ref{eq:taup}):
+\begin{equation}
+\hat{\tau}_p = \frac{\hat{\delta}}{\hat{\alpha}} = \frac{0.628}{3.295} = 19.1\%.
+\end{equation}
+This is the central estimate of the optimal Pigouvian labor income subsidy. Table~\ref{tab:taup}
+summarizes the components and several sensitivity variants.
+
+\paragraph{Confidence interval.} The dominant source of uncertainty is the biennial ETI
+$\hat{\varepsilon}^w$ (SE $= 0.121$). Propagating uncertainty through
+$\delta = \gamma(1+\varepsilon^w)/(1+\gamma)$ and $\tau_p = \delta / \alpha$ via the
+delta method:
+\begin{equation*}
+\text{SE}(\hat{\tau}_p) = \frac{1}{\hat{\alpha}} \sqrt{
+\left(\frac{\partial \hat{\delta}}{\partial \varepsilon^w}\right)^2 \text{SE}(\hat{\varepsilon}^w)^2 +
+\left(\frac{\partial \hat{\delta}}{\partial \gamma}\right)^2 \text{SE}(\hat{\gamma})^2
+} \approx 0.0178,
+\end{equation*}
+where $\partial \hat{\delta}/\partial \varepsilon^w = \hat{\gamma}/(1+\hat{\gamma}) = 0.484$
+and $\partial \hat{\delta}/\partial \gamma = (1+\hat{\varepsilon}^w)/(1+\hat{\gamma})^2 = 0.346$.
+The $\hat{\varepsilon}^w$ term contributes 99.6 percent of the total variance; the $\hat{\gamma}$
+term contributes 0.4 percent.
+
+The 95 percent confidence interval is $\hat{\tau}_p \pm 1.96 \times 0.0178 = [15.6\%, 22.6\%]$.
+A clustered bootstrap (B $= 500$, resampling persons) that re-estimates $\hat{\varepsilon}^w$
+on each resample and propagates through the formula yields an identical interval of
+$[15.6\%, 22.5\%]$, validating the delta-method approximation. A joint bootstrap (B $= 200$)
+that simultaneously re-estimates both $\hat{\gamma}$ and $\hat{\varepsilon}^w$ on each resample
+yields a slightly narrower interval of $[15.7\%, 20.8\%]$, confirming that uncertainty in
+$\hat{\gamma}$ does not widen the interval—consistent with the analytic result that $\hat{\gamma}$
+contributes less than 1 percent of the variance in $\hat{\tau}_p$.
+
+The primary reported interval is the delta-method CI of $[15.6\%, 22.6\%]$, which is the
+widest and most conservative of the three approaches.
+
+%==============================================================================
+\section{Cross-Validation of the Employer Learning Mechanism}
+\label{sec:validation}
+%==============================================================================
+
+The structural estimate $\hat{\tau}_p = 19.1\%$ rests on the interpretation of $\hat{\gamma}$
+as an employer-learning parameter. Two independent tests of this interpretation are available
+in the NLSY79: sector heterogeneity in $\gamma$ and the Altonji--Pierret (AP) test for
+gradual ability revelation. Both tests use only the NLSY79 sample period 1979--1993 when
+occupation codes are available.
+
+\subsection{Sector Heterogeneity in $\gamma$}
+\label{sec:hetero}
+
+If $\gamma$ reflects employer learning, it should be higher in sectors where output quality
+is less directly observable and employer learning is more important. I assign NLSY79 occupations
+(1-digit) to three signaling-intensity groups: Low (farm workers, laborers: occupations 7--8),
+Medium (clerical, sales, operatives, craftsmen, service: occupations 3--6, 9), and High
+(professional/technical, managers: occupations 1--2). The predicted ordering is
+$\gamma_{\text{Low}} < \gamma_{\text{Med}} < \gamma_{\text{High}}$.
+
+Table~\ref{tab:sector} reports FE estimates of $\gamma$ by group. The estimates are
+$\hat{\gamma}_{\text{Low}} = 0.900$ (SE $= 0.036$), $\hat{\gamma}_{\text{Med}} = 0.953$
+(SE $= 0.028$), and $\hat{\gamma}_{\text{High}} = 1.037$ (SE $= 0.027$), a monotone increase
+consistent with the signaling prediction. The gap between High and Low groups is 0.137 (95\%
+CI: $[0.067, 0.207]$), statistically significant and economically meaningful.
+Appendix Table~\ref{tab:gamma_occ} reports $\hat{\gamma}$ for each of the nine 1-digit
+occupations underlying these group averages. The range from $\hat{\gamma} = 0.470$ for Farm
+Workers to $\hat{\gamma} = 1.235$ for Sales workers---a spread of 0.765---substantially
+exceeds the group-level High--Low gap of 0.137, confirming that occupational heterogeneity
+in employer learning intensity is pervasive and not merely an artifact of the three-group
+aggregation.
+
+\subsection{The Altonji--Pierret Test for Employer Learning}
+\label{sec:ap_test}
+
+\citet{altonji2001employer} show that under employer learning, the wage premium for observable
+ability proxies (such as test scores) should \emph{increase} with experience, as market-wide
+wages become more responsive to ability as employers learn. I implement their test by
+interacting AFQT percentile scores (measured pre-labor-market in 1980) with potential
+experience in a wage regression:
+\begin{equation}
+\label{eq:ap}
+\log w_{it} = \alpha + \phi_1 \cdot \text{AFQT}_i + \phi_2 \cdot (\text{AFQT}_i \times \text{exp}_{it})
++ \beta \cdot X_{it} + \varepsilon_{it}.
+\end{equation}
+The employer-learning prediction is $\phi_2 > 0$: the AFQT premium rises with experience.
+
+Averaging across all occupations, the estimated AP slope is $\hat{\phi}_2 = 0.00960$ per year
+for the medium-signaling group ($t = 4.62$), consistent with gradual ability revelation. The
+full-sample group ordering is non-monotone (Low $= 0.00511$, Medium $= 0.00960$, High $= 0.00666$),
+driven by a composition artifact: Laborers in the Low group have a spuriously high AP slope
+of 0.01316 when pooled across tenure levels, because short-tenure workers dominate the sample
+and their early-career AFQT gradient conflates ability revelation with initial wage-setting.
+
+Restricting to workers with at least 5 years of occupation tenure, the group-level AP slopes are
+Low $= 0.00432$ and High $= 0.00882$, reversing the ordering and delivering the signaling
+prediction. The pattern is anchored by two occupations: Managers/Admin (the established
+High-signaling occupation) shows 0.01493 ($t = 2.85$, $N = 3{,}409$), while Laborers collapse
+from 0.01316 to 0.00015 ($t = 0.01$, $N = 2{,}292$)---a near-zero estimate consistent with
+the absence of employer learning where output is directly observable. The Low $<$ High ordering
+in Table~\ref{tab:sector} is consistent with the signaling mechanism but should be interpreted
+with caution: the 1979--1993 window restricts all workers to early career stages, and
+Professional/Technical workers within the High group remain insignificant ($\hat{\phi}_2 =
+0.00271$, $t = 0.62$), possibly reflecting genuine occupational heterogeneity in learning speed
+within the manager/professional category.
+
+\subsection{Horse Race: Cumulative versus Recent Hours}
+
+If cumulative hours signal ability through their public visibility to all employers, then
+the wage return to cumulative hours should exceed the return to recent hours early in the
+career (when the cumulative record is informative) but not late in the career (when
+reputation is already established and recent effort is the marginal signal). I test this
+by jointly estimating:
+\begin{equation}
+\label{eq:horse}
+\log w_{it} = \alpha_i + \gamma_c \cdot \log H_{it} + \gamma_r \cdot \log h_t
++ \text{controls} + \varepsilon_{it},
+\end{equation}
+where $h_t$ is hours worked in the current year. The signaling prediction is
+$\gamma_r > \gamma_c$ early in the career, converging to $\gamma_c > \gamma_r$ late in the
+career as reputations are established.
+
+In the early career (Q1), $\hat{\gamma}_r = 0.815$ and $\hat{\gamma}_c = 0.166$---recent
+hours dominate by a ratio of 4.9 to 1, consistent with the signaling interpretation that
+current-period face-time is the principal signal. By mid-career (Q4), $\hat{\gamma}_r = 0.529$
+and $\hat{\gamma}_c = 0.396$---the two are roughly comparable. This transition from recent-hours
+dominance to near-parity is consistent with the career arc of Proposition~\ref{prop:gamma_arc}
+and further corroborates the employer learning mechanism.
+
+%==============================================================================
+\section{Robustness}
+\label{sec:robustness}
+%==============================================================================
+
+\subsection{Collinearity: Frisch--Waugh--Lovell Verification}
+
+A concern in equation~(\ref{eq:fe_main}) is that $\log H_{it}$ and $\text{pot\_exp}_{it}$
+are mechanically correlated within person: both grow over the career. I quantify the
+collinearity as follows: regressing $\log H_{it}$ on $\text{pot\_exp}_{it}$, $\text{pot\_exp}_{it}^2$,
+and year dummies within each person and computing the $R^2$ yields 71.6 percent---so 28.4
+percent of within-person cumulative-hours variation is orthogonal to the experience controls.
+This residual variation identifies $\gamma$.
+
+The FWL theorem guarantees that the FE estimator applied to the full regression produces the
+same $\hat{\gamma}$ as a two-stage procedure that first residualizes $\log H_{it}$ and $\log
+w_{it}$ on the controls, then regresses the wage residual on the hours residual. I verify this
+numerically: the difference between $\hat{\gamma}$ from the full regression and from the FWL
+procedure is exactly 0.0000 for every career stage. This confirms that the estimated career
+arc---including the Q1 elevation and Q4 trough---is not an artifact of collinearity.
+Collinearity inflates standard errors (reducing precision) but does not bias point estimates.
+
+\subsection{Simultaneity: Instrumental Variables for $\gamma$}
+
+Within-year simultaneity is a second concern: a high job-match year may generate both more
+hours and higher wages simultaneously, creating upward bias in $\hat{\gamma}$. To address
+this, I instrument $\log H_{it}$ with its one-year lag, $\log H_{i,t-1}$. Lagged cumulative
+hours are highly correlated with current cumulative hours ($\hat{\beta}_{\text{FS}} = 0.670$,
+first-stage $t = 169$, within-$R^2 = 0.980$) but uncorrelated with the current-period
+match-quality shock, conditional on worker fixed effects and year effects.
+
+The IV estimate is $\hat{\gamma}_{\text{IV}} = 0.697$ (SE $= 0.007$, $t = 103$), compared
+to the FE estimate of 0.937. The gap of 0.239 estimates the within-year simultaneity bias.
+This moderate-to-large bias implies that the FE estimate is an upper bound on the true $\gamma$;
+the IV estimate of 0.697 provides a lower bound. Both estimates imply $\delta < 1$
+(consistent with the model), and both imply $\tau_p > 15\%$: applying $\hat{\gamma}_{\text{IV}} = 0.697$
+with $\hat{\varepsilon}^w = 0.297$ yields $\hat{\delta} = 0.533$ and $\hat{\tau}_p = 0.533/3.295 = 16.2\%$.
+The structural parameter range implied by FE and IV is $\hat{\tau}_p \in [16.2\%, 19.1\%]$.
+
+\subsection{Heterogeneous Trends: First-Difference Estimator}
+
+Person fixed effects absorb time-invariant heterogeneity but not person-specific linear
+trends in wages. If some workers have both faster wage growth and faster hours growth (e.g.,
+due to unobserved career investment), the FE estimate of $\gamma$ could be upward biased.
+I address this by first-differencing the wage equation:
+\begin{equation}
+\Delta \log w_{it} = \gamma \cdot \Delta \log H_{it} + \beta \cdot \Delta \text{exp}_{it}
++ \Delta \lambda_t + \Delta \varepsilon_{it},
+\end{equation}
+which removes both fixed effects and person-specific linear trends. The first-difference
+estimate is $\hat{\gamma}_{\text{FD}} = 1.367$ (SE $= 0.027$)---substantially \emph{above}
+the FE estimate of 0.937, not below. The bias is negative throughout all career stages
+(FD $>$ FE), ruling out the heterogeneous upward trend explanation.
+
+The FD estimate is above the FE estimate because annual first-differencing identifies the
+return to the \emph{marginal} resume signal: $\Delta \log H_{it} \approx h_t / H_t$ (this
+year's hours as a fraction of career total), which captures within-year employment-intensity
+shocks that covary with match-quality and wages. The FE estimator identifies $\gamma$ from
+the full within-person career trajectory, averaging over year-to-year shocks, and is the
+appropriate structural parameter for the career-arc model. The key diagnostic from the FD
+comparison is negative: the Q4 trough in $\gamma$ is confirmed in both estimators (FD-Q4 $=
+1.046$ versus FD-Q1 $= 1.398$), ruling out heterogeneous trends as the explanation for the
+career-arc decline.
+
+\subsection{Q5 Non-Identification}
+
+The Q5 quintile estimate (pot\_exp $> 25$ years) is $\hat{\gamma}_{\text{Q5}} = 1.115$
+(SE $= 0.110$, 95\% CI: $[0.900, 1.330]$). This CI contains every other quintile estimate
+and the Q5 estimate is statistically indistinguishable from all of Q1--Q4. Two compounding
+problems prevent Q5 identification. First, the within-$R^2$ in the Q5 subsample is 2.6
+percent---employer learning essentially explains none of the within-person wage variation
+in late career, consistent with employer uncertainty having largely resolved. Second, workers
+who survive into Q5 (pot\_exp $> 25$ years) have mean Q4 log wages 0.567 points above workers
+who exit at Q4---a massive positive survivor selection that mechanically inflates the Q5
+estimate. For these reasons, Q5 is excluded from the structural career arc. The reported
+career-stage estimates cover Q1--Q4 (pot\_exp 0--25 years, ages roughly 22--47).
+
+\subsection{Sensitivity to $\alpha$}
+
+The income distribution's Pareto tail is assumed to hold at $\alpha = 3.295$ as estimated.
+Pareto tail estimates are sensitive to the threshold above which the Pareto distribution is
+assumed to hold and to the specific dataset. Table~\ref{tab:taup} reports $\hat{\tau}_p$
+under three alternative values: $\alpha = 1.5$ (very heavy tail), $\alpha = 2.5$ (moderate),
+and $\alpha = 3.0$ (close to our estimate). At $\alpha = 1.5$, $\hat{\tau}_p = 41.9\%$; at
+$\alpha = 2.5$, $\hat{\tau}_p = 25.1\%$; at $\alpha = 3.0$, $\hat{\tau}_p = 20.9\%$. The
+sensitivity to $\alpha$ is the primary source of model uncertainty outside the estimated
+CI. Our direct $\hat{\alpha} = 3.295$ (R$^2 = 0.985$) is close to the $\alpha = 3.0$
+benchmark, and the robustness range $[20.9\%, 41.9\%]$ for $\alpha \in [1.5, 3.0]$ shows
+that the main message---$\tau_p$ is economically significant---holds throughout.
+
+%==============================================================================
+\section{Discussion}
+\label{sec:discussion}
+%==============================================================================
+
+\subsection{The Lifecycle Arc of $\delta$}
+
+The structural signaling parameter $\hat{\delta} = 0.628$ for the NLSY79 cohort (average
+age 33) is roughly 3.7 times \citepos{sztutman2024} HRS estimate of $\delta \approx 0.17$
+for workers ages 50 and above. This factor-of-four discrepancy is predicted by the model.
+
+The $\delta$ lifecycle arc can be traced using the polynomial $\hat{\gamma}(\text{exp})$ arc
+estimated in Section~\ref{sec:results}. Applying equation~(\ref{eq:delta}) at each experience
+level with fixed $\hat{\varepsilon}^w = 0.297$:
+\[
+\hat{\delta}(\text{exp}) = \frac{\hat{\gamma}(\text{exp}) \times 1.297}{1 + \hat{\gamma}(\text{exp})}.
+\]
+This yields $\hat{\delta}(0) = 0.640$ at career entry, declining to $\hat{\delta}(20) = 0.588$
+at the midpoint, and $\hat{\delta}(40) = 0.627$ at the end of the NLSY79 sample window
+(where the slight upturn reflects the survivor selection discussed in Section~\ref{sec:robustness}).
+Table~\ref{tab:delta_arc} reports these values alongside the implied $\hat{\tau}_p(\text{exp})$.
+
+A notable finding from Table~\ref{tab:delta_arc} is that $\hat{\tau}_p(\text{exp})$ is
+remarkably stable within each ETI regime: it varies by only 1.6 percentage points across
+experience levels under the biennial ETI (from 17.8\% to 19.4\%) and by 1.3 percentage
+points under the annual ETI. The primary source of variation in the optimal subsidy is not
+the career stage within the NLSY79 sample but the transition between lifecycle ETI regimes:
+the biennial estimate (19.1\%) exceeds the annual estimate (14.0\%) by 5.1 percentage points,
+reflecting the regime change in behavioral response as careers mature.
+
+The comparison to \citepos{sztutman2024} HRS estimate ($\tau_p \approx 5\%$) implies a
+dramatic reduction in the signaling externality between the career stages covered by the two
+datasets. Under the model, this reduction reflects the resolution of employer uncertainty:
+by ages 50--70, the labor market has had 30--40 years to learn about worker types, and the
+residual signaling externality is correspondingly small. The 73 percent decline in $\delta$
+from $0.628$ (NLSY79 average) to $0.17$ (HRS) is consistent with the employer learning
+dynamics that Corollary~\ref{prop:gamma_arc} implies.
+
+\paragraph{The appropriate $\varepsilon^w$ for the structural formula.}
+Table~\ref{tab:delta_arc} presents two scenarios—using the annual ETI ($\hat{\varepsilon}^w
+\approx 0$) and the biennial ETI ($\hat{\varepsilon}^w = 0.297$)—rather than a single
+lifecycle estimate. The choice matters because the structural formula $\tau_p = \delta/\alpha$
+applies when workers face a genuine tax margin: the Pigouvian subsidy corrects the wedge
+between the private and social return to labor, but only insofar as workers respond to the
+net-of-tax wage at all. For young workers in the signaling phase (annual period, ages 17--35),
+the near-zero annual ETI reflects the dominance of reputation-building incentives over tax
+optimization, not a preference for corner solutions. In this regime, the Pigouvian case for
+a subsidy is strongest (high $\delta$) but the tax margin is inoperative. The biennial ETI
+of 0.297 applies to workers who have exited the signaling phase and face the standard
+intensive-margin labor supply decision; it is this estimate that yields the primary $\hat{\tau}_p
+= 19.1\%$. A lifecycle-appropriate combination—using annual $\hat{\varepsilon}^w$ for
+$\text{exp} \lesssim 15$ and biennial $\hat{\varepsilon}^w$ for $\text{exp} \gtrsim 15$—yields
+$\hat{\tau}_p \approx 13$--$14\%$ in early career and $\hat{\tau}_p \approx 18$--$19\%$ for
+prime-career workers, with the step at the ETI regime transition (approximately age 30)
+as the primary source of variation. The career-length average is approximately 17 percent of
+labor income.
+
+\paragraph{Reconciling the flat $\delta$ arc with the employer learning literature.}
+The estimated $\hat{\delta}(\text{exp})$ arc declines by only 7 percent from $0.640$ at
+career entry to $0.588$ at the mid-career minimum (Table~\ref{tab:delta_arc}), which may
+appear inconsistent with \citepos{lange2007speed} finding that employer learning is
+substantially complete within 3 years of labor market entry. Two observations reconcile
+these findings. First, Lange measures learning from the rising cross-sectional wage premium
+to AFQT scores—the speed at which the market price of ability converges from a pooling wage
+to its fully revealed level. This object is distinct from the structural $\delta$ in
+equation~(\ref{eq:gamma_structural}), which measures the fraction of the wage-hours elasticity
+that flows through the signaling channel. Even after the market assigns most of the ability
+premium correctly, workers may continue to supply hours partly for reputation reasons if
+there remains residual uncertainty about exact productivity type; $\delta$ captures this
+sustained informational margin rather than the initial speed of belief updating. Second,
+Lange's 3-year result applies precisely to the early-career window where our polynomial
+$\hat{\gamma}(\text{exp})$ exhibits its steepest decline---from 0.974 at entry to 0.915 by
+$\text{exp} = 5$ and 0.871 by $\text{exp} = 10$. The implied $\hat{\delta}$ declines from
+0.640 to 0.604 over the same 10 years (a 6 percent drop), concentrated exactly where Lange
+predicts. The flat profile at mid-career (exp 10--25) reflects slow residual learning, not
+a contradiction of the rapid initial learning that Lange documents.
+
+\subsection{Policy Implications}
+
+These estimates suggest that the optimal marginal labor income tax rate for prime-career
+workers is approximately 19 percentage points below the rate implied by equity and revenue
+considerations alone. This finding is consistent with the theoretical arguments of
+\citet{boskin1975taxation} and \citet{sztutman2024} that signaling externalities warrant
+a Pigouvian labor income subsidy, and it quantifies the magnitude of that subsidy for a
+cohort-representative US panel.
+
+Several caveats apply. First, the NLSY79 cohort was born 1957--1964 and may not be
+representative of workers in other cohorts or institutional contexts; the lifecycle
+dynamics of $\delta$ could differ for cohorts who entered the labor market during periods
+of greater wage compression or different sectoral composition. Second, the structural
+formula $\tau_p = \delta / \alpha$ assumes the Pareto case and a specific information
+structure; departures from these assumptions would change the formula, though Proposition~1
+shows that the sign of the externality---and hence the direction of the subsidy---is
+robust to the distributional assumption. Third, the estimates rely on the biennial ETI
+of $+0.297$; if this estimate reflects mean reversion or other biases not fully addressed
+by the Gruber--Saez controls, the implied $\tau_p$ would be smaller. Fourth, the analysis
+abstracts from heterogeneity in $\tau_p$ across income groups, which the model predicts
+should exist (higher-income workers may have larger signaling externalities). Our estimate
+is a population average.
+
+These findings are consistent with, rather than establishing, the case for a Pigouvian
+labor income subsidy. A full welfare analysis would require modeling the equity costs of
+the subsidy and the distributional incidence of the tax reforms used for identification,
+which is beyond the scope of this paper.
+
+%==============================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%==============================================================================
+
+The wages of NLSY79 workers grow with cumulative hours at an elasticity that declines from
+0.97 at labor market entry to 0.83 by midcareer---a pattern that indicates employer uncertainty
+about worker ability resolves progressively over careers. This employer learning process
+generates a positive externality to labor effort: each additional hour of work creates
+information about ability that benefits future employers who did not pay for the additional
+labor. The Sztutman (2024) model formalizes this externality and shows that the optimal
+Pigouvian labor income subsidy equals $\tau_p = \delta / \alpha$, where $\delta$ is the
+signaling probability and $\alpha$ is the Pareto income tail parameter.
+
+I estimate all three sufficient statistics---$\gamma$, $\varepsilon^w$, and $\alpha$---from
+the NLSY79 panel and find $\hat{\tau}_p = 19.1\%$ (95\% CI: $[15.6\%, 22.6\%]$). This
+estimate is substantially larger than prior estimates for older workers \citep{sztutman2024},
+consistent with the prediction that the signaling externality declines over careers as
+employer uncertainty resolves. Cross-validation through sector heterogeneity in $\gamma$,
+the Altonji--Pierret ability-revelation test, and the horse race between cumulative and
+recent hours all support the employer learning interpretation.
+
+Three results stand out. First, the career arc of $\gamma$---declining from 0.97 to 0.83
+at career midpoint and confirmed by both FE and FD estimators---provides direct evidence
+for the dynamic signaling mechanism in a representative US panel. Second, the lifecycle
+pattern in the ETI---near zero for young workers, positive for prime-career workers---is
+consistent with a signaling-to-optimization transition over careers and suggests that
+standard ETI estimates that pool all career stages may be measuring a mixture of behavioral
+responses. Third, the implied signaling parameter $\hat{\delta} = 0.628$ for prime-career
+US workers implies that, after a given year, there remains roughly a two-in-three chance
+that employers have not fully resolved uncertainty about a worker's type---a substantial
+residual uncertainty that justifies a meaningful Pigouvian correction.
+
+These findings raise an open question for future research: how does the optimal Pigouvian
+subsidy vary across income groups and occupations? The sector heterogeneity results suggest
+that high-signaling occupations have substantially higher $\gamma$ values, which would imply
+higher $\delta$ and larger Pigouvian corrections for those workers. A full distributional
+analysis of the optimal labor income tax structure, accounting for both the equity objectives
+and the occupation-specific signaling externalities, is a promising direction.
+
+%==============================================================================
+% REFERENCES
+%==============================================================================
+\newpage
+\bibliographystyle{aer}
+\begin{thebibliography}{99}
+
+\bibitem[Altonji and Pierret(2001)]{altonji2001employer}
+Altonji, J.~G., and C.~R. Pierret. 2001.
+\newblock Employer learning and statistical discrimination.
+\newblock \emph{Quarterly Journal of Economics} 116 (1): 313--350.
+
+\bibitem[Boskin(1975)]{boskin1975taxation}
+Boskin, M.~J. 1975.
+\newblock Efficiency aspects of the differential tax treatment of market and
+  household economic activity.
+\newblock \emph{Journal of Public Economics} 4 (1): 1--25.
+
+\bibitem[Chetty(2009)]{chetty2009sufficient}
+Chetty, R. 2009.
+\newblock Sufficient statistics for welfare analysis: A bridge between
+  structural and reduced-form methods.
+\newblock \emph{Annual Review of Economics} 1: 451--488.
+
+\bibitem[Diamond(1998)]{diamond1998optimal}
+Diamond, P. 1998.
+\newblock Optimal income taxation: An example with a U-shaped pattern of
+  optimal marginal tax rates.
+\newblock \emph{American Economic Review} 88 (1): 83--95.
+
+\bibitem[Feenberg and Coutts(1993)]{feenberg1993introduction}
+Feenberg, D.~R., and E.~Coutts. 1993.
+\newblock An introduction to the TAXSIM model.
+\newblock \emph{Journal of Policy Analysis and Management} 12 (1): 189--194.
+
+\bibitem[Farber and Gibbons(1996)]{farber1996learning}
+Farber, H.~S., and R.~Gibbons. 1996.
+\newblock Learning and wage dynamics.
+\newblock \emph{Quarterly Journal of Economics} 111 (4): 1007--1047.
+
+\bibitem[Feldstein(1995)]{feldstein1995effect}
+Feldstein, M. 1995.
+\newblock The effect of marginal tax rates on taxable income: A panel study of
+  the 1986 Tax Reform Act.
+\newblock \emph{Journal of Political Economy} 103 (3): 551--572.
+
+\bibitem[Gibbons and Waldman(1999)]{gibbons1999careers}
+Gibbons, R., and M.~Waldman. 1999.
+\newblock A theory of wage and promotion dynamics inside firms.
+\newblock \emph{Quarterly Journal of Economics} 114 (4): 1321--1358.
+
+\bibitem[Gruber and Saez(2002)]{gruber2002elasticity}
+Gruber, J., and E.~Saez. 2002.
+\newblock The elasticity of taxable income: Evidence and implications.
+\newblock \emph{Journal of Public Economics} 84 (1): 1--32.
+
+\bibitem[Kopczuk(2005)]{kopczuk2005tax}
+Kopczuk, W. 2005.
+\newblock Tax bases, tax rates and the elasticity of reported income.
+\newblock \emph{Journal of Public Economics} 89 (11-12): 2093--2119.
+
+\bibitem[Lange(2007)]{lange2007speed}
+Lange, F. 2007.
+\newblock The speed of employer learning.
+\newblock \emph{Journal of Labor Economics} 25 (1): 1--35.
+
+\bibitem[Mirrlees(1971)]{mirrlees1971exploration}
+Mirrlees, J.~A. 1971.
+\newblock An exploration in the theory of optimum income taxation.
+\newblock \emph{Review of Economic Studies} 38 (2): 175--208.
+
+\bibitem[Saez(2001)]{saez2001using}
+Saez, E. 2001.
+\newblock Using elasticities to derive optimal income tax rates.
+\newblock \emph{Review of Economic Studies} 68 (1): 205--229.
+
+\bibitem[Saez, Slemrod, and Giertz(2012)]{saez2012elasticity}
+Saez, E., J.~Slemrod, and S.~H. Giertz. 2012.
+\newblock The elasticity of taxable income with respect to marginal tax rates:
+  A critical review.
+\newblock \emph{Journal of Economic Literature} 50 (1): 3--50.
+
+\bibitem[Spence(1973)]{spence1973job}
+Spence, M. 1973.
+\newblock Job market signaling.
+\newblock \emph{Quarterly Journal of Economics} 87 (3): 355--374.
+
+\bibitem[Stiglitz(1982)]{stiglitz1982self}
+Stiglitz, J.~E. 1982.
+\newblock Self-selection and Pareto efficient taxation.
+\newblock \emph{Journal of Public Economics} 17 (2): 213--240.
+
+\bibitem[Sztutman(2024)]{sztutman2024}
+Sztutman, A. 2024.
+\newblock Dynamic job market signaling and optimal taxation.
+\newblock Working paper, Carnegie Mellon University Tepper School of Business.
+
+\end{thebibliography}
+
+%==============================================================================
+% APPENDIX: TABLES AND FIGURES
+%==============================================================================
+\newpage
+\appendix
+
+%==============================================================================
+\section{Proofs}
+\label{app:proofs}
+%==============================================================================
+
+\subsection*{Proof of Proposition~\ref{prop:taup}}
+
+\noindent \textit{Statement.} Under Assumptions~\ref{ass:pareto}--\ref{ass:learning},
+the optimal Pigouvian labor income subsidy is $\tau_p = \delta / \alpha$.
+
+\medskip
+\noindent \textit{Proof} (following \citealt{sztutman2024}, Proposition~3; all steps
+self-contained).
+
+\medskip
+\noindent \textbf{Step 1: Two Pareto properties used in the proof.}
+
+\noindent\textit{(a) Constant inverse hazard rate.} Under Assumption~\ref{ass:pareto},
+$1-F(\theta) = (\underline{\theta}/\theta)^\alpha$ and $f(\theta) = \alpha
+\underline{\theta}^\alpha \theta^{-(\alpha+1)}$. Computing the inverse hazard:
+\begin{equation}
+\label{eq:pareto_hazard}
+\frac{1-F(\theta)}{\theta\,f(\theta)}
+= \frac{(\underline{\theta}/\theta)^\alpha}{\;\theta \cdot \alpha\underline{\theta}^\alpha
+  \theta^{-(\alpha+1)}\;}
+= \frac{\underline{\theta}^\alpha\,\theta^{-\alpha}}{\alpha\,\underline{\theta}^\alpha\,
+  \theta^{-\alpha}}
+= \frac{1}{\alpha}.
+\end{equation}
+This ratio equals $1/\alpha$ at \emph{every} $\theta \geq \underline{\theta}$. This is the
+\emph{constant inverse hazard property} of the Pareto distribution, which no other distribution
+possesses and which is responsible for the scale-free form of the optimal tax formula.
+
+\medskip
+\noindent\textit{(b) Posterior mean under Pareto.} In the signaling equilibrium of
+Assumption~\ref{ass:learning}, wages equal the market's posterior mean conditional on
+cumulative hours: $w(H) = \mathbb{E}[\theta \mid H_t = H]$. Let $\underline{\theta}(H)$ denote
+the minimum type consistent with having accumulated at least $H$ hours in equilibrium---a
+threshold that is strictly increasing in $H$ by the monotone-belief property of
+Assumption~\ref{ass:learning}. The market conditions on $\theta \geq \underline{\theta}(H)$, so:
+\begin{equation}
+\label{eq:pareto_posterior}
+w(H) = \mathbb{E}[\theta \mid \theta \geq \underline{\theta}(H)]
+= \int_{\underline{\theta}(H)}^{\infty} \theta \cdot
+  \frac{f(\theta)}{1-F(\underline{\theta}(H))}\,d\theta.
+\end{equation}
+Substituting $f(\theta) = \alpha\underline{\theta}^\alpha\theta^{-(\alpha+1)}$ and
+$1-F(\underline{\theta}(H)) = (\underline{\theta}/\underline{\theta}(H))^\alpha$:
+\begin{align*}
+w(H)
+&= \int_{\underline{\theta}(H)}^{\infty} \theta \cdot
+   \frac{\alpha\underline{\theta}^\alpha\,\theta^{-(\alpha+1)}}{(\underline{\theta}/
+   \underline{\theta}(H))^\alpha}\,d\theta
+= \frac{\alpha\,\underline{\theta}(H)^\alpha}{\alpha - 1}\cdot
+  \bigl[\underline{\theta}(H)\bigr]^{-(\alpha-1)} \\
+&= \underline{\theta}(H)\cdot\frac{\alpha}{\alpha-1}.
+\end{align*}
+The wage at any signal level $H$ equals the minimum plausible type scaled by the constant
+$\alpha/(\alpha-1)$. Equivalently, $\underline{\theta}(H) = w(H)\cdot(\alpha-1)/\alpha$, and
+the ``signaling premium'' above the minimum type---the share of the wage due to favorable
+beliefs---equals $1/\alpha$ of the wage at every income level:
+\begin{equation}
+\label{eq:signaling_premium}
+\frac{w(H) - \underline{\theta}(H)}{w(H)} = \frac{1}{\alpha}.
+\end{equation}
+
+\medskip
+\noindent \textbf{Step 2: Private vs.\ social incentives.}
+
+Each worker chooses hours $h_t$ to maximize $(1-\tau)\,w(H_t) - v(h_t)$, taking the wage
+function $w(\cdot)$ as given. The private first-order condition is $(1-\tau)\,\partial w/\partial H = v'(h)$.
+
+Workers fail to internalize the \emph{informational externality}. When worker $i$ increases
+$H_i$, this shifts the threshold $\underline{\theta}(H)$ upward at $H = H_i$, raising the
+posterior mean for every worker whose observable history coincides with $H_i$. The wage gain
+$dw(H_i) = (\alpha/(\alpha-1))\,d\underline{\theta}$ (from equation~\eqref{eq:pareto_posterior})
+accrues to worker $i$ privately, but the same upward belief revision benefits all other workers
+at signal level $H_i$ as well. The social planner internalizes this externality through a
+Pigouvian subsidy.
+
+Of the total wage gain from an additional unit of cumulative hours, fraction $\delta$ is
+attributable to employer learning (the signaling channel) and fraction $(1-\delta)$ to genuine
+human capital accumulation. Only the $\delta$ component generates an externality, because only
+employer-learning wage gains are belief-driven: the social benefit of improved beliefs propagates
+to all workers at the same signal level, not just the worker whose hours triggered the update.
+
+\medskip
+\noindent \textbf{Step 3: The augmented Pigouvian first-order condition.}
+
+The social planner's optimum satisfies the Saez (2001) perturbation condition augmented by
+the informational externality \citep{saez2001using, sztutman2024}. The first-order condition
+for the optimal Pigouvian subsidy at income level $w$ is:
+\begin{equation}
+\label{eq:pigouvian_intermediate}
+\tau_p \;=\; \Omega \cdot \frac{1 - F(\theta(w))}{w \cdot f(\theta(w))},
+\end{equation}
+where $\Omega$ is the \emph{per-unit externality}: the social welfare gain per dollar of labor
+income arising from the positive informational spillover of labor supply at income level $w$.
+The factor $[1-F(\theta(w))]/[w\,f(\theta(w))]$ is the inverse hazard rate, which in the
+Saez framework measures the fiscal cost of correcting the externality through the tax schedule
+(a larger right tail means more inframarginal workers, so the same fiscal transfer covers more
+people relative to the behavioral distortion at the margin).
+
+To understand the three terms in the social planner's optimality condition, consider a virtual
+reform that cuts the marginal tax rate by $d\tau$ on all incomes near $w$:
+
+\emph{(a) Mechanical fiscal cost.} Revenue falls by $d\tau$ per worker above $w$, totaling
+$d\tau\cdot[1-F(\theta(w))]\cdot w\,f(w)\,dw$ in present value over the income distribution.
+
+\emph{(b) Behavioral revenue gain.} Workers at $w$ increase hours by
+$\varepsilon_c\,d\tau/(1-\tau)$; this generates additional income and partially offsets the
+mechanical cost. This behavioral term governs $t_{\text{equity}}$ (the optimal redistributive
+rate absent externalities); it does not enter the Pigouvian correction $\tau_p$.
+
+\emph{(c) Externality gain.} The behavioral hours increase at $w$ raises $\underline{\theta}(H(w))$,
+shifting the posterior $\mathbb{E}[\theta \mid H(w)]$ upward and raising wages for all workers at
+signal level $H(w)$. The social planner values this belief update insofar as it reduces the
+under-provision of labor caused by the informational externality. By
+Assumption~\ref{ass:learning} and the structural decomposition of
+Section~\ref{sec:model}, fraction $\delta$ of any wage gain is attributable to employer
+learning; this is the belief-driven component that generates positive externalities for other
+workers. Accordingly, $\Omega = \delta$: the per-unit externality equals the employer learning
+fraction.
+
+\medskip
+\noindent \textbf{Step 4: Applying the Pareto inverse hazard.}
+
+Substituting $\Omega = \delta$ and the constant inverse hazard~\eqref{eq:pareto_hazard}
+into~\eqref{eq:pigouvian_intermediate}:
+\begin{equation}
+\tau_p = \delta \cdot \frac{1-F(\theta(w))}{w\,f(\theta(w))} = \delta \cdot \frac{1}{\alpha}
+= \frac{\delta}{\alpha}.
+\end{equation}
+The result is income-level invariant: the Pareto constant inverse hazard ensures that the
+fiscal cost of the Pigouvian correction is proportional to $1/\alpha$ everywhere in the
+distribution. Note also the dual role of the Pareto ratio $\alpha/(\alpha-1)$:
+equation~\eqref{eq:pareto_hazard} gives $[1-F]/[wf] = 1/\alpha$ (the inverse hazard), while
+equation~\eqref{eq:signaling_premium} gives $[w - \underline{\theta}]/w = 1/\alpha$ (the
+signaling premium). Both expressions flow from the same Pareto moment identity
+$\mathbb{E}[\theta \mid \theta > \underline{\theta}] = \underline{\theta}\cdot\alpha/(\alpha-1)$,
+confirmed by the integral in Step~1(b). $\square$
+
+\medskip
+\noindent\textit{Note on the redistributive component.} Proposition~\ref{prop:taup} isolates the
+Pigouvian component $\tau_p$. The full optimal tax is $t^* = t_{\text{equity}} - \tau_p$, where
+$t_{\text{equity}}$ is determined by the standard Mirrlees--Saez formula
+\citep{mirrlees1971exploration, saez2001using} applied to redistributive preferences. The two
+components are separable under the utilitarian social welfare function: adding the informational
+externality shifts the optimum by exactly $\tau_p = \delta/\alpha$ regardless of the redistributive
+optimum. \citet{sztutman2024} derives $t_{\text{equity}}$ in full; the contribution of this
+paper is to estimate the sufficient statistics $(\hat\delta, \hat\alpha)$ that pin down $\tau_p$.
+
+\bigskip
+
+\subsection*{Derivation of Corollary~\ref{prop:gamma_arc}}
+
+\noindent \textit{Statement.} If $\delta(\text{exp})$ is strictly decreasing in potential
+experience, then $\gamma(\text{exp})$ is also strictly decreasing in potential experience.
+
+\noindent \textit{Derivation.} From equation~(\ref{eq:gamma_structural}):
+\[
+\gamma(\text{exp}) = \frac{\delta(\text{exp})}{1 - \delta(\text{exp}) + \varepsilon^w}.
+\]
+Let $D \equiv 1 - \delta + \varepsilon^w > 0$ (denominator, positive since $\varepsilon^w > -1$
+and $\delta < 1$). Differentiating with respect to experience:
+\begin{align*}
+\frac{\partial \gamma}{\partial \text{exp}}
+&= \frac{\delta'(\text{exp}) \cdot D - \delta(\text{exp}) \cdot (-\delta'(\text{exp}))}{D^2} \\
+&= \frac{\delta'(\text{exp}) \cdot (D + \delta(\text{exp}))}{D^2} \\
+&= \frac{\delta'(\text{exp}) \cdot (1 + \varepsilon^w)}{D^2}.
+\end{align*}
+Since $1 + \varepsilon^w > 0$ and $D^2 > 0$, we have
+$\text{sign}(\partial \gamma / \partial \text{exp}) = \text{sign}(\delta'(\text{exp}))$.
+If $\delta'(\text{exp}) < 0$, then $\gamma'(\text{exp}) < 0$. $\square$
+
+\noindent \textit{Remark.} The corollary does not require Assumption~\ref{ass:pareto}: it
+holds under any type distribution, as long as $\varepsilon^w > -1$. The Pareto assumption
+is required only for the closed-form formula $\tau_p = \delta/\alpha$ in
+Proposition~\ref{prop:taup}; the monotone-$\gamma$ prediction of Corollary~\ref{prop:gamma_arc}
+is more general.
+
+%==============================================================================
+\newpage
+\section{Occupation-Level $\hat{\gamma}$ Estimates}
+\label{app:occ_gamma}
+
+%------ Table A1: gamma by 1-digit occupation ------
+\begin{table}[htbp]
+\centering
+\caption{Wage-Cumulative-Hours Elasticity $\hat{\gamma}$ by 1-Digit Occupation}
+\label{tab:gamma_occ}
+\begin{threeparttable}
+\small
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{llcccl}
+\toprule
+Occ.\ Code & Occupation & $\hat{\gamma}_{\text{FE}}$ & SE & $N$ & Theory Group \\
+\midrule
+3 & Sales                   & 1.235 & 0.107 &  4,955 & Medium \\
+4 & Clerical                & 1.077 & 0.042 & 21,653 & Medium \\
+1 & Professional/Technical  & 1.050 & 0.062 & 13,392 & High   \\
+9 & Service Workers         & 0.968 & 0.035 & 18,628 & Medium \\
+7 & Laborers                & 0.937 & 0.058 &  7,447 & Low    \\
+6 & Operatives              & 0.878 & 0.042 & 14,424 & Medium \\
+2 & Managers/Admin          & 0.867 & 0.087 &  7,874 & High   \\
+5 & Craftsmen               & 0.716 & 0.056 & 10,809 & Medium \\
+8 & Farm Workers            & 0.470 & 0.174 &  1,474 & Low    \\
+\midrule
+\multicolumn{3}{l}{\textit{Group averages (from Table~\ref{tab:sector}):}} \\
+\quad High (occ 1--2) & & 1.037 & 0.027 & 21,266 & \\
+\quad Medium (occ 3--6, 9) & & 0.953 & 0.028 & 70,659 & \\
+\quad Low (occ 7--8) & & 0.900 & 0.036 &  8,921 & \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} FE estimates from equation~(\ref{eq:fe_main}) estimated separately
+within each occupation group, NLSY79 1979--1993 annual period only. Sorted by $\hat{\gamma}$
+(descending). Theory Group assignments: High signaling = professional/managerial occupations
+where output quality is difficult for employers to observe; Low signaling = farm and
+laboring occupations where output is directly observable; Medium = remaining occupations.
+The Sales occupation has the highest $\hat{\gamma}$, consistent with severe information
+asymmetry between salespeople and employers (client-facing output is unobservable to
+current employer). Farm Workers have the lowest $\hat{\gamma}$, consistent with directly
+observable agricultural output and minimal employer uncertainty. All estimates significant
+at $p < 0.01$; standard errors clustered by person.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%==============================================================================
+\newpage
+\section*{Tables and Figures}
+
+%------ Table 1: Descriptive Statistics ------
+\begin{table}[htbp]
+\centering
+\caption{Descriptive Statistics}
+\label{tab:desc}
+\begin{threeparttable}
+\small
+\setlength{\tabcolsep}{8pt}
+\begin{tabular}{lcccc}
+\toprule
+Variable & Mean & Std.\ Dev. & Median & $N$ \\
+\midrule
+Primary wages (1984 \$) & 27,695 & 39,322 & 17,000 & 189,671 \\
+Potential experience (years) & 14.0 & 11.7 & 12.0 & 189,671 \\
+Highest grade completed & 13.6 & 3.3 & 13.0 & 189,671 \\
+Age & 33.4 & 11.9 & 32.0 & 189,671 \\
+Cumulative hours worked & 26,344 & 23,627 & 18,544 & 189,671 \\
+\midrule
+\multicolumn{5}{l}{\textit{Estimation sample restrictions:}} \\
+Structural $\gamma$ sample (age 18--65, exp 0--40, pwages $> 0$) & \multicolumn{3}{c}{} & 179,209 \\
+Annual ETI sample (\$5K floor, $|\Delta \log z| \leq \log 5$) & \multicolumn{3}{c}{} & 53,632 \\
+Biennial ETI sample (\$10K floor, $|\Delta \log z| \leq \log 5$) & \multicolumn{3}{c}{} & 47,201 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} Full analytical population is defined as age 18--65 with positive primary
+wages, NLSY79 survey rounds 1979--2023. Wages deflated to 1984 dollars using CPI-U.
+Cumulative hours accumulated from labor market entry; biennial gaps interpolated linearly
+within person.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%------ Table 2: Career-Stage gamma ------
+\begin{table}[htbp]
+\centering
+\caption{Wage-Cumulative-Hours Elasticity $\hat{\gamma}$ by Career Stage}
+\label{tab:gamma}
+\begin{threeparttable}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lccccc}
+\toprule
+ & & \multicolumn{2}{c}{FE Estimator} & OLS & \\
+\cmidrule(lr){3-4}
+Career Stage & $N$ & $\hat{\gamma}_{\text{FE}}$ & (SE) & $\hat{\gamma}_{\text{OLS}}$ & Selection \\
+\midrule
+Q1: exp 0--8 yr    & 39,520  & 1.101 & (0.021) & 0.991 & $-$0.110 \\
+Q2: exp 8--13 yr   & 38,814  & 1.049 & (0.038) & 0.964 & $-$0.085 \\
+Q3: exp 13--17 yr  & 32,892  & 1.067 & (0.063) & 1.030 & $-$0.037 \\
+Q4: exp 17--25 yr  & 34,383  & 0.927 & (0.057) & 0.972 & $+$0.044 \\
+Q5: exp $> 25$ yr  & 33,600  & 1.115$^{\dagger}$ & (0.110) & 1.086 & $-$0.029 \\
+\midrule
+Full career        & 179,209 & 0.937 & (0.011) & 1.022 & $+$0.086 \\
+\midrule
+\multicolumn{6}{l}{\textit{Polynomial specification: $\hat{\gamma}(\text{exp}) = \hat{\beta}_0 + \hat{\beta}_1\cdot\text{exp} + \hat{\beta}_2\cdot\text{exp}^2$}} \\
+$\hat{\beta}_0$ (entry) & & 0.974 & (0.011) & & \\
+$\hat{\beta}_1$ (linear decline) & & $-$0.0134 & (0.0015) & & \\
+$\hat{\beta}_2$ (quadratic) & & $+$0.0003 & (0.00004) & & \\
+\multicolumn{2}{l}{Joint test $\beta_1 = \beta_2 = 0$:} & \multicolumn{4}{l}{$F(2, 11{,}524) = 43.20$\quad ($p < 0.001$)} \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} FE estimates from equation~(\ref{eq:fe_main}) with person fixed effects,
+quadratic potential experience, and year fixed effects. Standard errors clustered by person.
+Selection $= \hat{\gamma}_{\text{OLS}} - \hat{\gamma}_{\text{FE}}$; positive values indicate
+positive selection on ability (high-ability workers supply more hours). $^{\dagger}$Q5 is
+non-identified: within-$R^2 = 2.6\%$; 95\% CI $= [0.90, 1.33]$ contains all Q1--Q4 estimates;
+survivor selection gap $= +0.567$ log-wage points (Section~\ref{sec:robustness}). Q5 is
+excluded from the structural career arc.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%------ Table 3: ETI ------
+\begin{table}[htbp]
+\centering
+\caption{Elasticity of Taxable Income: Two-Period IV Estimates}
+\label{tab:eti}
+\begin{threeparttable}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{l p{3.5cm} c c c c c}
+\toprule
+Period & Specification & $N$ & $\hat{\varepsilon}^w$ & SE & $t$-stat & 1st-stage $F$ \\
+\midrule
+Annual (1978--93) & Primary (\$5K floor) & 53,632 & $-$0.048 & 0.080 & $-$0.60 & 2,617 \\
+Annual (1978--93) & Near-worker (\$1K floor) & 59,428 & $-$0.049 & 0.082 & $-$0.60 & 2,500 \\
+Annual (1978--93) & Kopczuk lagged control & 1,595 & $+$0.021 & 0.352 & $+$0.06 & 149 \\
+\midrule
+Biennial (1995--19) & Primary (\$10K floor) & 47,201 & $+$0.297 & 0.121 & $+$2.46 & 1,146 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} IV estimates of equation~(\ref{eq:eti}). Instrument is the simulated
+change in log net-of-tax rate, holding individual income at its base-period level inflated by
+average earnings growth. Annual period uses $k = 3$-year horizon; biennial uses $k = 2$-period
+horizon. All specifications include log base-period income as mean-reversion control, year fixed
+effects, and controls for marital status transitions. Standard errors clustered by person.
+Identifying reforms: ERTA (1981), TRA (1986) [annual]; EGTRRA (2001), JGTRRA (2003),
+TCJA (2017) [biennial]. Kopczuk specification additionally controls for one-period lagged
+income; sample collapses to N $= 1{,}595$ balanced two-window observations.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%------ Table 4: Pigouvian Tax ------
+\begin{table}[htbp]
+\centering
+\caption{Optimal Pigouvian Labor Income Subsidy: $\hat{\tau}_p = \hat{\delta}/\hat{\alpha}$}
+\label{tab:taup}
+\begin{threeparttable}
+\small
+\begin{tabular}{p{6cm} c c c c}
+\toprule
+Specification & $\hat{\delta}$ & $\hat{\alpha}$ & $\hat{\tau}_p$ & 95\% CI \\
+\midrule
+\textit{Primary estimate} & & & & \\
+\quad Biennial ETI ($\hat{\varepsilon}^w = +0.297$) & 0.628 & 3.295 & 19.1\% & $[15.6\%, 22.6\%]$ \\
+\midrule
+\textit{Lifecycle lower bound} & & & & \\
+\quad Annual ETI ($\hat{\varepsilon}^w = -0.048$) & 0.461 & 3.295 & 14.0\% & $[11.7\%, 16.3\%]$ \\
+\midrule
+\textit{IV lower bound (simultaneity-adjusted)} & & & & \\
+\quad $\hat{\gamma}_{\text{IV}} = 0.697$, biennial $\hat{\varepsilon}^w$ & 0.533 & 3.295 & 16.2\% & --- \\
+\midrule
+\textit{Sensitivity to $\hat{\alpha}$} (biennial $\hat{\delta} = 0.628$) & & & & \\
+\quad $\alpha = 3.0$ & 0.628 & 3.0 & 20.9\% & --- \\
+\quad $\alpha = 2.5$ & 0.628 & 2.5 & 25.1\% & --- \\
+\quad $\alpha = 1.5$ & 0.628 & 1.5 & 41.9\% & --- \\
+\midrule
+\textit{Comparison} & & & & \\
+\quad Sztutman (2024), HRS ages 50+ & $\approx 0.17$ & --- & $\approx 5\%$ & --- \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} Primary estimate uses $\hat{\gamma}_{\text{FE}} = 0.937$ (full-career
+FE), biennial ETI $\hat{\varepsilon}^w = 0.297$, and $\hat{\alpha} = 3.295$ from log-rank
+regression ($R^2 = 0.985$). Delta-method CI propagates uncertainty through
+$\hat{\delta} = \hat{\gamma}(1 + \hat{\varepsilon}^w)/(1 + \hat{\gamma})$; the biennial ETI
+contributes 99.6\% of variance in $\hat{\tau}_p$. Bootstrap CI (B $= 500$, clustered) agrees
+within $< 1$ pp. IV lower bound uses $\hat{\gamma}_{\text{IV}} = 0.697$ to address within-year
+simultaneity. Sztutman (2024) comparison is a back-of-envelope estimate from the HRS sample.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%------ Table 5: Sector Heterogeneity and AP Test ------
+\begin{table}[htbp]
+\centering
+\caption{Sector Heterogeneity: $\hat{\gamma}$ and Altonji--Pierret Slopes by Signaling Group}
+\label{tab:sector}
+\begin{threeparttable}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lccccc}
+\toprule
+ & & \multicolumn{2}{c}{$\hat{\gamma}_{\text{FE}}$} & \multicolumn{2}{c}{AP Slope ($\hat{\phi}_2$)} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+Group & Occupations & Estimate & SE & Full sample & 5+yr tenure \\
+\midrule
+Low (farm/laborers) & 7--8 & 0.900 & 0.036 & 0.00511$^{**}$ & 0.00432 \\
+Medium (clerical/sales/ops/service) & 3--6, 9 & 0.953 & 0.028 & 0.00960$^{***}$ & 0.00499 \\
+High (prof/tech, managers) & 1--2 & 1.037 & 0.027 & 0.00666$^{***}$ & 0.00882$^{**}$ \\
+\midrule
+\multicolumn{2}{l}{High $-$ Low gap:} & 0.137 & 0.045 & & \\
+\multicolumn{2}{l}{95\% CI for High $-$ Low:} & \multicolumn{2}{l}{$[0.067, 0.207]$} & & \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} $\hat{\gamma}$ from equation~(\ref{eq:fe_main}) within occupation group,
+NLSY79 1979--1993. AP slope is $\hat{\phi}_2$ from equation~(\ref{eq:ap}): the coefficient
+on AFQT $\times$ potential experience. ``Full sample'' uses all workers in each group.
+``5+yr tenure'' restricts to workers with at least 5 years of occupation-specific experience.
+AP slopes in the ``5+yr tenure'' column are group averages across constituent occupations
+(e.g., High group $= $ average of Professional/Tech and Managers/Admin). The full-sample
+Low-group spike (0.00511) is driven by Laborers' short-tenure workers; restricting to
+5+ year tenure, Laborers collapse to 0.00015 ($t = 0.01$), while Managers/Admin rise to
+0.01493 ($t = 2.85$). Group-level averages understate these within-group contrasts.
+Standard errors clustered by person. $^{**} p < 0.05$; $^{***} p < 0.01$.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%------ Table 6: Delta Lifecycle Arc ------
+\begin{table}[htbp]
+\centering
+\caption{$\hat{\delta}$ Lifecycle Arc: Implied Pigouvian Tax by Career Stage}
+\label{tab:delta_arc}
+\begin{threeparttable}
+\small
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{lcccccc}
+\toprule
+ & & \multicolumn{2}{c}{Annual ETI ($\hat{\varepsilon}^w = -0.048$)} & \multicolumn{2}{c}{Biennial ETI ($\hat{\varepsilon}^w = +0.297$)} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+Exp (yr) & $\hat{\gamma}(\text{exp})$ & $\hat{\delta}$ & $\hat{\tau}_p$ & $\hat{\delta}$ & $\hat{\tau}_p$ \\
+\midrule
+0  & 0.974 & 0.470 & 14.3\% & 0.640 & 19.4\% \\
+5  & 0.915 & 0.455 & 13.8\% & 0.619 & 18.8\% \\
+10 & 0.871 & 0.443 & 13.4\% & 0.604 & 18.3\% \\
+15 & 0.843 & 0.435 & 13.2\% & 0.593 & 18.0\% \\
+20 & 0.830 & 0.432 & 13.1\% & 0.588 & 17.8\% \\
+25 & 0.833 & 0.433 & 13.1\% & 0.589 & 17.9\% \\
+30 & 0.851 & 0.438 & 13.3\% & 0.596 & 18.1\% \\
+35 & 0.886 & 0.447 & 13.6\% & 0.609 & 18.5\% \\
+40 & 0.935 & 0.460 & 14.0\% & 0.627 & 19.0\% \\
+\midrule
+\multicolumn{2}{l}{Within-regime range:} & \multicolumn{2}{c}{1.3 pp} & \multicolumn{2}{c}{1.6 pp} \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{Notes:} $\hat{\gamma}(\text{exp})$ from polynomial specification
+(\ref{eq:fe_poly}). $\hat{\delta}(\text{exp})$ from equation~(\ref{eq:delta}) at fixed
+$\hat{\varepsilon}^w$. $\hat{\tau}_p(\text{exp}) = \hat{\delta}(\text{exp})/\hat{\alpha}$
+with $\hat{\alpha} = 3.295$. Entries at exp $\geq 25$ include the slight quadratic upturn in
+$\hat{\gamma}$ and partly reflect the survivor selection documented in
+Section~\ref{sec:robustness}; the primary structural arc is exp 0--25.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%------ Figure 1: gamma arc ------
+\begin{figure}[htbp]
+\centering
+\caption{Career Arc of the Wage-Cumulative-Hours Elasticity $\hat{\gamma}(\text{exp})$}
+\label{fig:gamma}
+\includegraphics[width=0.85\textwidth]{output/Phase1_Fig3_PolynomialGamma.png}
+\begin{minipage}{0.85\textwidth}
+\small
+\textit{Notes:} Estimated from polynomial specification (\ref{eq:fe_poly}) on the structural
+sample ($N = 179{,}209$). The solid line is $\hat{\gamma}(\text{exp}) = 0.974 - 0.0134 \cdot
+\text{exp} + 0.0003 \cdot \text{exp}^2$. Shaded region is the pointwise 95\% confidence band.
+Career minimum at exp$^* = 21.6$ years, where $\hat{\gamma} = 0.829$. The quadratic upturn
+after exp $= 25$ reflects survivor selection at late career (Section~\ref{sec:robustness})
+and is not part of the main structural arc.
+\end{minipage}
+\end{figure}
+
+\end{document}

@@ -1,51 +1,10 @@
-/*==============================================================================
-PIGOUVIAN_TAX_QUANTIFICATION.DO
-================================================================================
-Purpose: Quantify the optimal Pigouvian tax correction from the signaling model.
-         Combines structural estimates from Phases 1-4 to compute τ_p(y).
-
-FINAL DELIVERABLE:
-  τ_p(y) = 1 − χ(y) = −ε^w_r(y) / η^P_r(y)
-
-  In the Pareto case: τ_p = δ/α
-    δ = information asymmetry (from Phase 1 structural recovery)
-    α = Pareto tail parameter (from income distribution)
-    τ_p should match 1 − χ_full from Phase 2
-
-CROSS-PHASE CONSISTENCY CHECK (MOST IMPORTANT SCRUTINY STEP):
-  Two independent estimates of δ:
-    δ_1: From γ and ε: δ_1 = γ_FE × (1 + ε) / (1 + γ_FE)
-    δ_2: From τ_p and α: δ_2 = τ_p × α = (1 − χ) × α
-
-  If |δ_1 − δ_2| > 0.05: model misfit — diagnose before publication
-  Possible causes: (a) Pareto assumption fails; (b) ETI ≠ ε (different margins);
-                   (c) χ estimate is biased (weak η^P_r)
-
-STRUCTURE:
-  Part 1: Load estimates from Phases 1-4
-  Part 2: Pareto tail parameter α from income distribution
-  Part 3: Pigouvian tax by income decile τ_p(y)
-  Part 4: Dynamic Pigouvian tax by career stage τ_p(y, career)
-  Part 5: Cross-phase consistency check
-  Part 6: Sector-specific Pigouvian correction (if Phase 4 findings support it)
-  Part 7: Summary table for paper
-
-INPUT:  output\Phase1_Table3_Structural.csv
-        output\Phase2_Table4_Pigouvian.csv
-        output\two_period_summary.dta   (or output\two_period_summary.csv)
-        data\nlsy_long_pre_taxsim.dta   (for income distribution)
-        data\analysis_annual.dta        (for income distribution in sample)
-OUTPUT: output\Phase5_Table1_MainResults.rtf
-        output\Phase5_Table2_DynamicTau.rtf
-        output\Phase5_Fig1_TauProfile.png
-        output\Phase5_Fig2_ConsistencyCheck.png
-        output\Phase5_Table3_Summary.csv
-        output\Pigouvian_Tax_log.txt
-
-Author: [Research team]
-Date:   2026-04-10
-Version 1.0
-==============================================================================*/
+* Pigouvian_Tax_Quantification.do
+* Computes the optimal Pigouvian tax on signaling:
+*   tau_p = delta / (alpha * (1 + delta))
+* Collects gamma, epsilon, delta, alpha from prior phases and propagates
+* uncertainty via delta method.
+* Input:  Phase 1-4 outputs
+* Output: Phase5 summary table + tau profile figure
 
 clear all
 set more off
@@ -66,9 +25,7 @@ di "Cross-phase consistency: δ from γ vs. δ from τ_p × α"
 di "Start time: $S_DATE $S_TIME"
 di ""
 
-/*==============================================================================
-PART 0: VERIFY PHASE 1-4 OUTPUTS EXIST
-==============================================================================*/
+* --- Part 0: VERIFY PHASE 1-4 OUTPUTS EXIST ---
 
 di "=============================================================================="
 di "PART 0: VERIFY PREREQUISITE OUTPUTS"
@@ -118,9 +75,7 @@ if `prereqs_ok' == 0 {
 
 di ""
 
-/*==============================================================================
-PART 1: COLLECT ESTIMATES FROM PRIOR PHASES
-==============================================================================*/
+* --- Part 1: COLLECT ESTIMATES FROM PRIOR PHASES ---
 
 di "=============================================================================="
 di "PART 1: COLLECT CROSS-PHASE ESTIMATES"
@@ -190,14 +145,7 @@ else {
 
 di ""
 
-/*==============================================================================
-PART 2: PARETO TAIL PARAMETER α
-================================================================================
-Estimate the Pareto tail index from the top of the wage distribution.
-Method: Log-rank regression on the top 20% of income in the analysis sample.
-  log(1 − F(w)) = c − α·log(w)   ←   slope = −α (Pareto tail parameter)
-Alternatively: use Hill estimator.
-==============================================================================*/
+* --- Part 2: PARETO TAIL PARAMETER α ---
 
 di "=============================================================================="
 di "PART 2: PARETO TAIL PARAMETER α"
@@ -247,7 +195,7 @@ if _rc == 0 {
 
     * Typical range: α ∈ [1.5, 3.5] for US earnings
     if alpha_est < 1 | alpha_est > 5 {
-        di as error "SCRUTINY: α = " %6.3f alpha_est " is outside typical range [1, 5]"
+        di as error "Check: α = " %6.3f alpha_est " is outside typical range [1, 5]"
         di as error "  Check: (1) income variable is correct (not log income by mistake)"
         di as error "         (2) sufficient top-income variation in annual sample"
     }
@@ -265,20 +213,7 @@ else {
     di "  [PLACEHOLDER] α = " $alpha_pareto
 }
 
-/*==============================================================================
-PART 3: PIGOUVIAN TAX COMPUTATION
-================================================================================
-Combining Phase 1 (δ) and Phase 2 (ε^w_r) estimates:
-
-  Method A (Pareto structural):
-    τ_p = δ / α
-    where δ = γ(1+ε)/(1+γ) from Phase 1
-          α = Pareto tail from Part 2
-
-  Method B (Direct from χ):
-    τ_p(y) = 1 − χ(y) = −ε^w_r(y) / η^P_r
-    From Phase 2 (preliminary, needs full η^P_r)
-==============================================================================*/
+* --- Part 3: Pigouvian tax computation ---
 
 di ""
 di "=============================================================================="
@@ -295,7 +230,7 @@ di "  τ_p (Pareto) = " %7.4f `tau_p_a'
 di ""
 
 if `tau_p_a' < 0 {
-    di as error "SCRUTINY FAILURE: τ_p < 0 from Method A"
+    di as error "Warning: τ_p < 0 from Method A"
     di as error "  δ or α is misestimated. Check Phase 1 δ value."
 }
 else if `tau_p_a' > 0.5 {
@@ -331,20 +266,7 @@ foreach e_val in 0.20 0.30 0.40 0.50 0.60 {
     di "  " %6.2f `e_val' "      " %7.4f `d_e' "      " %7.4f `t_e'
 }
 
-/*==============================================================================
-PART 4: DYNAMIC PIGOUVIAN TAX BY CAREER STAGE
-================================================================================
-If Phase 1 rejects constant γ (i.e., the Wald test is significant),
-then τ_p is history-dependent. We compute τ_p for each career stage.
-
-  τ_p(career stage s) = δ_s / α
-  where δ_s = γ_s(1 + ε) / (1 + γ_s) from Phase 1 career-stage estimates
-
-Key predictions:
-  - τ_p_early > τ_p_late: larger distortion early in career
-    (employer uncertainty greatest → largest positive externality)
-  - Convergence: τ_p → 0 as career progresses (employer learning completes)
-==============================================================================*/
+* --- Part 4: DYNAMIC PIGOUVIAN TAX BY CAREER STAGE ---
 
 di ""
 di "=============================================================================="
@@ -397,25 +319,11 @@ di "[PLACEHOLDER NOTE]"
 di "Replace g1-g5 scalars above with actual Phase 1 career-stage γ estimates."
 di "Then this table will show the true dynamic Pigouvian tax profile."
 
-/*==============================================================================
-PART 5: CROSS-PHASE CONSISTENCY CHECK (CRITICAL SCRUTINY)
-================================================================================
-The most important diagnostic: are the two independent δ estimates consistent?
-
-  δ_1 from Phase 1:  δ_1 = γ_FE × (1 + ETI) / (1 + γ_FE)
-  δ_2 from Phase 2:  δ_2 = τ_p × α = (1 − χ) × α
-
-  If |δ_1 − δ_2| > 0.05: model is internally inconsistent; investigate before citing
-
-  This test is the "smoking gun" for whether the model is coherent:
-  - If consistent: both the structural approach (Phase 1) and the reduced-form
-    approach (Phase 2) point to the same information asymmetry δ
-  - If inconsistent: one of the identifying assumptions is violated
-==============================================================================*/
+* --- Part 5: Cross-phase consistency check ---
 
 di ""
 di "=============================================================================="
-di "PART 5: CROSS-PHASE CONSISTENCY CHECK"
+di "PART 5: Cross-phase check"
 di "=============================================================================="
 di ""
 di "δ_1 (Phase 1, structural): " %7.4f $delta_p1
@@ -445,12 +353,7 @@ di "     → Fix: expand TAXSIM sample to near-workers"
 di "  4. γ_FE is contaminated: cumhrs endogenous even within-person"
 di "     → Fix: instrument for cumhrs using past hours or reform-year variation"
 
-/*==============================================================================
-PART 6: SUMMARY TABLE FOR PAPER
-================================================================================
-The final output to be included in the paper:
-Main estimates of τ_p under different assumptions and methods.
-==============================================================================*/
+* --- Part 6: SUMMARY TABLE FOR PAPER — The final output to be included in the paper: ---
 
 di ""
 di "=============================================================================="
@@ -534,9 +437,7 @@ twoway ///
 graph export "${outdir}\Phase5_Fig1_TauProfile.png", replace width(1400)
 restore
 
-/*==============================================================================
-PART 7: FINAL SCRUTINY AND RESEARCH READINESS ASSESSMENT
-==============================================================================*/
+* --- Part 7: Final assessment ---
 
 di ""
 di "=============================================================================="

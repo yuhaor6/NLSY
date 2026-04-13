@@ -1,0 +1,2 @@
+mean_pwages,mean_potexp,mean_hgc,mean_age,mean_cumhrs,sd_pwages,sd_potexp,sd_hgc,sd_age,sd_cumhrs,med_pwages,med_cumhrs,n_obs,sample
+27694.966726595,13.984547,13.57105,33.44611,26344.221,39321.95626179595,11.743815,3.3343658,11.911726,23626.826,17000,18544,189671,"Full analytical pop (age 18-65, pwages>0)"

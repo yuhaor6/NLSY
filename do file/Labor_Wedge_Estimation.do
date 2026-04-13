@@ -1,58 +1,8 @@
-/*==============================================================================
-LABOR_WEDGE_ESTIMATION.DO
-================================================================================
-Purpose: Estimate the labor wedge χ(y) = 1 + ε^w_r / η^P_r
-         and its dynamic profile χ(y, career stage).
-
-THEORETICAL OBJECT:
-  χ(y) is the ratio of marginal productivity to average salary conditional on
-  participation. χ < 1 means workers are paid more than their marginal product
-  → positive externality of labor supply → Pigouvian tax correction warranted.
-
-  Pigouvian correction: τ_p(y) = 1 − χ(y)
-
-ESTIMATION STRATEGY:
-  ε^w_r: Intensive-margin wage elasticity w.r.t. net-of-tax rate r = 1 − τ
-         Estimated via 2SLS from analysis_annual.dta
-         Instrument: simulated MTR at baseline income (Gruber-Saez)
-
-  η^P_r: Participation semi-elasticity w.r.t. net-of-tax rate r
-         Estimated from broader sample including near-workers
-         LPM: ΔP_i = η^P_r · Δlog(r_i) + controls
-         Instrument: same simulated MTR instrument
-
-  NOTE ON IDENTIFICATION SCOPE:
-  - This file uses the same reform-year variation as Two_Period_Analysis.do
-  - The NLSY unique contribution: estimating χ by CAREER STAGE (not just income)
-    This is not feasible with HRS (only late-career workers observed)
-  - Annual period (1978-1993): young workers, χ_young
-  - Biennial period (1995-2019): prime/late career, χ_old
-  - Dynamic wedge profile: χ_young vs χ_old tests history-dependence of τ_p
-
-KNOWN DATA LIMITATION:
-  The Gruber-Saez instrument was computed only for workers with real income ≥ $10K
-  in Two_Period_Analysis.do. For the participation elasticity η^P_r, I need to
-  expand to near-workers. This file constructs a broader participation sample
-  using a reduced-form approach (reform × income interactions as instruments).
-  Full structural η^P_r requires re-running TAXSIM on the near-worker sample —
-  flagged as a future extension.
-
-INPUT:  data\analysis_annual.dta    (from Two_Period_Analysis.do)
-        data\analysis_biennial.dta  (from Two_Period_Analysis.do)
-        data\nlsy_long_pre_taxsim.dta
-        data\BLS_CPI.dta
-OUTPUT: output\Phase2_Table1_WedgeByDecile.rtf
-        output\Phase2_Table2_DynamicWedge.rtf
-        output\Phase2_Table3_Elasticities.rtf
-        output\Phase2_Fig1_ChiProfile.png
-        output\Phase2_Fig2_DynamicChi.png
-        output\Phase2_Table4_Pigouvian.csv
-        output\Labor_Wedge_log.txt
-
-Author: [Research team]
-Date:   2026-04-10
-Version 1.0
-==============================================================================*/
+* Labor_Wedge_Estimation.do
+* Estimates the labor wedge chi = 1/(1 - tau_L) from combined ETI and
+* participation elasticity. Uses reform x income interactions as instruments.
+* Input:  data/nlsy_long_pre_taxsim.dta, TAXSIM outputs
+* Output: Phase2 labor wedge tables
 
 clear all
 set more off
@@ -73,9 +23,7 @@ di "Pigouvian correction: τ_p(y) = 1 − χ(y)"
 di "Start time: $S_DATE $S_TIME"
 di ""
 
-/*==============================================================================
-PART 0: VERIFY INPUTS
-==============================================================================*/
+* --- Part 0: VERIFY INPUTS ---
 
 di "=============================================================================="
 di "PART 0: VERIFY INPUTS"
@@ -99,15 +47,7 @@ use "${datadir}\BLS_CPI.dta", clear
 qui sum CPI if year == 1984
 global cpi_1984 = r(mean)
 
-/*==============================================================================
-PART 1: INTENSIVE MARGIN — WAGE ELASTICITY ε^w_r BY INCOME DECILE
-================================================================================
-This is the core Two_Period_Analysis ETI, broken out by income decile.
-The ETI (ε^w_r) measures how wages respond to changes in the net-of-tax rate.
-We estimate separately for:
-  (a) Annual period 1978-1993 (young workers, ages 17-35)
-  (b) Biennial period 1995-2019 (prime/late workers, ages 31-62)
-==============================================================================*/
+* --- Part 1: INTENSIVE MARGIN — WAGE ELASTICITY ε^w_r BY INCOME DECILE ---
 
 di "=============================================================================="
 di "PART 1: INTENSIVE WAGE ELASTICITY ε^w_r BY INCOME DECILE AND PERIOD"
@@ -295,35 +235,7 @@ forvalues q = 1/4 {
 
 save "${datadir}\analysis_biennial_augmented.dta", replace
 
-/*==============================================================================
-PART 2: EXTENSIVE MARGIN - PARTICIPATION ELASTICITY eta^P_r (FULL IV)
-================================================================================
-Uses the FULL paired sample from Two_Period_Analysis.do WITHOUT the $10K real
-income floor that filtered the intensive margin sample (Part 1).
-
-KEY INSIGHT: In Two_Period_Analysis.do the TAXSIM counterfactual (applying
-year t+3 tax law to inflated year t income) was run on ALL paired observations
-BEFORE the $10K income floor was applied; predicted_rates_annual.dta therefore
-contains the Gruber-Saez instrument for near-workers ($500-$10K) too.
-
-SAMPLE: Everyone with real income >= $500 (1984$) at year t, stable marital
-        status over the 3-year window. Includes:
-          Near-workers : $500 - $10,000 real  (the participation margin)
-          Main workers : >= $10,000 real       (also in Part 1 intensive sample)
-
-OUTCOME: d_worked = worked_t3 - 1
-          worked_t3 = 1 if real_income_t3 >= $500,  else 0
-          d_worked = 0 (stayer) or -1 (exiter)
-
-INSTRUMENT: log_ntr_instrument_p = log(1-MTR_pred/100) - log(1-MTR_t/100)
-  MTR_pred = year t+3 tax law applied to year t income (inflated)
-  MTR_t    = actual year t marginal tax rate (from TAXSIM)
-
-This matches Sztutman (2024) Section 5.2.2 and applies it to NLSY79.
-LIFECYCLE NOTE: NLSY79 annual workers (ages 17-35) are NOT at the retirement
-margin. eta^P_r for this cohort may be close to zero or negative because
-labour market exits at young ages are often temporary (schooling, childcare).
-==============================================================================*/
+* --- Part 2: EXTENSIVE MARGIN - PARTICIPATION ELASTICITY eta^P_r (FULL IV) ---
 
 di ""
 di "=============================================================================="
@@ -503,22 +415,7 @@ if r(N) >= 50 {
     }
 }
 
-/*==============================================================================
-PART 3: COMPUTE chi = 1 + eps^w_r / eta^P_r (FULL IV)
-================================================================================
-Combines intensive wage elasticity eps^w_r (Part 1) with participation
-semi-elasticity eta^P_r (Part 2) to compute the labor wedge chi.
-
-Formula (Sztutman 2024, Equation 17):
-  chi(y) = 1 + eps^w_r(y) / eta^P_r(y)
-  tau_p(y) = 1 - chi(y)
-
-LIFECYCLE CAVEAT:
-  NLSY79 annual workers (ages 17-35) are not at the retirement margin.
-  eta^P_r may be close to zero, making chi non-finite.
-  In that case, use the structural tau_p = delta/alpha from Phase 5
-  as the primary identification route for NLSY79.
-==============================================================================*/
+* --- Part 3: COMPUTE chi = 1 + eps^w_r / eta^P_r (FULL IV) ---
 
 di ""
 di "=============================================================================="
@@ -553,7 +450,7 @@ else {
     di ""
 
     if chi_full < 0 | chi_full > 5 {
-        di as error "SCRUTINY: chi = " %8.4f chi_full " outside plausible range [0,5]"
+        di as error "Check: chi = " %8.4f chi_full " outside plausible range [0,5]"
         di as error "  Likely cause: eta^P_r near zero for ages 17-35 workers."
         di as error "  The full-sample pooled ratio eps/eta blows up when eta -> 0."
         di as error "  This matches Sztutman's own experience: his Figure 3 uses local"
@@ -574,18 +471,7 @@ else {
 }
 
 
-/*==============================================================================
-PART 4: DYNAMIC WEDGE PROFILE χ BY CAREER STAGE
-================================================================================
-NLSY79's unique contribution: full career arc from ages ~17 to ~65.
-This section estimates ε^w_r (and subsequently χ) by career stage,
-using both the annual (young) and biennial (older) periods.
-
-KEY TEST: Does ε^w_r vary by career stage?
-  - Higher ε^w_r late career → larger wedge for experienced workers
-  - This would contradict the Pareto case (constant τ_p)
-  - Would support the general dynamic model where χ depends on h
-==============================================================================*/
+* --- Part 4: DYNAMIC WEDGE PROFILE χ BY CAREER STAGE ---
 
 di ""
 di "=============================================================================="
@@ -632,9 +518,7 @@ di ""
 di "  Pareto case: ε^w_r should be approximately CONSTANT across career stages"
 di "  (labor supply elasticity is a preference parameter, not career-stage specific)"
 
-/*==============================================================================
-PART 5: COMPREHENSIVE χ PROFILE — FIGURES AND TABLES
-==============================================================================*/
+* --- Part 5: COMPREHENSIVE χ PROFILE — FIGURES AND TABLES ---
 
 di ""
 di "=============================================================================="
@@ -733,20 +617,7 @@ capture noisily twoway ///
 capture noisily graph export "${outdir}\Phase2_Fig2_DynamicEps.png", replace width(1400)
 restore
 
-/*==============================================================================
-PART 6: PRELIMINARY PIGOUVIAN TAX PROFILE
-================================================================================
-Given the preliminary χ estimates, compute τ_p = 1 − χ by income decile.
-
-IMPORTANT CAVEATS:
-  1. η^P_r is approximated, not precisely estimated → treat as directional
-  2. χ by DECILE requires decile-specific η^P_r, which needs TAXSIM expansion
-  3. Current estimates are SUFFICIENT for steering decision:
-     - If ε^w_r varies significantly by decile → progressive Pigouvian tax
-     - If ε^w_r is roughly constant → flat Pigouvian tax (consistent with Pareto)
-
-  After TAXSIM expansion (future extension), replace η^P_r with full IV estimates.
-==============================================================================*/
+* --- Part 6: PRELIMINARY PIGOUVIAN TAX PROFILE ---
 
 di ""
 di "=============================================================================="
@@ -787,13 +658,11 @@ list decile eps_w chi_approx tau_p, clean noobs
 export delimited using "${outdir}\Phase2_Table4_Pigouvian.csv", replace
 restore
 
-/*==============================================================================
-PART 7: SCRUTINY SUMMARY AND STEERING DECISION
-==============================================================================*/
+* --- Summary ---
 
 di ""
 di "=============================================================================="
-di "PART 7: SCRUTINY SUMMARY"
+di "Summary"
 di "=============================================================================="
 di ""
 
@@ -840,7 +709,7 @@ di "  Compare Sztutman (HRS 4yr): eta^P_r = +0.01"
 di "  Compare Sztutman (HRS 2yr): eta^P_r = +0.10"
 
 di ""
-di "STEERING DECISION:"
+di "Next steps:"
 di ""
 if eps_w_annual > 0 & F_annual > 10 {
     di "  ε^w_r is identified. Proceed to Phase 3 (advantageous selection)."
@@ -874,7 +743,7 @@ di "Log (${outdir}):"
 di "  Labor_Wedge_log.txt"
 di ""
 di "=============================================================================="
-di "PHASE 2 COMPLETE (PRELIMINARY — SEE SCRUTINY NOTES)"
+di "PHASE 2 COMPLETE (PRELIMINARY)"
 di "=============================================================================="
 di "End time: $S_DATE $S_TIME"
 di ""

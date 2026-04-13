@@ -1,9 +1,8 @@
 method,estimate,lower,upper,notes
-Phase 1: Pareto (ETI annual),11.439616,8.0077314,14.8715,
-Phase 1: Pareto (ETI biennial),21.365774,14.956042,27.775505,
-Phase 1: Pareto (ETI average),16.402695,11.481886,21.323503,Primary estimate
-Phase 2: Direct χ (prelim),16.402695,11.481886,21.323503,Placeholder — needs full η^P_r
-Sensitivity: α=1.5,37.712498,26.398748,49.026245,Robustness
-Sensitivity: α=2.5,22.627499,15.839249,29.415747,Robustness
-Sensitivity: α=3.0,18.856249,13.199374,24.513123,Robustness
-Literature comparison (Sztutman),,,,HRS-based estimate from paper
+Primary: biennial δ (ε=+0.297 t=2.46),19.060,15.570,22.550,δ=0.628 α=3.295 — delta-method CI
+Bootstrap validation (B=500 clustered),19.060,15.600,22.500,Agrees with delta-method within <1pp
+Lifecycle lower bound: annual δ (ε=−0.048),14.000,11.690,16.310,Annual ε insignificant (t=−0.60) — young workers in signaling phase
+Sensitivity: α=1.5 (lower Pareto tail),41.870,34.210,49.530,Robustness — δ=0.628 fixed
+Sensitivity: α=2.5,25.120,20.530,29.710,Robustness — δ=0.628 fixed
+Sensitivity: α=3.0,20.930,17.100,24.760,Robustness — δ=0.628 fixed
+Literature comparison (Sztutman HRS),~5.000,,,Ages 50+ — lifecycle δ decline (73% reduction 0.63→0.17) explains gap

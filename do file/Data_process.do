@@ -124,18 +124,7 @@ rename t5176100 hgc_2016
 rename t7743900 hgc_2018
 rename t8355300 hgc_2020
 
-/*==============================================================================
-FIX #3: Realign HGC for biennial years to match income years
-==============================================================================
-For biennial surveys (1996+), hgc is measured at survey time but income is 
-from the prior year. We need education as of the income year.
-
-APPROACH: For biennial years, the education at survey time is a reasonable
-proxy for education during the income year (most education is completed
-before entering the workforce anyway).
-
-We'll align these when reshaping to long format.
-==============================================================================*/
+* --- FIX #3: Realign HGC for biennial years to match income years ---
 
 * Realign HGC for biennial years (survey year -> income year)
 rename hgc_1996 hgc_1995
@@ -232,15 +221,7 @@ label var college_grad "College graduate (16+ years)"
 label var some_college "Some college (13-15 years)"
 label var hs_grad "High school graduate only"
 
-/*==============================================================================
-FIX #2: CREATE CUMULATIVE HOURS WITH INTERPOLATION FOR MISSING YEARS
-==============================================================================
-For biennial years (1995+), we don't have hours for even years (1994, 1996...).
-We interpolate by assuming similar hours to adjacent observed years.
-
-METHOD: For year Y (odd, observed), we estimate hours for Y-1 (even, unobserved)
-as equal to hours_Y (the best proxy available).
-==============================================================================*/
+* --- FIX #2: CREATE CUMULATIVE HOURS WITH INTERPOLATION FOR MISSING YEARS ---
 
 di ""
 di "=============================================================================="
@@ -339,13 +320,7 @@ foreach yr in 1978 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1
 
 di "Cumulative hours now include interpolated estimates for non-survey years."
 
-/*==============================================================================
-PART 2: RENAME CPSOCC70 - CPS JOB OCCUPATION (1970 Census 3-digit codes)
-==============================================================================
-Reference numbers from codebook:
-- These represent the occupation of the respondent's current/most recent job
-- Available 1979-1993 (annual survey period)
-==============================================================================*/
+* --- Part 2: RENAME CPSOCC70 - CPS JOB OCCUPATION (1970 Census 3-digit codes) ---
 * 1979: R00464.00
 rename r0046400 cpsocc70_1979
 
@@ -392,13 +367,7 @@ rename r3727800 cpsocc70_1992
 rename r4182100 cpsocc70_1993
 
 
-/*==============================================================================
-PART 3: RENAME OCCALL-EMP.01 - JOB #1 OCCUPATION (All Jobs)
-==============================================================================
-Reference numbers from codebook:
-- Occupation of Employer #1 (typically the main/primary job)
-- Available 1980-2022
-==============================================================================*/
+* --- Part 3: RENAME OCCALL-EMP.01 - JOB #1 OCCUPATION (All Jobs) ---
 
 * 1980: R03383.00
 rename r0338300 occall01_1980
@@ -484,14 +453,7 @@ rename t8428300 occall01_2020
 * 2022: T89824.00
 rename t8982400 occall01_2022
 
-/*==============================================================================
-PART 4: RENAME EMPLOYERS_ALL_IND - JOB #1 INDUSTRY (1970 Census codes)
-==============================================================================
-Reference numbers from codebook:
-- Industry of Employer #1
-- 1970 Census codes for 1979-2000
-- 2000 Census codes for 2002+
-==============================================================================*/
+* --- Part 4: RENAME EMPLOYERS_ALL_IND - JOB #1 INDUSTRY (1970 Census codes) ---
 
 * 1979: E59001.00
 rename e5900100 ind01_1979
@@ -585,19 +547,7 @@ rename e9452000 ind01_2022
 
 di "EMPLOYERS_ALL_IND variables renamed: 1979-2022"
 
-/*==============================================================================
-PART 4B: RENAME CPSIND70 - CPS JOB INDUSTRY (1970 Census 3-digit codes)
-==============================================================================
-FIX #7 (Industry Variable Bug):
-- CPSIND70 = industry of respondent's CURRENT/MOST RECENT CPS job
-- Available 1979-1993 (matches annual survey period)
-- These reference numbers were missing from the keep command, causing
-  ind_broad coverage to collapse from ~48% (1979) to ~2% (1993).
-- Root cause: Part 4 was using ind01_ (Employer #1 in lifetime roster),
-  which is typically the FIRST-EVER employer, not the current job.
-- Fix: add CPSIND70 refs to keep command (Fix #7a) and use them for
-  1979-1993 in Part 7 (Fix #7b).
-==============================================================================*/
+* --- Part 4B: RENAME CPSIND70 - CPS JOB INDUSTRY (1970 Census 3-digit codes) ---
 
 rename r0046300 cpsind70_1979
 rename r0263300 cpsind70_1980
@@ -617,16 +567,7 @@ rename r4182000 cpsind70_1993
 
 di "CPSIND70 variables renamed: 1979-1993"
 
-/*==============================================================================
-PART 5: CLEAN MISSING VALUES
-==============================================================================
-NLSY missing codes:
--1 = Refused
--2 = Don't know
--3 = Invalid skip
--4 = Valid skip
--5 = Non-interview
-==============================================================================*/
+* --- Part 5: CLEAN MISSING VALUES — NLSY missing codes: ---
 
 di ""
 di "Cleaning missing values..."
@@ -715,13 +656,7 @@ foreach var of varlist cpsind70_* {
     replace `var' = . if `var' < 0
 }
 
-/*==============================================================================
-PART 6: CREATE UNIFIED OCCUPATION VARIABLE (occ_YYYY)
-==============================================================================
-Strategy:
-- For 1979-1993: Use CPSOCC70 (CPS job occupation)
-- For 1994+: Use OCCALL01 (Job #1 occupation)
-==============================================================================*/
+* --- Part 6: CREATE UNIFIED OCCUPATION VARIABLE (occ_YYYY) — Strategy: ---
 
 * Annual period: Use CPSOCC70
 gen occ_1979 = cpsocc70_1979
@@ -759,14 +694,7 @@ gen occ_2022 = occall01_2022
 
 di "Unified occ_YYYY variables created"
 
-/*==============================================================================
-PART 7: CREATE UNIFIED INDUSTRY VARIABLE (ind_YYYY)
-==============================================================================
-FIX #7b: For 1979-1993, use CPSIND70 (current CPS job industry) instead of
-         ind01 (Employer #1 in lifetime roster, which collapses after ~1985
-         as workers move off their first-ever employer).
-         For 1994+, continue using ind01 (no CPSIND70 available after 1993).
-==============================================================================*/
+* --- Part 7: CREATE UNIFIED INDUSTRY VARIABLE (ind_YYYY) ---
 
 * 1979-1993: Use CPSIND70 (Fix #7b — correct current-job industry)
 gen ind_1979 = cpsind70_1979
@@ -801,21 +729,7 @@ gen ind_2020 = ind01_2020
 gen ind_2022 = ind01_2022
 
 
-/*==============================================================================
-PART 8: CREATE BROAD OCCUPATION CATEGORIES (1-digit from 3-digit codes)
-==============================================================================
-1970 Census Occupation Codes → Broad Categories:
-001-195: Professional, Technical (1)
-201-245: Managers, Administrators (2)
-260-285: Sales Workers (3)
-301-395: Clerical Workers (4)
-401-575: Craftsmen (5)
-601-695: Operatives except transport (6)
-701-715: Transport Equipment Operatives (6)
-740-785: Laborers (7)
-801-824: Farm Workers (8)
-901-984: Service Workers (9)
-==============================================================================*/
+* --- Part 8: CREATE BROAD OCCUPATION CATEGORIES (1-digit from 3-digit codes) ---
 
 * 1979
 gen occ_broad_1979 = .
@@ -1027,22 +941,7 @@ label values occ_broad_1993 occ_broad_lbl
 
 di "Broad occupation categories created"
 
-/*==============================================================================
-PART 9: CREATE BROAD INDUSTRY CATEGORIES (1-digit from 3-digit codes)
-1970 Census Industry Codes → Broad Categories:
-017-029: Agriculture, Forestry, Fisheries (1)
-047-058: Mining (2)
-067-078: Construction (3)
-107-398: Manufacturing (4)
-407-499: Transportation, Communication, Utilities (5)
-507-699: Wholesale and Retail Trade (6)
-707-719: Finance, Insurance, Real Estate (7)
-727-767: Business and Repair Services (8)
-769-799: Personal Services (9)
-807-817: Entertainment and Recreation (10)
-828-899: Professional Services (11)
-907-947: Public Administration (12)
-==============================================================================*/
+* --- Part 9: CREATE BROAD INDUSTRY CATEGORIES (1-digit from 3-digit codes) ---
 
 * 1979
 gen ind_broad_1979 = .
@@ -1699,20 +1598,7 @@ rename t8791802 child3year_2020
 rename t9303601 child3month_2022
 rename t9303602 child3year_2022
 
-/*==============================================================================
-FIX #4: REALIGN DEMOGRAPHIC VARIABLES FOR BIENNIAL YEARS
-==============================================================================
-For biennial surveys, income variables refer to the prior calendar year.
-NLSY 1996 survey → 1995 income, 1998 survey → 1997 income, etc.
-
-PAGE: For income year analysis, we need the age at the midpoint of the income
-      year, not at interview time. For someone interviewed in 1996 who reports
-      1995 income, we subtract 1 from their interview age.
-
-CORRECTED APPROACH:
-- For biennial years, create page for income year as survey_page - 1
-- mstat, depx are point-in-time measures (less critical, but also realigned)
-==============================================================================*/
+* --- FIX #4: REALIGN DEMOGRAPHIC VARIABLES FOR BIENNIAL YEARS ---
 
 di ""
 di "=============================================================================="
@@ -1747,11 +1633,7 @@ foreach yr in 1996 1998 2000 2002 2004 2006 2008 2010 2012 2014 2016 2018 2020 2
 di "Demographic variables realigned to income years."
 di "IMPORTANT: Biennial ages are now INCOME-YEAR ages (survey age - 1)."
 
-/*==============================================================================
-RESHAPE WIDE TO LONG
-==============================================================================
-FIX #3: Include hgc_ in the reshape for year-specific education
-==============================================================================*/
+* --- RESHAPE WIDE TO LONG — FIX #3: Include hgc_ in the reshape for year-specific education ---
 
 di ""
 di "=============================================================================="
@@ -1786,13 +1668,7 @@ gen age1 = floor((refdate - dob_c1    )/365.25)
 gen age2 = floor((refdate - dob_c2    )/365.25)
 gen age3 = floor((refdate - dob_c3    )/365.25)
 
-/*==============================================================================
-FIX #6: SPOUSE AGE VALIDATION
-==============================================================================
-TAXSIM crashes if spouse age is unreasonable (e.g., 118 years old).
-Add validation to ensure sage is within reasonable bounds.
-TAXSIM expects spouse age between 15 and ~100.
-==============================================================================*/
+* --- FIX #6: SPOUSE AGE VALIDATION ---
 
 * Zero out invalid spouse ages (negative or unreasonably high)
 replace sage = 0 if sage < 0
@@ -1859,24 +1735,7 @@ foreach a in age1 age2 age3 {
 }
 replace depx = dep19 if dep19 > depx
 
-/*==============================================================================
-FIX #1: CORRECT MARITAL STATUS MAPPING FOR TAXSIM
-==============================================================================
-NLSY79 marital status codes:
-  0 = Never married
-  1 = Married, spouse present  
-  2 = Separated
-  3 = Divorced
-  4 = Widowed
-
-TAXSIM marital status codes:
-  1 = Single
-  2 = Married filing jointly
-
-CORRECTED MAPPING:
-  NLSY 1 (Married, spouse present) → TAXSIM 2 (MFJ)
-  All others → TAXSIM 1 (Single)
-==============================================================================*/
+* --- FIX #1: CORRECT MARITAL STATUS MAPPING FOR TAXSIM — NLSY79 marital status codes: ---
 
 di ""
 di "=============================================================================="
@@ -1910,14 +1769,7 @@ replace sage    = 0 if mstat != 2
 replace swages  = 0 if mstat != 2
 replace ssemp   = 0 if mstat != 2
 
-/*==============================================================================
-FIX #6 (continued): COMPREHENSIVE SPOUSE VARIABLE VALIDATION
-==============================================================================
-Ensure all spouse-related variables are valid for TAXSIM:
-- sage must be 0 for single filers
-- sage must be between 15-100 for married filers (or 0 if unknown)
-- Spouse income must be 0 for single filers
-==============================================================================*/
+* --- FIX #6 (continued): COMPREHENSIVE SPOUSE VARIABLE VALIDATION ---
 
 di ""
 di "=============================================================================="
@@ -1984,19 +1836,14 @@ foreach v of local survvars {
     replace `v' = 0 if `v' < 0
 }
 
-/*==============================================================================
-FIX #5: POTENTIAL EXPERIENCE WITH YEAR-SPECIFIC EDUCATION
-==============================================================================
-Use current-year HGC (from hgc variable) instead of lifetime max_education
-This ensures experience is calculated correctly for young workers still in school
-==============================================================================*/
+* --- FIX #5: POTENTIAL EXPERIENCE WITH YEAR-SPECIFIC EDUCATION ---
 
 di ""
 di "=============================================================================="
 di "CREATING POTENTIAL EXPERIENCE WITH YEAR-SPECIFIC EDUCATION (FIX #5)"
 di "=============================================================================="
 
-* FIX #5: Use year-specific education
+* Fix: Use year-specific education
 * pot_exp = Age - Years of Education - 6 (school starting age)
 gen pot_exp = page - hgc - 6 if !missing(page) & !missing(hgc)
 
@@ -2078,32 +1925,7 @@ label var some_coll "13-15 years (some college, no BA)"
 label var ba_degree "Completed exactly 16 years (BA degree)"
 label var grad_degree "17+ years (graduate degree)"
 
-/*==============================================================================
-FIX #8: CORRECT CUMHRS FOR EMPLOYED-BUT-NO-HOURS ANNUAL OBSERVATIONS
-==============================================================================
-ROOT CAUSE: The cumhrs variable was built by zero-filling ALL missing annual
-hours before accumulation (pre-reshape). This treats survey non-response
-identically to non-employment. Person-years where pwages > 0 but hrs = 0
-are economically impossible — a worker cannot have positive wages and zero
-hours — yet they arise from this zero-fill whenever a respondent reported
-wages but skipped the hours question.
-
-Bound, Brown & Mathiowetz (2001, Handbook of Econometrics) and Card & Hyslop
-(1997) document that hours non-response in NLSY surveys is positively
-correlated with employment, not non-employment. Standard data quality
-practice is to flag and impute these cases.
-
-FIX (post-reshape long format): For annual years (1978-1993), wherever
-pwages > 0 and hrs == 0, replace hrs with the person's median annual hours
-from valid observations (hrs > 0, pwages > 0). Use the sample-wide median as
-fallback for persons with no valid obs. Then apply the correction cumulatively
-to cumhrs (cumhrs at that year and all future years increases by the imputed
-hours value). Finally recompute recent_hrs from the corrected cumhrs.
-
-NOTE: Biennial years (1995+) are unchanged — zero hours in a biennial year
-where pwages > 0 is less frequent and less consequential for the cumhrs
-denominator given the longer horizon.
-==============================================================================*/
+* --- FIX #8: CORRECT CUMHRS FOR EMPLOYED-BUT-NO-HOURS ANNUAL OBSERVATIONS ---
 
 di ""
 di "=============================================================================="
@@ -2225,12 +2047,7 @@ di ""
 * Create UI variable for TAXSIM
 gen double ui = pui
 
-/*==============================================================================
-FINAL TAXSIM VARIABLE VALIDATION
-==============================================================================
-Ensure all variables required by TAXSIM are within valid ranges.
-This prevents TAXSIM from crashing with "Unbelievable" value errors.
-==============================================================================*/
+* --- FINAL TAXSIM VARIABLE VALIDATION ---
 
 di ""
 di "=============================================================================="

@@ -2,7 +2,7 @@
       name:  <unnamed>
        log:  D:\Stata Data\labor_signaling_project\output\Labor_Wedge_log.txt
   log type:  text
- opened on:  10 Apr 2026, 18:24:58
+ opened on:  10 Apr 2026, 19:36:47
 
 . 
 . di ""
@@ -26,7 +26,7 @@ LABOR WEDGE ESTIMATION (PHASE 2)
 Pigouvian correction: τ_p(y) = 1 − χ(y)
 
 . di "Start time: $S_DATE $S_TIME"
-Start time: 10 Apr 2026 18:24:58
+Start time: 10 Apr 2026 19:36:47
 
 . di ""
 
@@ -115,7 +115,7 @@ PART 1: INTENSIVE WAGE ELASTICITY ε^w_r BY INCOME DECILE AND PERIOD
 . use "${datadir}\analysis_annual.dta", clear
 
 . di "Loaded analysis_annual.dta: " _N " obs"
-Loaded analysis_annual.dta: 31832 obs
+Loaded analysis_annual.dta: 53632 obs
 
 . 
 . * Assign income deciles by baseline income
@@ -141,47 +141,47 @@ Full-sample ε^w_r (intensive wage elasticity):
 >     (log_ntr_change = log_ntr_instrument) ///
 >     log_income_t spline1-spline9 married i.year_t ///
 >     [aweight=income_weight], cluster(taxsimid)
-(sum of wgt is   6.5852e+08)
+(sum of wgt is   9.2914e+08)
 
-Instrumental-variables 2SLS regression            Number of obs   =     31,832
-                                                  Wald chi2(24)   =    1006.58
+Instrumental-variables 2SLS regression            Number of obs   =     53,632
+                                                  Wald chi2(24)   =    4913.01
                                                   Prob > chi2     =     0.0000
-                                                  R-squared       =     0.1307
-                                                  Root MSE        =     .45346
+                                                  R-squared       =     0.1756
+                                                  Root MSE        =     .43719
 
-                           (Std. err. adjusted for 7,223 clusters in taxsimid)
+                           (Std. err. adjusted for 9,015 clusters in taxsimid)
 ------------------------------------------------------------------------------
              |               Robust
 log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
 -------------+----------------------------------------------------------------
-log_ntr_ch~e |  -.1734079   .1235282    -1.40   0.160    -.4155188    .0687031
-log_income_t |  -.5868745    .129912    -4.52   0.000    -.8414974   -.3322516
-     spline1 |   .2885552   .2701225     1.07   0.285    -.2408751    .8179855
-     spline2 |  -.2113008   .2704571    -0.78   0.435     -.741387    .3187854
-     spline3 |   .4702111   .2412204     1.95   0.051    -.0025721    .9429944
-     spline4 |  -.3002127   .2519226    -1.19   0.233    -.7939719    .1935465
-     spline5 |   .1420621   .2136782     0.66   0.506    -.2767395    .5608636
-     spline6 |  -.0239037   .1815727    -0.13   0.895    -.3797796    .3319721
-     spline7 |  -.1275914   .1737925    -0.73   0.463    -.4682183    .2130356
-     spline8 |   .4969802   .1576822     3.15   0.002     .1879288    .8060315
-     spline9 |  -.5665562   .1246266    -4.55   0.000    -.8108199   -.3222925
-     married |   .0681183   .0090235     7.55   0.000     .0504326    .0858039
+log_ntr_ch~e |  -.0450302   .0802873    -0.56   0.575    -.2023904      .11233
+log_income_t |  -.2035627   .0521924    -3.90   0.000    -.3058579   -.1012674
+     spline1 |  -.5026046   .0956353    -5.26   0.000    -.6900463    -.315163
+     spline2 |    .303811   .1222058     2.49   0.013     .0642919      .54333
+     spline3 |  -.1537181   .1089506    -1.41   0.158    -.3672574    .0598211
+     spline4 |    .167776   .1200715     1.40   0.162    -.0675599    .4031119
+     spline5 |    .101733   .1234242     0.82   0.410    -.1401739      .34364
+     spline6 |  -.0448035    .115082    -0.39   0.697    -.2703602    .1807531
+     spline7 |  -.0547031   .1106157    -0.49   0.621    -.2715059    .1620997
+     spline8 |   .2084726   .1026055     2.03   0.042     .0073696    .4095757
+     spline9 |  -.1561172   .0743781    -2.10   0.036    -.3018956   -.0103389
+     married |  -.0206244   .0069996    -2.95   0.003    -.0343434   -.0069054
              |
       year_t |
-       1979  |  -.0079901   .0771468    -0.10   0.918     -.159195    .1432149
-       1980  |    .080378   .0796163     1.01   0.313    -.0756671    .2364231
-       1981  |   .1492201   .0815914     1.83   0.067    -.0106961    .3091363
-       1982  |   .3210112   .0817546     3.93   0.000     .1607752    .4812472
-       1983  |   .3823053   .0824988     4.63   0.000     .2206106    .5440001
-       1984  |   .4121909   .0823482     5.01   0.000     .2507915    .5735903
-       1985  |   .4299652   .0820533     5.24   0.000     .2691437    .5907866
-       1986  |    .411729   .0817438     5.04   0.000     .2515141    .5719439
-       1987  |   .4149947   .0828147     5.01   0.000     .2526808    .5773085
-       1988  |   .4260441   .0830307     5.13   0.000      .263307    .5887813
-       1989  |   .4104017   .0832722     4.93   0.000     .2471912    .5736121
-       1990  |   .4244758   .0832704     5.10   0.000     .2612688    .5876828
+       1979  |  -.0804667   .0191125    -4.21   0.000    -.1179266   -.0430068
+       1980  |  -.0292307   .0194607    -1.50   0.133    -.0673731    .0089116
+       1981  |  -.0020913   .0199665    -0.10   0.917     -.041225    .0370423
+       1982  |   .1049025   .0203356     5.16   0.000     .0650454    .1447596
+       1983  |    .175734   .0208289     8.44   0.000     .1349101     .216558
+       1984  |   .2253071   .0202582    11.12   0.000     .1856018    .2650124
+       1985  |   .2306896   .0195002    11.83   0.000       .19247    .2689093
+       1986  |   .2212277   .0194954    11.35   0.000     .1830174    .2594381
+       1987  |   .2299359   .0204653    11.24   0.000     .1898246    .2700472
+       1988  |    .257844   .0209367    12.32   0.000     .2168087    .2988792
+       1989  |   .2430766   .0212404    11.44   0.000     .2014461    .2847071
+       1990  |   .2732914   .0212933    12.83   0.000     .2315573    .3150254
              |
-       _cons |   5.390056   1.157175     4.66   0.000     3.122036    7.658077
+       _cons |   2.254082   .4476327     5.04   0.000     1.376738    3.131426
 ------------------------------------------------------------------------------
 Endogenous: log_ntr_change
 Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
@@ -200,7 +200,7 @@ Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
 . 
 . di "  ε^w_r (annual) = " %7.4f eps_w_annual ///
 >    "  SE = " %6.4f se_eps_annual
-  ε^w_r (annual) = -0.1734  SE = 0.1235
+  ε^w_r (annual) = -0.0450  SE = 0.0803
 
 . 
 . * First-stage F-stat (critical for validity)
@@ -213,7 +213,7 @@ Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
 . scalar F_annual = r(F)
 
 . di "  First-stage F = " %7.2f F_annual
-  First-stage F = 1349.36
+  First-stage F = 2621.96
 
 . if F_annual < 10 {
 .     di as error "  WARNING: Weak instrument (F < 10). IV estimates unreliable
@@ -262,16 +262,16 @@ Decile  ε^w_r     SE        t     N
  14.         scalar se_d`d'_ann = .
  15.     }
  16. }
-  D01     0.0679    0.2392    0.28    3184
-  D02     0.2468    0.3327    0.74    3185
-  D03    -0.2808    0.2796   -1.00    3856
-  D04     0.6188    0.9711    0.64    2584
-  D05    -0.4339    0.5034   -0.86    3107
-  D06    -2.4517    0.9280   -2.64    3955
-  D07    -0.0690    1.1170   -0.06    2772
-  D08    -0.3361    0.5106   -0.66    3069
-  D09    -0.0211    0.5803   -0.04    3095
-  D10    -0.5234    0.3727   -1.40    3025
+  D01     0.1679    0.3682    0.46    5428
+  D02    -0.1180    0.3083   -0.38    5299
+  D03    -0.1513    0.1546   -0.98    6096
+  D04     0.1282    0.2046    0.63    5477
+  D05    -0.3273    0.2478   -1.32    4681
+  D06     0.0173    0.2993    0.06    5199
+  D07    -1.4929    0.4163   -3.59    6387
+  D08    -0.0278    0.5277   -0.05    4400
+  D09     0.3361    0.3686    0.91    5302
+  D10    -0.1930    0.2898   -0.67    5363
 
 . 
 . * By career stage (age quartile)
@@ -321,10 +321,10 @@ Stage   ε^w_r     SE        t     Age range
  22.         scalar eps_q`q'_ann = .
  23.     }
  24. }
-  Q1      0.4418    0.2760    1.60    0-22
-  Q2     -0.2939    0.1769   -1.66   23-25
-  Q3     -0.2062    0.1857   -1.11   26-28
-  Q4     [identification failure in subsample r(_rc)=481]
+  Q1      0.0282    0.1379    0.20    0-21
+  Q2      0.2488    0.1612    1.54   22-24
+  Q3     -0.0798    0.1384   -0.58   25-27
+  Q4     -0.0980    0.2198   -0.45   28-33
 
 . 
 . save "${datadir}\analysis_annual_augmented.dta", replace
@@ -346,7 +346,7 @@ file D:\Stata Data\labor_signaling_project\data\analysis_annual_augmented.dta
 . use "${datadir}\analysis_biennial.dta", clear
 
 . di "Loaded analysis_biennial.dta: " _N " obs"
-Loaded analysis_biennial.dta: 47201 obs
+Loaded analysis_biennial.dta: 46521 obs
 
 . 
 . xtile inc_decile = log_income_t, nq(10)
@@ -359,45 +359,45 @@ Loaded analysis_biennial.dta: 47201 obs
 >     (log_ntr_change = log_ntr_instrument) ///
 >     log_income_t spline1-spline9 married i.year_t ///
 >     [aweight=income_weight], cluster(taxsimid)
-(sum of wgt is   2.7511e+09)
+(sum of wgt is   2.6989e+09)
 
-Instrumental-variables 2SLS regression            Number of obs   =     47,201
-                                                  Wald chi2(23)   =     498.74
+Instrumental-variables 2SLS regression            Number of obs   =     46,521
+                                                  Wald chi2(23)   =     763.94
                                                   Prob > chi2     =     0.0000
-                                                  Root MSE        =     .53871
+                                                  Root MSE        =     .37911
 
-                           (Std. err. adjusted for 7,022 clusters in taxsimid)
+                           (Std. err. adjusted for 6,972 clusters in taxsimid)
 ------------------------------------------------------------------------------
              |               Robust
 log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
 -------------+----------------------------------------------------------------
-log_ntr_ch~e |   .5438264   .1677332     3.24   0.001     .2150754    .8725774
-log_income_t |  -.3720767    .062203    -5.98   0.000    -.4939923   -.2501611
-     spline1 |   .2198103   .1212313     1.81   0.070    -.0177987    .4574192
-     spline2 |   .1448373   .1628657     0.89   0.374    -.1743737    .4640483
-     spline3 |   .0780951    .186945     0.42   0.676    -.2883103    .4445005
-     spline4 |  -.1192693   .1809095    -0.66   0.510    -.4738454    .2353067
-     spline5 |   .0286862   .1697325     0.17   0.866    -.3039834    .3613558
-     spline6 |  -.0978458   .1415678    -0.69   0.489    -.3753135     .179622
-     spline7 |  -.0310694   .1269133    -0.24   0.807     -.279815    .2176761
-     spline8 |   .1637679   .1228065     1.33   0.182    -.0769285    .4044643
-     spline9 |  -.2155175   .0831212    -2.59   0.010    -.3784321   -.0526028
-     married |   -.049724   .0130865    -3.80   0.000    -.0753731   -.0240748
+log_ntr_ch~e |   .2964166   .1206489     2.46   0.014     .0599492    .5328841
+log_income_t |  -.3138541   .0468481    -6.70   0.000    -.4056747   -.2220335
+     spline1 |   .1129193    .089262     1.27   0.206     -.062031    .2878695
+     spline2 |   .1695622   .1172681     1.45   0.148    -.0602791    .3994034
+     spline3 |   .0972882   .1315723     0.74   0.460    -.1605888    .3551653
+     spline4 |   -.133787   .1246635    -1.07   0.283     -.378123     .110549
+     spline5 |   .0515779   .1163065     0.44   0.657    -.1763787    .2795346
+     spline6 |   -.123699   .1033346    -1.20   0.231     -.326231     .078833
+     spline7 |    .052756   .0976583     0.54   0.589    -.1386508    .2441628
+     spline8 |   .1472279   .0882132     1.67   0.095    -.0256668    .3201225
+     spline9 |   -.211447   .0531341    -3.98   0.000    -.3155879   -.1073061
+     married |  -.0351762   .0094095    -3.74   0.000    -.0536184    -.016734
              |
       year_t |
-       1997  |   .0483178   .0170961     2.83   0.005     .0148101    .0818256
-       1999  |   .0181584   .0195552     0.93   0.353     -.020169    .0564859
-       2001  |  -.0511518   .0198489    -2.58   0.010     -.090055   -.0122486
-       2003  |   .0282529   .0177824     1.59   0.112       -.0066    .0631058
-       2005  |  -.0079836   .0187116    -0.43   0.670    -.0446577    .0286904
-       2007  |  -.0124088   .0172558    -0.72   0.472    -.0462295    .0214119
-       2009  |   .0051399   .0179611     0.29   0.775    -.0300632     .040343
-       2011  |   .0211185   .0183456     1.15   0.250    -.0148382    .0570752
-       2013  |  -.0037829   .0210621    -0.18   0.857    -.0450639     .037498
-       2015  |   .0353809    .017985     1.97   0.049     .0001309    .0706309
-       2017  |  -.0024375   .0218835    -0.11   0.911    -.0453284    .0404535
+       1997  |   .0429701   .0136851     3.14   0.002     .0161477    .0697924
+       1999  |   .0365467   .0129722     2.82   0.005     .0111217    .0619717
+       2001  |  -.0225387   .0138607    -1.63   0.104    -.0497051    .0046277
+       2003  |   .0368408   .0130285     2.83   0.005     .0113055    .0623761
+       2005  |   .0048346    .014316     0.34   0.736    -.0232243    .0328935
+       2007  |  -.0181083   .0127413    -1.42   0.155    -.0430808    .0068642
+       2009  |   .0081997   .0132089     0.62   0.535    -.0176893    .0340886
+       2011  |   .0271181   .0141235     1.92   0.055    -.0005635    .0547996
+       2013  |   .0052213   .0139134     0.38   0.707    -.0220484    .0324911
+       2015  |    .033286   .0139058     2.39   0.017     .0060311    .0605409
+       2017  |   .0285112   .0164481     1.73   0.083    -.0037264    .0607488
              |
-       _cons |   3.776018   .6142096     6.15   0.000      2.57219    4.979847
+       _cons |   3.220522   .4627854     6.96   0.000      2.31348    4.127565
 ------------------------------------------------------------------------------
 Endogenous: log_ntr_change
 Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
@@ -416,7 +416,7 @@ Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
 . 
 . di "  ε^w_r (biennial) = " %7.4f eps_w_biennial ///
 >    "  SE = " %6.4f se_eps_biennial
-  ε^w_r (biennial) =  0.5438  SE = 0.1677
+  ε^w_r (biennial) =  0.2964  SE = 0.1206
 
 . 
 . qui regress log_ntr_change log_ntr_instrument ///
@@ -428,7 +428,7 @@ Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
 . scalar F_biennial = r(F)
 
 . di "  First-stage F = " %7.2f F_biennial
-  First-stage F =  987.78
+  First-stage F = 1146.31
 
 . 
 . * By career stage (age quartile, biennial)
@@ -468,10 +468,10 @@ Exogenous:  log_income_t spline1 spline2 spline3 spline4 spline5 spline6
  20.         scalar eps_q`q'_bien = .
  21.     }
  22. }
-  Q1     -0.0235    0.1445   Ages 30-38
-  Q2      0.8042    0.2342   Ages 39-44
-  Q3      0.7414    0.3194   Ages 45-50
-  Q4      0.1168    0.3495   Ages 51-61
+  Q1     -0.0671    0.1149   Ages 30-38
+  Q2      0.3922    0.1679   Ages 39-44
+  Q3      0.8408    0.2473   Ages 45-50
+  Q4     -0.0139    0.2640   Ages 51-61
 
 . 
 . save "${datadir}\analysis_biennial_augmented.dta", replace
@@ -942,7 +942,7 @@ PART 3: LABOR WEDGE chi = 1 + eps^w_r / eta^P_r
 
 . di "  eps^w_r (annual, IV) = " %8.4f eps_w_annual  "  SE = " %6.4f se_eps_ann
 > ual
-  eps^w_r (annual, IV) =  -0.1734  SE = 0.1235
+  eps^w_r (annual, IV) =  -0.0450  SE = 0.0803
 
 . di "  eta^P_r (annual, IV) = " %8.4f eta_P_annual  "  SE = " %6.4f se_eta_P_a
 > nnual
@@ -967,9 +967,9 @@ PART 3: LABOR WEDGE chi = 1 + eps^w_r / eta^P_r
 .     scalar tau_p_wedge = 1 - chi_full
 . 
 .     di "  chi = 1 + eps/eta   = " %8.4f chi_full
-  chi = 1 + eps/eta   =  16.5207
+  chi = 1 + eps/eta   =   5.0304
 .     di "  tau_p = 1 - chi     = " %8.4f tau_p_wedge
-  tau_p = 1 - chi     = -15.5207
+  tau_p = 1 - chi     =  -4.0304
 .     di ""
 
 .     di "  COMPARISON TO SZTUTMAN (2024, HRS, 4yr horizon):"
@@ -988,7 +988,7 @@ PART 3: LABOR WEDGE chi = 1 + eps^w_r / eta^P_r
 .     if chi_full < 0 | chi_full > 5 {
 .         di as error "SCRUTINY: chi = " %8.4f chi_full " outside plausible ran
 > ge [0,5]"
-SCRUTINY: chi =  16.5207 outside plausible range [0,5]
+SCRUTINY: chi =   5.0304 outside plausible range [0,5]
 .         di as error "  Likely cause: eta^P_r near zero for ages 17-35 workers
 > ."
   Likely cause: eta^P_r near zero for ages 17-35 workers.
@@ -1088,9 +1088,10 @@ Stage  Period    Age Range  ε^w_r    SE
 >            "   " %6.4f se_q`q'_ann
   5.     }
   6. }
-  Q1   Annual    [see log]   0.4418   0.2760
-  Q2   Annual    [see log]  -0.2939   0.1769
-  Q3   Annual    [see log]  -0.2062   0.1857
+  Q1   Annual    [see log]   0.0282   0.1379
+  Q2   Annual    [see log]   0.2488   0.1612
+  Q3   Annual    [see log]  -0.0798   0.1384
+  Q4   Annual    [see log]  -0.0980   0.2198
 
 . 
 . di ""
@@ -1103,10 +1104,10 @@ Stage  Period    Age Range  ε^w_r    SE
 >            "   " %6.4f se_q`q'_bien
   5.     }
   6. }
-  Q1   Biennial  [see log]  -0.0235   0.1445
-  Q2   Biennial  [see log]   0.8042   0.2342
-  Q3   Biennial  [see log]   0.7414   0.3194
-  Q4   Biennial  [see log]   0.1168   0.3495
+  Q1   Biennial  [see log]  -0.0671   0.1149
+  Q2   Biennial  [see log]   0.3922   0.1679
+  Q3   Biennial  [see log]   0.8408   0.2473
+  Q4   Biennial  [see log]  -0.0139   0.2640
 
 . 
 . di ""
@@ -1419,16 +1420,16 @@ Number of observations (_N) was 0, now 10.
 . list decile eps_w chi_approx tau_p, clean noobs
 
     decile       eps_w   chi_app~x       tau_p  
-         1    .0679378   -5.080706    6.080706  
-         2    .2467964   -21.08926    22.08926  
-         3   -.2807679    26.12984   -25.12984  
-         4    .6187637   -54.38181    55.38181  
-         5   -.4338877    39.83467   -38.83467  
-         6   -2.451737    220.4402   -219.4402  
-         7    -.068982    7.174161   -6.174161  
-         8   -.3360813    31.08061   -30.08061  
-         9   -.0210954    2.888118   -1.888118  
-        10   -.5233969     47.8461    -46.8461  
+         1    .1679428   -14.03154    15.03154  
+         2   -.1180439     11.5654    -10.5654  
+         3   -.1513316    14.54477   -13.54477  
+         4    .1282219   -10.47637    11.47637  
+         5   -.3272556    30.29068   -29.29068  
+         6    .0173265   -.5507929    1.550793  
+         7   -1.492896    134.6201   -133.6201  
+         8   -.0278441    3.492161   -2.492161  
+         9    .3360573   -29.07846    30.07846  
+        10   -.1929526    18.27003   -17.27003  
 
 . 
 . export delimited using "${outdir}\Phase2_Table4_Pigouvian.csv", replace
@@ -1495,10 +1496,10 @@ CHECK 1 — ε^w_r sign and magnitude
 CHECK 2 — First-stage validity
 
 . di "  Annual F-stat:   " %7.2f F_annual
-  Annual F-stat:   1349.36
+  Annual F-stat:   2621.96
 
 . di "  Biennial F-stat: " %7.2f F_biennial
-  Biennial F-stat:  987.78
+  Biennial F-stat: 1146.31
 
 . if F_annual > 10 & F_biennial > 10 {
 .     di "  PASS: Both first stages are strong"
@@ -1521,7 +1522,7 @@ CHECK 2 — First-stage validity
 CHECK 3 — ε^w_r stability across career stages
 
 . di "  Annual Q1:  " %7.4f eps_q1_ann "  Q4: " %7.4f eps_q4_ann
-  Annual Q1:   0.4418  Q4:       .
+  Annual Q1:   0.0282  Q4: -0.0980
 
 . di "  If Q1 ≈ Q4 → consistent with Pareto constant-elasticity case"
   If Q1 ≈ Q4 → consistent with Pareto constant-elasticity case
@@ -1645,7 +1646,7 @@ PHASE 2 COMPLETE (PRELIMINARY — SEE SCRUTINY NOTES)
 ==============================================================================
 
 . di "End time: $S_DATE $S_TIME"
-End time: 10 Apr 2026 18:25:06
+End time: 10 Apr 2026 19:36:55
 
 . di ""
 
@@ -1664,5 +1665,5 @@ CRITICAL NEXT STEP:
       name:  <unnamed>
        log:  D:\Stata Data\labor_signaling_project\output\Labor_Wedge_log.txt
   log type:  text
- closed on:  10 Apr 2026, 18:25:06
+ closed on:  10 Apr 2026, 19:36:55
 -------------------------------------------------------------------------------

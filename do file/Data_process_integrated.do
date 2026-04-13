@@ -1032,7 +1032,7 @@ label var cumhrs "Cumulative hours worked through this year"
 save "nlsy_long_pre_taxsim.dta", replace
 
 *==============================================================================
-* PART 0: VERIFY DATA QUALITY BEFORE STARTING
+* --- Part 0: VERIFY DATA QUALITY BEFORE STARTING ---
 *==============================================================================
 
 clear all
@@ -1085,9 +1085,9 @@ local total_n = r(N)
 di ""
 di "Observations with valid income years: `valid_n' out of `total_n' (" %4.1f 100*`valid_n'/`total_n' "%)"
 
-*------------------------------------------------------------------------------
-* PART 1: RUN TAXSIM ON ACTUAL DATA (Only valid income years)
-*------------------------------------------------------------------------------
+* --------
+* --- Part 1: RUN TAXSIM ON ACTUAL DATA (Only valid income years) ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1133,9 +1133,9 @@ keep taxsimid year mtr_fed_t mtr_st_t tax_fed_t tax_st_t ///
 
 save "taxsim_actual_clean.dta", replace
 
-*------------------------------------------------------------------------------
-* PART 2: CREATE CPI DATA FOR INFLATION ADJUSTMENT
-*------------------------------------------------------------------------------
+* --------
+* --- Part 2: CREATE CPI DATA FOR INFLATION ADJUSTMENT ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1164,9 +1164,9 @@ rename year year_t3
 rename CPI cpi_t3
 save "cpi_end.dta", replace
 
-*------------------------------------------------------------------------------
-* PART 3: CREATE 3-YEAR PAIRED OBSERVATIONS
-*------------------------------------------------------------------------------
+* --------
+* --- Part 3: CREATE 3-YEAR PAIRED OBSERVATIONS ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1258,9 +1258,9 @@ count
 
 save "paired_observations.dta", replace
 
-*------------------------------------------------------------------------------
-* PART 4: CONSTRUCT THE INSTRUMENT (CORRECTED DIRECTION!)
-*------------------------------------------------------------------------------
+* --------
+* --- Part 4: CONSTRUCT THE INSTRUMENT (CORRECTED DIRECTION!) ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1303,9 +1303,9 @@ gen rentpaid_inflated = rentpaid_t * inflation_factor
 
 save "paired_with_inflation.dta", replace
 
-*------------------------------------------------------------------------------
-* PART 4b: RUN TAXSIM ON COUNTERFACTUAL (inflated year t income, year t+3 law)
-*------------------------------------------------------------------------------
+* --------
+* --- Part 4b: RUN TAXSIM ON COUNTERFACTUAL (inflated year t income, year t+3 law) ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1404,9 +1404,9 @@ sum mtr_fed_predicted mtr_st_predicted, detail
 
 save "predicted_rates.dta", replace
 
-*------------------------------------------------------------------------------
-* PART 5: MERGE EVERYTHING AND CREATE REGRESSION VARIABLES
-*------------------------------------------------------------------------------
+* --------
+* --- Part 5: MERGE EVERYTHING AND CREATE REGRESSION VARIABLES ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1424,9 +1424,9 @@ drop _merge
 di "After merging predicted rates:"
 count
 
-*------------------------------------------------------------------------------
-* PART 6: SAMPLE RESTRICTIONS (Gruber-Saez style)
-*------------------------------------------------------------------------------
+* --------
+* --- Part 6: SAMPLE RESTRICTIONS (Gruber-Saez style) ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1476,9 +1476,9 @@ drop if extreme_eitc == 1
 count
 di "After dropping extreme EITC observations (MTR < -10%): " r(N)
 
-*------------------------------------------------------------------------------
-* PART 7: CREATE REGRESSION VARIABLES
-*------------------------------------------------------------------------------
+* --------
+* --- Part 7: CREATE REGRESSION VARIABLES ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1552,9 +1552,9 @@ di ""
 di "Marital status distribution:"
 tab mstat_t
 
-*------------------------------------------------------------------------------
-* PART 7b: CREATE HOURS-RELATED VARIABLES
-*------------------------------------------------------------------------------
+* --------
+* --- Part 7b: CREATE HOURS-RELATED VARIABLES ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1591,9 +1591,9 @@ label var cumhrs_change "Change in cumulative hours"
 label var log_cumhrs_t "Log cumulative hours through base year"
 label var log_cumhrs_t3 "Log cumulative hours through end year"
 
-*------------------------------------------------------------------------------
-* PART 8: CREATE 10-PIECE INCOME SPLINE
-*------------------------------------------------------------------------------
+* --------
+* --- Part 8: CREATE 10-PIECE INCOME SPLINE ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1635,9 +1635,9 @@ gen spline7 = max(0, log_income_t - `cut7')
 gen spline8 = max(0, log_income_t - `cut8')
 gen spline9 = max(0, log_income_t - `cut9')
 
-*------------------------------------------------------------------------------
-* PART 9: FINAL DATA CHECKS AND DIAGNOSTICS
-*------------------------------------------------------------------------------
+* --------
+* --- Part 9: FINAL DATA CHECKS AND DIAGNOSTICS ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1679,9 +1679,9 @@ di "Final sample size for regression: " r(N)
 
 save "gruber_saez_regression_data.dta", replace
 
-*------------------------------------------------------------------------------
-* PART 10: RUN THE GRUBER-SAEZ REGRESSIONS
-*------------------------------------------------------------------------------
+* --------
+* --- Part 10: RUN THE GRUBER-SAEZ REGRESSIONS ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1776,9 +1776,9 @@ regress log_income_change log_ntr_change ///
 
 estimates store model4_ols
 
-*------------------------------------------------------------------------------
-* PART 11: RESULTS SUMMARY
-*------------------------------------------------------------------------------
+* --------
+* --- Part 11: RESULTS SUMMARY ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1802,9 +1802,9 @@ di "Gruber-Saez (2000) found:"
 di "  - Broad Income elasticity: 0.12 (with splines)"
 di "  - Taxable Income elasticity: 0.40 (with splines)"
 
-*------------------------------------------------------------------------------
-* PART 12: HETEROGENEITY BY INCOME GROUP
-*------------------------------------------------------------------------------
+* --------
+* --- Part 12: HETEROGENEITY BY INCOME GROUP ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1850,9 +1850,9 @@ capture noisily ivregress 2sls log_income_change ///
     [aweight=income_weight] if income_group == 3, ///
     cluster(taxsimid)
 
-*------------------------------------------------------------------------------
-* PART 12b: HETEROGENEITY BY DEMOGRAPHICS (NEW)
-*------------------------------------------------------------------------------
+* --------
+* --- Part 12b: HETEROGENEITY BY DEMOGRAPHICS (NEW) ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1901,9 +1901,9 @@ capture noisily ivregress 2sls log_income_change ///
     [aweight=income_weight] if college_grad == 0, ///
     cluster(taxsimid)
 
-*------------------------------------------------------------------------------
-* PART 12c: MODELS WITH DEMOGRAPHIC CONTROLS (NEW)
-*------------------------------------------------------------------------------
+* --------
+* --- Part 12c: MODELS WITH DEMOGRAPHIC CONTROLS (NEW) ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1938,9 +1938,9 @@ capture noisily ivregress 2sls log_income_change ///
     [aweight=income_weight], ///
     cluster(taxsimid)
 
-*------------------------------------------------------------------------------
-* PART 12d: HOURS ELASTICITY ANALYSIS (NEW)
-*------------------------------------------------------------------------------
+* --------
+* --- Part 12d: HOURS ELASTICITY ANALYSIS (NEW) ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -1965,9 +1965,9 @@ capture noisily ivregress 2sls log_hrs_change ///
 
 restore
 
-*------------------------------------------------------------------------------
-* PART 13: DIAGNOSTIC PLOTS
-*------------------------------------------------------------------------------
+* --------
+* --- Part 13: DIAGNOSTIC PLOTS ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -2015,9 +2015,9 @@ histogram cumhrs_t if cumhrs_t > 0, ///
     color(green%50)
 graph export "cumhrs_histogram.png", replace
 
-*------------------------------------------------------------------------------
-* PART 14: WEAK INSTRUMENT ROBUST INFERENCE (IF NEEDED)
-*------------------------------------------------------------------------------
+* --------
+* --- Part 14: WEAK INSTRUMENT ROBUST INFERENCE (IF NEEDED) ---
+* --------
 
 di ""
 di "=============================================================================="
@@ -2045,9 +2045,9 @@ estimates table model3 model_liml, ///
     b(%9.3f) se(%9.3f) ///
     title("2SLS vs LIML Comparison")
 
-*------------------------------------------------------------------------------
+* --------
 * FINAL SUMMARY
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "=============================================================================="

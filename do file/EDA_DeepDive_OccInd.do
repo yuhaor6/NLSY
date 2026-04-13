@@ -1,17 +1,9 @@
-/*==============================================================================
-EDA_DEEPDIVE_OCCIND.DO - COMPREHENSIVE OCCUPATION × INDUSTRY ANALYSIS
-================================================================================
-Purpose: Deep exploratory analysis for wage dynamics by occupation × industry
-
-ANALYSES INCLUDED:
-1. Occupation × Industry cell size analysis (histograms, heatmaps)
-2. Distributional wage moments by cell (mean, median, SD, percentiles)
-3. Nonparametric wage profiles by experience, split by occupation×industry
-4. Wage vs cumulative hours heterogeneity by occupation×industry
-5. Collinearity analysis (age, experience, cumulative hours)
-6. Within-person vs between-person variation decomposition
-7. Occupation/industry switching and wage changes
-==============================================================================*/
+* EDA_DeepDive_OccInd.do
+* Exploratory analysis of wage distributions by occupation x industry cells
+* Wage moments, between/within decomposition, transition matrices
+* Restricted to 1979-1993 (occ/ind available)
+* Input:  data/nlsy_long_pre_taxsim.dta, data/merged_data_with_occind.dta
+* Output: EDA tables in output/
 
 clear all
 set more off
@@ -34,9 +26,7 @@ di "============================================================================
 di "Start time: $S_DATE $S_TIME"
 di ""
 
-/*==============================================================================
-PART 0: LOAD DATA AND CREATE OCCUPATION/INDUSTRY IN LONG FORMAT
-==============================================================================*/
+* --- Part 0: LOAD DATA AND CREATE OCCUPATION/INDUSTRY IN LONG FORMAT ---
 
 di ""
 di "=============================================================================="
@@ -172,18 +162,16 @@ di "  With occupation × industry data: " r(N)
 * Save prepared data
 save "eda_deepdive_data.dta", replace
 
-/*==============================================================================
-PART 1: OCCUPATION × INDUSTRY CELL SIZE ANALYSIS
-==============================================================================*/
+* --- Part 1: OCCUPATION × INDUSTRY CELL SIZE ANALYSIS ---
 
 di ""
 di "=============================================================================="
 di "PART 1: OCCUPATION × INDUSTRY CELL SIZE ANALYSIS"
 di "=============================================================================="
 
-*------------------------------------------------------------------------------
+* --------
 * 1.1: Basic cell counts
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "1.1 BASIC CELL COUNTS"
@@ -241,9 +229,9 @@ list occ_broad ind_broad n_obs n_individuals mean_wage in 1/20, clean noobs
 
 restore
 
-*------------------------------------------------------------------------------
+* --------
 * 1.2: Cross-tabulation (Heatmap data)
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "1.2 OCCUPATION × INDUSTRY CROSS-TABULATION"
@@ -262,9 +250,9 @@ table occ_broad ind_broad, stat(mean pwages) nformat(%9.0fc)
 
 restore
 
-*------------------------------------------------------------------------------
+* --------
 * 1.3: Cell counts by year
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "1.3 CELL REPRESENTATION OVER TIME"
@@ -291,9 +279,9 @@ di "Cells with >= 10 years of data: " r(N)
 
 restore
 
-*------------------------------------------------------------------------------
+* --------
 * 1.4: Create histograms
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "1.4 CREATING HISTOGRAMS"
@@ -325,9 +313,7 @@ graph export "${outdir}\hist_individuals_per_cell.png", replace
 
 restore
 
-/*==============================================================================
-PART 2: DISTRIBUTIONAL WAGE MOMENTS BY OCCUPATION × INDUSTRY
-==============================================================================*/
+* --- Part 2: DISTRIBUTIONAL WAGE MOMENTS BY OCCUPATION × INDUSTRY ---
 
 di ""
 di "=============================================================================="
@@ -380,9 +366,9 @@ save "occ_ind_wage_moments.dta", replace
 
 restore
 
-*------------------------------------------------------------------------------
+* --------
 * 2.2: Box plots of log wages for top cells
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "2.2 CREATING BOX PLOTS"
@@ -408,18 +394,16 @@ graph export "${outdir}\boxplot_wages_top_cells.png", replace
 
 restore
 
-/*==============================================================================
-PART 3: NONPARAMETRIC WAGE PROFILES BY EXPERIENCE
-==============================================================================*/
+* --- Part 3: NONPARAMETRIC WAGE PROFILES BY EXPERIENCE ---
 
 di ""
 di "=============================================================================="
 di "PART 3: NONPARAMETRIC WAGE PROFILES BY EXPERIENCE"
 di "=============================================================================="
 
-*------------------------------------------------------------------------------
+* --------
 * 3.1: Overall wage-experience profile
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "3.1 OVERALL WAGE-EXPERIENCE PROFILE"
@@ -452,9 +436,9 @@ graph export "${outdir}\wage_exp_profile_pooled.png", replace
 
 restore
 
-*------------------------------------------------------------------------------
+* --------
 * 3.2: Wage-experience profiles by broad occupation
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "3.2 WAGE-EXPERIENCE PROFILES BY OCCUPATION"
@@ -482,9 +466,9 @@ graph export "${outdir}\wage_exp_by_occupation.png", replace
 
 restore
 
-*------------------------------------------------------------------------------
+* --------
 * 3.3: Wage-experience profiles by broad industry
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "3.3 WAGE-EXPERIENCE PROFILES BY INDUSTRY"
@@ -513,18 +497,16 @@ graph export "${outdir}\wage_exp_by_industry.png", replace
 
 restore
 
-/*==============================================================================
-PART 4: CUMULATIVE HOURS RETURNS BY OCCUPATION × INDUSTRY
-==============================================================================*/
+* --- Part 4: CUMULATIVE HOURS RETURNS BY OCCUPATION × INDUSTRY ---
 
 di ""
 di "=============================================================================="
 di "PART 4: CUMULATIVE HOURS RETURNS BY OCCUPATION × INDUSTRY"
 di "=============================================================================="
 
-*------------------------------------------------------------------------------
+* --------
 * 4.1: Overall cumulative hours - wage relationship
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "4.1 OVERALL CUMULATIVE HOURS - WAGE RELATIONSHIP"
@@ -543,9 +525,9 @@ reg log_pwages log_cumhrs pot_exp c.pot_exp#c.pot_exp educ_years i.year, robust
 
 restore
 
-*------------------------------------------------------------------------------
+* --------
 * 4.2: Cumulative hours returns by cell
-*------------------------------------------------------------------------------
+* --------
 
 di ""
 di "4.2 CUMULATIVE HOURS RETURNS BY CELL"
@@ -613,9 +595,7 @@ save "cumhrs_returns_by_cell.dta", replace
 
 restore
 
-/*==============================================================================
-PART 5: COLLINEARITY ANALYSIS
-==============================================================================*/
+* --- Part 5: COLLINEARITY ANALYSIS ---
 
 di ""
 di "=============================================================================="
@@ -674,9 +654,7 @@ estat vif
 
 restore
 
-/*==============================================================================
-PART 6: WITHIN-PERSON VS BETWEEN-PERSON VARIATION
-==============================================================================*/
+* --- Part 6: WITHIN-PERSON VS BETWEEN-PERSON VARIATION ---
 
 di ""
 di "=============================================================================="
@@ -763,9 +741,7 @@ graph export "${outdir}\avg_wage_age_profile.png", replace
 
 restore
 
-/*==============================================================================
-PART 7: OCCUPATION/INDUSTRY SWITCHING ANALYSIS
-==============================================================================*/
+* --- Part 7: OCCUPATION/INDUSTRY SWITCHING ANALYSIS ---
 
 di ""
 di "=============================================================================="
@@ -879,9 +855,7 @@ tab prev_occ occ_broad if !missing(prev_occ), row nofreq
 
 restore
 
-/*==============================================================================
-PART 8: ADDITIONAL VISUALIZATIONS
-==============================================================================*/
+* --- Part 8: ADDITIONAL VISUALIZATIONS ---
 
 di ""
 di "=============================================================================="
@@ -932,9 +906,7 @@ graph export "${outdir}\density_overlay_cells.png", replace
 
 restore
 
-/*==============================================================================
-SUMMARY STATISTICS
-==============================================================================*/
+* --- SUMMARY STATISTICS ---
 
 di ""
 di "=============================================================================="
@@ -963,9 +935,7 @@ table ind_broad, stat(mean pwages) stat(mean pot_exp) stat(count pwages) nformat
 
 restore
 
-/*==============================================================================
-CLEAN UP
-==============================================================================*/
+* --- CLEAN UP ---
 
 di ""
 di "=============================================================================="

@@ -1,39 +1,10 @@
-/*==============================================================================
-SKILL_VS_SIGNAL_ANALYSIS.DO 
-================================================================================
-Purpose: Test whether early-career wage growth reflects genuine skill formation
-         (human capital) or signaling/employer learning
-
-CORRECTIONS APPLIED:
-- Uses pot_exp from corrected Data_process.do (current-year education)
-- Uses recent_hrs_annual for cross-period comparisons (annualized hours)
-- AFQT properly standardized
-- Ages are income-year aligned
-
-RESEARCH QUESTION:
-Do early-career wage jumps mainly stem from signaling strategies (long hours, 
-credentials) or from real human-capital gains?
-
-ANALYSES INCLUDED:
-1. Altonji-Pierret Employer Learning Test (AFQT × Experience interaction)
-2. Hours Decomposition (Recent "face time" vs. Cumulative learning)
-3. Wage Variance Evolution (Does dispersion increase with experience?)
-4. Fixed Effects Comparison (OLS vs FE to assess selection)
-5. Sheepskin Effects (Discrete degree returns vs. continuous education)
-
-THEORETICAL FRAMEWORK:
-- Human Capital: Wages rise because workers become more productive
-- Signaling/Employer Learning: Wages rise as employers discover true ability
-
-KEY PREDICTIONS:
-                        | Human Capital | Employer Learning
-------------------------|---------------|-------------------
-AFQT effect over time   | Constant      | INCREASES with exp
-Recent hours effect     | Small         | Large (signaling)
-Wage variance over exp  | Constant      | Increases then stable
-FE vs OLS coefficients  | Similar       | FE much smaller
-Sheepskin effects       | Small         | Large
-==============================================================================*/
+* Skill_vs_Signal_Analysis.do
+* Tests human capital vs. signaling/employer learning models
+* Key test: does wage growth track cumulative hours (HC) or decrease
+* with tenure (signaling/learning)?
+* Implements Altonji-Pierret (2001) style regressions.
+* Input:  data/nlsy_long_pre_taxsim.dta
+* Output: Skill_vs_Signal tables
 
 global projdir "D:\Stata Data\labor_signaling_project"
 global datadir "${projdir}\data"
@@ -71,9 +42,7 @@ di "============================================================================
 di "Start time: $S_DATE $S_TIME"
 di ""
 
-/*==============================================================================
-PART 0: DATA VERIFICATION AND SAMPLE DEFINITION
-==============================================================================*/
+* --- Part 0: DATA VERIFICATION AND SAMPLE DEFINITION ---
 
 di ""
 di "=============================================================================="
@@ -163,9 +132,7 @@ di ""
 tab skill_sample
 summarize pwages pot_exp afqt_std if skill_sample == 1
 
-/*==============================================================================
-PART 1: ALTONJI-PIERRET EMPLOYER LEARNING TEST
-==============================================================================*/
+* --- Part 1: ALTONJI-PIERRET EMPLOYER LEARNING TEST ---
 
 di ""
 di "=============================================================================="
@@ -180,9 +147,7 @@ di "  Human Capital:      AFQT effect is CONSTANT (reflects productivity)"
 di "  Employer Learning:  AFQT effect GROWS with experience"
 di ""
 
-/*------------------------------------------------------------------------------
-1.1: Baseline Mincer regression (no AFQT)
-------------------------------------------------------------------------------*/
+* --- 1.1: Baseline Mincer regression (no AFQT) ---
 
 di "1.1 BASELINE MINCER REGRESSION (No AFQT)"
 di "----------------------------------------"
@@ -193,9 +158,7 @@ estimates store baseline_mincer
 di ""
 di "Baseline R-squared: " %6.4f e(r2)
 
-/*------------------------------------------------------------------------------
-1.2: Add AFQT (main effect only)
-------------------------------------------------------------------------------*/
+* --- 1.2: Add AFQT (main effect only) ---
 
 di ""
 di "1.2 ADD AFQT (Main Effect Only)"
@@ -211,9 +174,7 @@ di ""
 di "Interpretation: A 1 SD increase in AFQT is associated with " ///
    %4.1f _b[afqt_std]*100 "% higher wages"
 
-/*------------------------------------------------------------------------------
-1.3: KEY TEST - AFQT × Experience Interaction
-------------------------------------------------------------------------------*/
+* --- 1.3: KEY TEST - AFQT × Experience Interaction ---
 
 di ""
 di "1.3 KEY TEST: AFQT × EXPERIENCE INTERACTION"
@@ -263,9 +224,7 @@ else {
 }
 di ""
 
-/*------------------------------------------------------------------------------
-1.4: Extended test - Education × Experience interaction
-------------------------------------------------------------------------------*/
+* --- 1.4: Extended test - Education × Experience interaction ---
 
 di ""
 di "1.4 EDUCATION × EXPERIENCE INTERACTION"
@@ -300,9 +259,7 @@ else {
     di "  Consistent with human capital: education reflects persistent skills"
 }
 
-/*------------------------------------------------------------------------------
-1.5: Comparison table
-------------------------------------------------------------------------------*/
+* --- 1.5: Comparison table ---
 
 di ""
 di "1.5 MODEL COMPARISON TABLE"
@@ -313,9 +270,7 @@ estimates table baseline_mincer afqt_main afqt_interaction full_learning, ///
     b(%9.4f) se(%9.4f) stats(N r2) ///
     title("Employer Learning Test: Model Comparison")
 
-/*==============================================================================
-PART 2: HOURS DECOMPOSITION - RECENT SIGNALING VS CUMULATIVE LEARNING
-==============================================================================*/
+* --- Part 2: HOURS DECOMPOSITION - RECENT SIGNALING VS CUMULATIVE LEARNING ---
 
 di ""
 di "=============================================================================="
@@ -333,9 +288,7 @@ di "NOTE: Using recent_hrs_annual for proper cross-period comparisons"
 di "      (annualized to account for biennial vs annual survey gaps)"
 di ""
 
-/*------------------------------------------------------------------------------
-2.1: Cumulative hours only
-------------------------------------------------------------------------------*/
+* --- 2.1: Cumulative hours only ---
 
 di "2.1 CUMULATIVE HOURS ONLY"
 di "-------------------------"
@@ -350,9 +303,7 @@ estimates store cumhrs_only
 di ""
 di "Cumulative hours elasticity: " %6.3f _b[log_cumhrs]
 
-/*------------------------------------------------------------------------------
-2.2: Recent hours only (annualized)
-------------------------------------------------------------------------------*/
+* --- 2.2: Recent hours only (annualized) ---
 
 di ""
 di "2.2 RECENT HOURS ONLY (ANNUALIZED)"
@@ -369,9 +320,7 @@ estimates store recent_only
 di ""
 di "Recent hours (annualized) elasticity: " %6.3f _b[log_recent_hrs_annual]
 
-/*------------------------------------------------------------------------------
-2.3: Horse race - both types of hours
-------------------------------------------------------------------------------*/
+* --- 2.3: Horse race - both types of hours ---
 
 di ""
 di "2.3 HORSE RACE: CUMULATIVE VS RECENT HOURS (ANNUALIZED)"
@@ -408,9 +357,7 @@ else {
     di "  Evidence for both learning-by-doing and signaling"
 }
 
-/*------------------------------------------------------------------------------
-2.4: Does recent hours matter MORE in early career? (Signaling test)
-------------------------------------------------------------------------------*/
+* --- 2.4: Does recent hours matter MORE in early career? (Signaling test) ---
 
 di ""
 di "2.4 EARLY CAREER INTERACTION"
@@ -445,9 +392,7 @@ else {
     di "  Consistent with LEARNING-BY-DOING throughout career"
 }
 
-/*------------------------------------------------------------------------------
-2.5: Hours comparison table
-------------------------------------------------------------------------------*/
+* --- 2.5: Hours comparison table ---
 
 di ""
 di "2.5 HOURS MODEL COMPARISON"
@@ -458,9 +403,7 @@ estimates table cumhrs_only recent_only hours_horserace early_career_test, ///
     b(%9.4f) se(%9.4f) stats(N r2) ///
     title("Hours Decomposition: Cumulative vs Recent (Annualized)")
 
-/*==============================================================================
-PART 3: WAGE VARIANCE EVOLUTION
-==============================================================================*/
+* --- Part 3: WAGE VARIANCE EVOLUTION ---
 
 di ""
 di "=============================================================================="
@@ -476,9 +419,7 @@ di "  Human Capital predicts:"
 di "    - Wage variance relatively CONSTANT (everyone grows similarly)"
 di ""
 
-/*------------------------------------------------------------------------------
-3.1: Calculate variance by experience bin
-------------------------------------------------------------------------------*/
+* --- 3.1: Calculate variance by experience bin ---
 
 di "3.1 WAGE VARIANCE BY EXPERIENCE"
 di "-------------------------------"
@@ -515,9 +456,7 @@ graph export "${outdir}\wage_variance_evolution.png", replace width(1200)
 
 restore
 
-/*==============================================================================
-PART 4: FIXED EFFECTS VS OLS COMPARISON
-==============================================================================*/
+* --- Part 4: FIXED EFFECTS VS OLS COMPARISON ---
 
 di ""
 di "=============================================================================="
@@ -534,9 +473,7 @@ di "  Signaling: FE coefficients much SMALLER than OLS (ability was confounding)
 di "  Human Capital: FE and OLS coefficients SIMILAR (experience is causal)"
 di ""
 
-/*------------------------------------------------------------------------------
-4.1: OLS baseline
-------------------------------------------------------------------------------*/
+* --- 4.1: OLS baseline ---
 
 di "4.1 OLS ESTIMATES"
 di "-----------------"
@@ -552,9 +489,7 @@ di ""
 di "OLS Experience coefficient: " %7.4f `b_exp_ols'
 di "OLS Experience² coefficient: " %9.6f `b_exp2_ols'
 
-/*------------------------------------------------------------------------------
-4.2: Fixed effects
-------------------------------------------------------------------------------*/
+* --- 4.2: Fixed effects ---
 
 di ""
 di "4.2 FIXED EFFECTS ESTIMATES"
@@ -572,9 +507,7 @@ di ""
 di "FE Experience coefficient: " %7.4f `b_exp_fe'
 di "FE Experience² coefficient: " %9.6f `b_exp2_fe'
 
-/*------------------------------------------------------------------------------
-4.3: Comparison
-------------------------------------------------------------------------------*/
+* --- 4.3: Comparison ---
 
 di ""
 di "4.3 OLS VS FE COMPARISON"
@@ -609,9 +542,7 @@ else {
     di "  Mixed evidence: Some ability selection, but substantial causal returns"
 }
 
-/*------------------------------------------------------------------------------
-4.4: Model comparison table
-------------------------------------------------------------------------------*/
+* --- 4.4: Model comparison table ---
 
 di ""
 di "4.4 OLS VS FE MODEL TABLE"
@@ -622,9 +553,7 @@ estimates table ols_main fe_main, ///
     b(%9.4f) se(%9.4f) stats(N r2) ///
     title("OLS vs Fixed Effects: Experience Returns")
 
-/*==============================================================================
-PART 5: SHEEPSKIN EFFECTS
-==============================================================================*/
+* --- Part 5: SHEEPSKIN EFFECTS ---
 
 di ""
 di "=============================================================================="
@@ -639,9 +568,7 @@ di "  Test: Include both years of education AND degree dummies"
 di "        If degree dummies are large → Signaling"
 di ""
 
-/*------------------------------------------------------------------------------
-5.1: Continuous education only
-------------------------------------------------------------------------------*/
+* --- 5.1: Continuous education only ---
 
 di "5.1 CONTINUOUS EDUCATION ONLY"
 di "-----------------------------"
@@ -655,9 +582,7 @@ local return_per_year = _b[educ_years]
 di ""
 di "Return per year of education: " %5.2f `return_per_year'*100 "%"
 
-/*------------------------------------------------------------------------------
-5.2: Degree dummies only (no years)
-------------------------------------------------------------------------------*/
+* --- 5.2: Degree dummies only (no years) ---
 
 di ""
 di "5.2 DEGREE DUMMIES ONLY"
@@ -678,9 +603,7 @@ di "  Some college:  " %5.1f _b[some_coll]*100 "%"
 di "  BA degree:     " %5.1f _b[ba_degree]*100 "%"
 di "  Graduate:      " %5.1f _b[grad_degree]*100 "%"
 
-/*------------------------------------------------------------------------------
-5.3: Both years AND degree dummies (key test)
-------------------------------------------------------------------------------*/
+* --- 5.3: Both years AND degree dummies (key test) ---
 
 di ""
 di "5.3 KEY TEST: YEARS + DEGREE DUMMIES"
@@ -727,9 +650,7 @@ else {
     di "  Supports HUMAN CAPITAL: It's the learning, not the diploma"
 }
 
-/*------------------------------------------------------------------------------
-5.4: Sheepskin model comparison
-------------------------------------------------------------------------------*/
+* --- 5.4: Sheepskin model comparison ---
 
 di ""
 di "5.4 EDUCATION MODEL COMPARISON"
@@ -740,9 +661,7 @@ estimates table educ_continuous educ_degrees sheepskin_test, ///
     b(%9.4f) se(%9.4f) stats(N r2) ///
     title("Sheepskin Effects: Continuous vs Discrete Education")
 
-/*==============================================================================
-PART 6: COMPREHENSIVE SUMMARY
-==============================================================================*/
+* --- Part 6: COMPREHENSIVE SUMMARY ---
 
 di ""
 di "=============================================================================="
@@ -803,7 +722,7 @@ di "4. Sheepskin effects          |               | `sheep_result'"
 di ""
 di "=============================================================================="
 di ""
-di "INTERPRETATION GUIDE:"
+di "Interpretation:"
 di ""
 di "  The evidence suggests that early-career wage growth reflects BOTH:"
 di "  - Genuine skill formation (human capital accumulation)"
@@ -816,9 +735,7 @@ di "  3. Fixed effects help isolate causal effects from ability selection"
 di "  4. Sheepskin effects reveal credential vs skill value of education"
 di ""
 
-/*==============================================================================
-PART 7: FORMATTED REGRESSION TABLES (esttab)
-==============================================================================*/
+* --- Part 7: FORMATTED REGRESSION TABLES (esttab) ---
 
 di ""
 di "=============================================================================="
@@ -870,9 +787,7 @@ capture noisily esttab educ_continuous educ_degrees sheepskin_test ///
     note("Sheepskin = extra returns to completing a degree beyond continuous years.")
 if _rc != 0 di "WARNING: esttab SkillSignal Table4 failed (_rc=" _rc ")"
 
-/*==============================================================================
-PART 7b: SAVE RESULTS AND CLEAN UP
-==============================================================================*/
+* --- Part 7b: SAVE RESULTS AND CLEAN UP ---
 
 di ""
 di "=============================================================================="

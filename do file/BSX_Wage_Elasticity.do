@@ -1,78 +1,15 @@
-/*==============================================================================
-BSX_WAGE_ELASTICITY.DO
-==============================================================================
-
-PURPOSE:
-    Estimates the elasticity of taxable income with respect to hourly wage
-    changes, using a leave-one-out (LOO) industry wage instrument.
-
-    This implements the wage/productivity elasticity regression from:
-        Becko, Sztutman & Xia (2024) — BSX hereafter — adapted to NLSY79.
-
-    Reference equation: BSX Eq. 30
-        Δlog(z_{i,t+3}) = α + ε_w·Δlog(w_{i,t+3}) + δ_t + γ·M_{i,t}
-                          + Σ θ_j·SPLINE_j(z_{i,t}) + ε_{i,t}
-
-    where Δlog(z) = 3-year change in log broad taxable income,
-          Δlog(w) = 3-year change in log hourly wage (constructed),
-          instrument = leave-one-out industry average wage change (BSX Eq. 31).
-
-CLASSIFICATION (per BSX Coding Guide, Section 1.3):
-    - Regression equation (DV, controls, FE): Paper-faithful
-    - Instrument design (LOO within industry): Paper-faithful in design
-    - Identification strength in NLSY: Exploratory approximation
-    - Hourly wage construction (pwages/hrs): Project-specific adaptation
-    - Sample restriction to 1979–1993: Project-specific adaptation
-
-STAGE 0 SUMMARY (confirmed by code inspection — do not modify this block):
-=============================================================================
-TAXABLE INCOME DEFINITION (Two_Period_Analysis.do, lines 463-467):
-    broad_income = pwages + swages + psemp + ssemp + pui + sui +
-                   gssi + pensions + nonprop
-    NOTE: Excludes transfers, rentpaid, dividends, intrec, otherprop,
-          pbusinc, sbusinc (these are passed to TAXSIM but not in the
-          broad_income formula used for the regression).
-    Variable name: broad_income_t (base), broad_income_t3 (end year).
-
-SPLINE CONSTRUCTION (Two_Period_Analysis.do, lines 561-565):
-    9-piece linear spline on log_income_t.
-    Knots at deciles 10-90 via _pctile, sample-specific.
-    gen spline`i' = max(0, log_income_t - cut`i')  for i=1..9
-    NOTE: spline numbering runs from spline1 (10th pctile) to spline9 (90th).
-
-PAIRED OBSERVATION LOGIC (Two_Period_Analysis.do, lines 258-321):
-    by taxsimid: gen var_t3 = var[_n + 3]  (lag=3 years)
-    Drop if missing end-year variable.
-    Base years: 1978-1990, end years: 1981-1993.
-
-HRS VARIABLE (demo_x_hour.dct labels, e.g. R0215710 = "# OF HRS WRKD IN P-C YR 79"):
-    hrs = TOTAL hours worked in past CALENDAR YEAR, ALL JOBS.
-    *** CRITICAL AMBIGUITY: pwages = primary wages only. ***
-    *** hrs = total hours (all jobs). pwages/hrs UNDERESTIMATES ***
-    *** the primary-job hourly wage when multiple jobs are held. ***
-    This is not a coding error — it is a fundamental measurement
-    limitation of using NLSY79 versus the SIPP used in BSX.
-
-IND_BROAD MERGE PATHWAY:
-    NOT in nlsy_long_pre_taxsim.dta. Must merge from:
-    merged_data_with_occind.dta (wide format: ind_broad_1979 ... ind_broad_1993)
-    Pattern: keep taxsimid ind_broad_*, reshape long ind_broad_, i(taxsimid) j(year)
-=============================================================================
-
-AUTHOR: Claude Code (Anthropic), implementing BSX coding guide
-DATE:   March 2026
-DO FILE VERSION: Stage 1 only (hourly wage construction + diagnostics)
-                 Stages 2-8 not yet implemented.
-
-==============================================================================*/
+* BSX_Wage_Elasticity.do
+* Estimates wage-change elasticity of taxable income using LOO industry instrument
+* Adapted from Becko, Sztutman & Xia (2024) Eq. 30-31 to NLSY79
+* Hourly wage = pwages/hrs; instrument = leave-one-out industry avg wage change
+* Stage 1 only: hourly wage construction + diagnostics
+* Date: March 2026
 
 clear all
 set more off
 capture log close _all
 
-/*------------------------------------------------------------------------------
-PATHS — Mirror the convention in Two_Period_Analysis.do
-------------------------------------------------------------------------------*/
+* --- PATHS — Mirror the convention in Two_Period_Analysis.do ---
 global projdir "D:\Stata Data\labor_signaling_project"
 global datadir "${projdir}\data"
 global outdir  "${projdir}\output"
@@ -80,9 +17,7 @@ global dodir   "${projdir}\do file"
 
 cd "${datadir}"
 
-/*------------------------------------------------------------------------------
-LOG
-------------------------------------------------------------------------------*/
+* --- LOG ---
 log using "${outdir}\bsx_wage_elasticity_log.txt", replace text
 
 di ""
@@ -93,15 +28,7 @@ di "============================================================================
 di "Start time: $S_DATE $S_TIME"
 di ""
 
-/*==============================================================================
-STAGE 1: CONSTRUCT HOURLY WAGES AND PRODUCE DIAGNOSTICS
-==============================================================================
-Goal: Load the long-format data, restrict to the annual period where
-      industry codes exist (1979-1993), construct log hourly wage with
-      quality trimming, and produce distribution diagnostics.
-
-No pairing, no instrument, no regressions in this stage.
-==============================================================================*/
+* --- STAGE 1: CONSTRUCT HOURLY WAGES AND PRODUCE DIAGNOSTICS ---
 
 di ""
 di "=============================================================================="
@@ -129,9 +56,7 @@ di ""
 di "After restricting to 1979-1993: " _N " observations"
 tab year
 
-/*------------------------------------------------------------------------------
-1.1: INSPECT HOURS VARIABLE
-------------------------------------------------------------------------------*/
+* --- 1.1: INSPECT HOURS VARIABLE ---
 
 di ""
 di "=============================================================================="
@@ -164,9 +89,7 @@ count if hrs <= 0 | missing(hrs)
 di "Count of observations with hrs > 0:"
 count if hrs > 0
 
-/*------------------------------------------------------------------------------
-1.2: INSPECT PWAGES VARIABLE
-------------------------------------------------------------------------------*/
+* --- 1.2: INSPECT PWAGES VARIABLE ---
 
 di ""
 di "=============================================================================="
@@ -181,9 +104,7 @@ di ""
 di "Positive pwages and positive hrs combinations:"
 count if pwages > 0 & !missing(pwages) & hrs > 0 & !missing(hrs)
 
-/*------------------------------------------------------------------------------
-1.3: CONSTRUCT HOURLY WAGE
-------------------------------------------------------------------------------*/
+* --- 1.3: CONSTRUCT HOURLY WAGE ---
 
 di ""
 di "=============================================================================="
@@ -205,9 +126,7 @@ label var hourly_wage "Hourly wage = pwages/hrs (nominal; constructed, not surve
 di "Raw hourly wage (before hours trimming):"
 summarize hourly_wage, detail
 
-/*------------------------------------------------------------------------------
-1.4: HOURS QUALITY FILTER
-------------------------------------------------------------------------------*/
+* --- 1.4: HOURS QUALITY FILTER ---
 
 di ""
 di "=============================================================================="
@@ -262,9 +181,7 @@ di ""
 di "After hours filter — hourly_wage summary:"
 summarize hourly_wage, detail
 
-/*------------------------------------------------------------------------------
-1.5: LOG HOURLY WAGE
-------------------------------------------------------------------------------*/
+* --- 1.5: LOG HOURLY WAGE ---
 
 di ""
 di "=============================================================================="
@@ -313,9 +230,7 @@ else {
     di "Hourly wage median is within plausible range for 1979-1993. Proceeding."
 }
 
-/*------------------------------------------------------------------------------
-1.6: DIAGNOSTICS BY YEAR
-------------------------------------------------------------------------------*/
+* --- 1.6: DIAGNOSTICS BY YEAR ---
 
 di ""
 di "=============================================================================="
@@ -334,9 +249,7 @@ di ""
 di "Fraction with valid log_hourly_wage, by year:"
 tabstat log_hourly_wage, by(year) stat(n mean)
 
-/*------------------------------------------------------------------------------
-1.7: SAMPLE COUNT SUMMARY
-------------------------------------------------------------------------------*/
+* --- 1.7: SAMPLE COUNT SUMMARY ---
 
 di ""
 di "=============================================================================="
@@ -369,9 +282,7 @@ di "         " %5.3f `N_valid_wage' / `N_pos_both2'
 di "[RESULT] Hours filter trimming rate (among positive pwages+hrs):"
 di "         " %5.3f (`N_pos_both2' - `N_valid_wage') / `N_pos_both2'
 
-/*------------------------------------------------------------------------------
-1.8: BROAD INCOME CONSTRUCTION (needed for Stage 2+ and comparability)
-------------------------------------------------------------------------------*/
+* --- 1.8: BROAD INCOME CONSTRUCTION (needed for Stage 2+ and comparability) ---
 
 di ""
 di "=============================================================================="
@@ -407,9 +318,7 @@ di "[RESULT] Broad income p1:    " %12.0f r(p1)
 di "[RESULT] Broad income median: " %12.0f r(p50)
 di "[RESULT] Broad income p99:   " %12.0f r(p99)
 
-/*------------------------------------------------------------------------------
-STAGE 1 CHECKPOINT
-------------------------------------------------------------------------------*/
+* --- STAGE 1 CHECKPOINT ---
 
 di ""
 di "=============================================================================="
@@ -434,24 +343,7 @@ di "  Requires Yuhao approval if trimming rate or wage distribution is"
 di "  outside expected range."
 di ""
 
-/*==============================================================================
-STAGE 2: MERGE IND_BROAD INTO LONG DATA
-==============================================================================
-Goal: Attach the 12-category broad industry code (1970 Census) to each
-      person-year observation. This variable is required for the LOO
-      instrument and for all downstream stages.
-
-Source: merged_data_with_occind.dta (wide format)
-        Variables: ind_broad_1979 ... ind_broad_1993 (12 categories)
-
-ADAPTATION: BSX use presumably finer industry codes (SIPP industry codes)
-            available across all years 2000-2013. We use 12 broad categories
-            (1970 Census), available for 1979-1993 ONLY. Broader categories
-            reduce LOO cohort homogeneity and instrument power, but are the
-            finest granularity available in the current data extract.
-
-Stops after Stage 2. No LOO instrument or regressions implemented here.
-==============================================================================*/
+* --- STAGE 2: MERGE IND_BROAD INTO LONG DATA ---
 
 di ""
 di "=============================================================================="
@@ -461,9 +353,7 @@ di "============================================================================
 di "=============================================================================="
 di ""
 
-/*------------------------------------------------------------------------------
-2.1: SAVE STAGE 1 RESULT AS TEMPFILE
-------------------------------------------------------------------------------*/
+* --- 2.1: SAVE STAGE 1 RESULT AS TEMPFILE ---
 
 di ""
 di "=============================================================================="
@@ -474,9 +364,7 @@ tempfile stage1_data
 save `stage1_data', replace
 di "Stage 1 data saved. Observations in memory: " _N
 
-/*------------------------------------------------------------------------------
-2.2: LOAD WIDE-FORMAT OCC/IND DATA AND RESHAPE TO LONG
-------------------------------------------------------------------------------*/
+* --- 2.2: LOAD WIDE-FORMAT OCC/IND DATA AND RESHAPE TO LONG ---
 
 di ""
 di "=============================================================================="
@@ -530,9 +418,7 @@ di "After keeping 1979-1993: " _N " obs"
 tempfile ind_broad_long
 save `ind_broad_long', replace
 
-/*------------------------------------------------------------------------------
-2.3: MERGE IND_BROAD INTO STAGE 1 DATA
-------------------------------------------------------------------------------*/
+* --- 2.3: MERGE IND_BROAD INTO STAGE 1 DATA ---
 
 di ""
 di "=============================================================================="
@@ -574,9 +460,7 @@ if `n_master_only' > 0 {
 
 drop _merge
 
-/*------------------------------------------------------------------------------
-2.4: MERGE DIAGNOSTICS BY YEAR
-------------------------------------------------------------------------------*/
+* --- 2.4: MERGE DIAGNOSTICS BY YEAR ---
 
 di ""
 di "=============================================================================="
@@ -625,9 +509,7 @@ local N_miss_pos = r(N)
 di "[RESULT] Workers with pwages>0 AND non-missing ind_broad: `N_ind_pos'"
 di "[RESULT] Workers with pwages>0 AND missing ind_broad: `N_miss_pos'"
 
-/*------------------------------------------------------------------------------
-2.5: INDUSTRY CATEGORY DISTRIBUTION
-------------------------------------------------------------------------------*/
+* --- 2.5: INDUSTRY CATEGORY DISTRIBUTION ---
 
 di ""
 di "=============================================================================="
@@ -643,9 +525,7 @@ di ""
 di "Industry distribution among positive-pwages workers:"
 tab ind_broad if !missing(ind_broad) & pwages > 0, missing
 
-/*------------------------------------------------------------------------------
-2.6: INDUSTRY CELL SIZES (KEY DIAGNOSTIC FOR LOO FEASIBILITY)
-------------------------------------------------------------------------------*/
+* --- 2.6: INDUSTRY CELL SIZES (KEY DIAGNOSTIC FOR LOO FEASIBILITY) ---
 
 di ""
 di "=============================================================================="
@@ -715,9 +595,7 @@ di "  Cells 10-29 (thin, moderate noise):        `n_thin30'"
 di "  Cells 30+ (adequate for LOO):              `n_thick'"
 restore
 
-/*------------------------------------------------------------------------------
-2.7: FINAL DATASET INSPECTION
-------------------------------------------------------------------------------*/
+* --- 2.7: FINAL DATASET INSPECTION ---
 
 di ""
 di "=============================================================================="
@@ -755,17 +633,7 @@ di "  - ind_broad covers only 1979-1993 (limits analysis window)"
 di "  - 12 broad categories only (coarser than BSX SIPP industry codes)"
 di "  - Coverage is NOT 100% — some workers have missing industry in some years"
 
-/*==============================================================================
-STAGE 3: CREATE 3-YEAR PAIRED OBSERVATIONS
-==============================================================================
-Goal: For each person-year base t in 1979-1990, attach t+3 variables.
-      Gives base years 1979-1990 paired with end years 1982-1993.
-
-ADAPTATION: The [_n + 3] trick is valid only when every person has a
-            row for every year 1979-1993 (no skipped waves). The NLSY79
-            was annual during this period, so gaps occur only from
-            non-response. This mirrors the approach in Two_Period_Analysis.do.
-==============================================================================*/
+* --- STAGE 3: CREATE 3-YEAR PAIRED OBSERVATIONS ---
 
 di ""
 di "=============================================================================="
@@ -831,18 +699,7 @@ di "  Valid ind_broad at t: " r(N)
 count if !missing(log_hourly_wage_t) & !missing(log_hourly_wage_t3) & !missing(ind_broad_t)
 di "  Valid wage (both) AND valid industry: " r(N)
 
-/*==============================================================================
-STAGE 4: SAMPLE RESTRICTIONS
-==============================================================================
-Mirrors Two_Period_Analysis.do:
-  1. Valid hourly wages at both t and t+3
-  2. Valid broad industry at base year t
-  3. Marital stability (married/single status unchanged t → t+3)
-  4. Real income floor: broad_income_t > $10,000 in 1984 dollars
-     (CPI-U annual averages, source: BLS; 1984 = 103.9)
-  5. Positive end-period broad income
-  6. Valid LOO instrument: cohort N >= 5 (applied in Stage 5)
-==============================================================================*/
+* --- STAGE 4: SAMPLE RESTRICTIONS — Mirrors Two_Period_Analysis.do: ---
 
 di ""
 di "=============================================================================="
@@ -918,24 +775,7 @@ di "  After positive end-period income:             `N_r5'"
 di "  (LOO cohort filter applied in Stage 5)"
 di "----------------------------------------------------------------------"
 
-/*==============================================================================
-STAGE 5: LOO INSTRUMENT CONSTRUCTION
-==============================================================================
-For each worker i in cell (ind_broad_t, year_t), the leave-one-out industry
-average hourly wage at t+3 is:
-
-  LOO_wage_i,t+3 = Σ_{j≠i, same cell} pwages_j,t+3
-                 / Σ_{j≠i, same cell} hrs_j,t+3
-
-Method (collapse + merge):
-  1. Collapse post-restriction sample to cell totals: Σpwages_t3, Σhrs_t3, N.
-  2. Merge totals back to individual obs.
-  3. Subtract own contribution: LOO = (total - own) / (total_hrs - own_hrs).
-  4. Drop cells where LOO cohort (N - 1) < 5.
-
-NOTE: After Stage 4, all remaining obs have valid hourly_wage_t3 (i.e.,
-      hrs_t3 ∈ [520, 4160] and pwages_t3 > 0), so the collapse is clean.
-==============================================================================*/
+* --- STAGE 5: LOO INSTRUMENT CONSTRUCTION ---
 
 di ""
 di "=============================================================================="
@@ -1050,17 +890,7 @@ di "  Cells with N >= 30: " r(N)
 list ind_broad_t year_t n_cell, clean noobs separator(12)
 restore
 
-/*==============================================================================
-STAGE 6: REGRESSION VARIABLES AND SPLINES
-==============================================================================
-9-piece linear spline on log_income_t, knots at deciles 10-90 of the
-WAGE REGRESSION SAMPLE (not imported from Two_Period_Analysis.do; the
-samples differ because this analysis is restricted to 1979-1993 workers
-with valid industry codes and hourly wages).
-
-Mirrors Two_Period_Analysis.do construction:
-  gen spline`i' = max(0, log_income_t - cut`i')   for i = 1..9
-==============================================================================*/
+* --- STAGE 6: REGRESSION VARIABLES AND SPLINES ---
 
 di ""
 di "=============================================================================="
@@ -1106,21 +936,7 @@ di "Summary of key regression variables:"
 summarize log_income_change log_wage_change log_loo_wage_change ///
           log_income_t married_t income_weight, detail
 
-/*==============================================================================
-STAGE 7: REGRESSIONS
-==============================================================================
-Main equation (BSX Eq. 30):
-  Δlog(z_{i,t+3}) = α + ε_w·Δlog(w_{i,t+3}) + δ_t + γ·M_{i,t}
-                  + Σ θ_j·SPLINE_j(z_{i,t}) + ε_{i,t}
-
-Instrument (BSX Eq. 31): log_loo_wage_change = log(LOO wage_{t+3}) − log(LOO wage_t)
-  Change in LOO average hourly wage from t to t+3, within base-year
-  industry (ind_broad_t) × base-year (year_t) cell.
-  NOTE: The level at t+3 alone would conflate persistent industry wage premia
-  with transitory demand shocks; the change isolates the latter.
-
-SE: Clustered by taxsimid.   Weights: income_weight = broad_income_t.
-==============================================================================*/
+* --- STAGE 7: REGRESSIONS — Main equation (BSX Eq. 30): ---
 
 di ""
 di "=============================================================================="
@@ -1218,15 +1034,7 @@ local liml_N    = e(N)
 di ""
 di "[RESULT] LIML: ε_w = " %8.4f `liml_coef' "  SE = " %8.4f `liml_se' "  N = " `liml_N'
 
-/*==============================================================================
-STAGE 8: ROBUSTNESS CHECKS
-==============================================================================
-(a) 2SLS with Δlog(pwages) as DV — primary wages only (narrower but direct).
-    Note: pwages/hrs mismatch means hourly_wage is constructed, not surveyed.
-          Using Δlog(pwages) directly avoids the hrs denominator entirely,
-          at the cost of not adjusting for hours variation.
-(b) LIML already reported above.
-==============================================================================*/
+* --- STAGE 8: ROBUSTNESS CHECKS — (a) 2SLS with Δlog(pwages) as DV ---
 
 di ""
 di "=============================================================================="
@@ -1256,9 +1064,7 @@ local rob_N    = e(N)
 di ""
 di "[RESULT] 2SLS (Δlog pwages DV): ε_w = " %8.4f `rob_coef' "  SE = " %8.4f `rob_se' "  N = " `rob_N'
 
-/*==============================================================================
-RESULTS SUMMARY TABLE
-==============================================================================*/
+* --- RESULTS SUMMARY TABLE ---
 
 di ""
 di "=============================================================================="
@@ -1279,9 +1085,7 @@ di "  SE clustered by taxsimid. Weights = broad_income_t."
 di "  Controls: married_t, spline1-9 on log_income_t, i.year_t."
 di "  Instrument: delta log LOO hourly wage t to t+3 (BSX Eq. 31; ind_broad_t x year_t cell)."
 
-/*==============================================================================
-SAVE ANALYSIS DATASET
-==============================================================================*/
+* --- SAVE ANALYSIS DATASET ---
 
 di ""
 di "=============================================================================="

@@ -3,7 +3,7 @@
        log:  D:\Stata Data\labor_signaling_project\output\Advantageous_Selectio
 > n_log.txt
   log type:  text
- opened on:  10 Apr 2026, 18:22:27
+ opened on:  10 Apr 2026, 19:36:30
 
 . 
 . di ""
@@ -28,7 +28,7 @@ Test: Do workers who enter labor force at tax-cut reforms have higher AFQT?
 Framework: Sztutman (2024) Proposition 1 — advantageous selection
 
 . di "Start time: $S_DATE $S_TIME"
-Start time: 10 Apr 2026 18:22:27
+Start time: 10 Apr 2026 19:36:30
 
 . di ""
 
@@ -1074,7 +1074,7 @@ Duplicates in terms of taxsimid
 (570,870 observations deleted)
 . tempfile afqt_data
 . save `afqt_data'
-file C:\Users\yuhao\AppData\Local\Temp\ST_c970_000002.tmp saved as .dta
+file C:\Users\yuhao\AppData\Local\Temp\ST_148dc_000002.tmp saved as .dta
     format
 . restore
 . merge m:1 taxsimid using `afqt_data', keep(match) nogen
@@ -1082,10 +1082,10 @@ file C:\Users\yuhao\AppData\Local\Temp\ST_c970_000002.tmp saved as .dta
     Result                      Number of obs
     -----------------------------------------
     Not matched                             0
-    Matched                            31,832  
+    Matched                            53,632  
     -----------------------------------------
 . di "After AFQT merge: " _N " observations"
-After AFQT merge: 31832 observations
+After AFQT merge: 53632 observations
 . 
 . * Construct participation indicator from annual data
 . * analysis_annual has broad_income_t (period t), broad_income_t3 (period t+3)
@@ -1102,7 +1102,7 @@ After AFQT merge: 31832 observations
 . * This tests advantageous selection at INTENSIVE margin
 . 
 . gen afqt_x_ntr = afqt_std * log_ntr_change
-(1,187 missing values generated)
+(1,899 missing values generated)
 . 
 . di ""
 
@@ -1116,48 +1116,48 @@ After AFQT merge: 31832 observations
 > rument) ///
 >     afqt_std log_income_t spline1-spline9 married i.year_t ///
 >     [aweight=income_weight], robust
-(sum of wgt is   6.3402e+08)
+(sum of wgt is   8.9610e+08)
 
-Instrumental-variables 2SLS regression            Number of obs   =     30,645
-                                                  Wald chi2(26)   =    1922.89
+Instrumental-variables 2SLS regression            Number of obs   =     51,733
+                                                  Wald chi2(26)   =    9244.25
                                                   Prob > chi2     =     0.0000
-                                                  R-squared       =     0.1466
-                                                  Root MSE        =     .44772
+                                                  R-squared       =     0.1950
+                                                  Root MSE        =     .43201
 
 ------------------------------------------------------------------------------
              |               Robust
 log_income~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
 -------------+----------------------------------------------------------------
-log_ntr_ch~e |  -.1712995   .1205835    -1.42   0.155    -.4076388    .0650397
-  afqt_x_ntr |    .187335   .1006265     1.86   0.063    -.0098893    .3845593
-    afqt_std |   .0877728   .0035882    24.46   0.000     .0807401    .0948055
-log_income_t |  -.5382147   .1285164    -4.19   0.000    -.7901022   -.2863273
-     spline1 |   .1682369    .267752     0.63   0.530    -.3565473    .6930211
-     spline2 |  -.1165538   .2663237    -0.44   0.662    -.6385387    .4054311
-     spline3 |   .3522032    .239876     1.47   0.142    -.1179451    .8223516
-     spline4 |  -.2479514   .2517073    -0.99   0.325    -.7412887     .245386
-     spline5 |   .1246597   .2128692     0.59   0.558    -.2925563    .5418756
-     spline6 |   -.019468   .1855536    -0.10   0.916    -.3831463    .3442104
-     spline7 |  -.1234046    .173693    -0.71   0.477    -.4638366    .2170273
-     spline8 |   .4649164   .1567144     2.97   0.003     .1577618    .7720709
-     spline9 |  -.5087255   .1182914    -4.30   0.000    -.7405724   -.2768786
-     married |   .0613771   .0069453     8.84   0.000     .0477645    .0749897
+log_ntr_ch~e |  -.0256177   .0803581    -0.32   0.750    -.1831167    .1318814
+  afqt_x_ntr |   .0959886   .0630061     1.52   0.128     -.027501    .2194782
+    afqt_std |   .0891017   .0026386    33.77   0.000     .0839302    .0942732
+log_income_t |  -.1874879   .0509369    -3.68   0.000    -.2873224   -.0876535
+     spline1 |  -.5221338    .093738    -5.57   0.000    -.7058568   -.3384107
+     spline2 |   .2855176   .1183548     2.41   0.016     .0535465    .5174888
+     spline3 |  -.1688998   .1079193    -1.57   0.118    -.3804177    .0426182
+     spline4 |   .1928078   .1198324     1.61   0.108    -.0420595     .427675
+     spline5 |   .0392363    .121528     0.32   0.747    -.1989542    .2774268
+     spline6 |  -.0194722   .1151721    -0.17   0.866    -.2452053    .2062609
+     spline7 |  -.0578091   .1118863    -0.52   0.605    -.2771022     .161484
+     spline8 |   .1864188   .0984506     1.89   0.058    -.0065408    .3793784
+     spline9 |  -.1214267   .0686988    -1.77   0.077    -.2560739    .0132205
+     married |   -.030652   .0053437    -5.74   0.000    -.0411253   -.0201786
              |
       year_t |
-       1979  |   .0073394   .0790793     0.09   0.926    -.1476532     .162332
-       1980  |   .0792064   .0802539     0.99   0.324    -.0780884    .2365012
-       1981  |   .1413134   .0812577     1.74   0.082    -.0179488    .3005755
-       1982  |   .3053012   .0813489     3.75   0.000     .1458603    .4647422
-       1983  |   .3756859   .0819776     4.58   0.000     .2150128     .536359
-       1984  |   .3978036   .0817363     4.87   0.000     .2376035    .5580038
-       1985  |   .4194977   .0816136     5.14   0.000      .259538    .5794575
-       1986  |   .4012563   .0815287     4.92   0.000     .2414629    .5610496
-       1987  |   .4164669   .0823806     5.06   0.000     .2550038      .57793
-       1988  |   .4259637    .082625     5.16   0.000     .2640217    .5879057
-       1989  |   .4151263   .0827933     5.01   0.000     .2528543    .5773982
-       1990  |   .4259035   .0829421     5.13   0.000       .26334    .5884671
+       1979  |  -.0603187   .0219528    -2.75   0.006    -.1033453    -.017292
+       1980  |  -.0117524   .0205463    -0.57   0.567    -.0520224    .0285176
+       1981  |   .0124251   .0200373     0.62   0.535    -.0268474    .0516975
+       1982  |   .1200153   .0202855     5.92   0.000     .0802564    .1597742
+       1983  |   .1930101   .0206128     9.36   0.000     .1526098    .2334105
+       1984  |   .2397412   .0196919    12.17   0.000     .2011458    .2783367
+       1985  |   .2484592   .0194552    12.77   0.000     .2103276    .2865907
+       1986  |   .2413497    .019359    12.47   0.000     .2034067    .2792927
+       1987  |   .2569975   .0205802    12.49   0.000     .2166611    .2973339
+       1988  |   .2862069    .020834    13.74   0.000     .2453731    .3270407
+       1989  |   .2759494   .0210656    13.10   0.000     .2346615    .3172373
+       1990  |    .305219   .0211505    14.43   0.000     .2637648    .3466732
              |
-       _cons |   4.951424   1.146864     4.32   0.000     2.703612    7.199236
+       _cons |   2.107598   .4372962     4.82   0.000     1.250514    2.964683
 ------------------------------------------------------------------------------
 Endogenous: log_ntr_change afqt_x_ntr
 Exogenous:  afqt_std log_income_t spline1 spline2 spline3 spline4 spline5
@@ -1176,7 +1176,7 @@ Exogenous:  afqt_std log_income_t spline1 spline2 spline3 spline4 spline5
 . di "  β(AFQT × ΔlogNTR) = " %8.4f `b_afqt_int' ///
 >    "  SE = " %7.4f `se_afqt_int' ///
 >    "  t = " %5.2f `t_afqt_int'
-  β(AFQT × ΔlogNTR) =   0.1873  SE =  0.1006  t =  1.86
+  β(AFQT × ΔlogNTR) =   0.0960  SE =  0.0630  t =  1.52
 . di ""
 
 . 
@@ -1215,15 +1215,15 @@ If advantageous selection: high-AFQT workers should have higher ETI
   3.     local eti_q`q' = _b[log_ntr_change]
   4.     di "  AFQT Q`q' ETI = " %8.4f `eti_q`q''
   5. }
-  AFQT Q1 ETI =   0.0228
-  AFQT Q2 ETI =   0.0991
-  AFQT Q3 ETI =  -0.3311
-  AFQT Q4 ETI =  -0.0405
+  AFQT Q1 ETI =   0.1280
+  AFQT Q2 ETI =  -0.0255
+  AFQT Q3 ETI =  -0.1376
+  AFQT Q4 ETI =   0.0732
 . 
 . di ""
 
 . di "Gradient test: ETI_Q4 - ETI_Q1 = " %8.4f `eti_q4' - `eti_q1'
-Gradient test: ETI_Q4 - ETI_Q1 =  -0.0633
+Gradient test: ETI_Q4 - ETI_Q1 =  -0.0548
 . if `eti_q4' > `eti_q1' {
 .     di "RESULT: High-AFQT workers have higher ETI (Q4 > Q1)"
 .     di "  Consistent with advantageous selection"
@@ -1646,7 +1646,7 @@ PHASE 3 COMPLETE
 ==============================================================================
 
 . di "End time: $S_DATE $S_TIME"
-End time: 10 Apr 2026 18:22:37
+End time: 10 Apr 2026 19:36:38
 
 . 
 . log close
@@ -1654,5 +1654,5 @@ End time: 10 Apr 2026 18:22:37
        log:  D:\Stata Data\labor_signaling_project\output\Advantageous_Selectio
 > n_log.txt
   log type:  text
- closed on:  10 Apr 2026, 18:22:37
+ closed on:  10 Apr 2026, 19:36:38
 -------------------------------------------------------------------------------

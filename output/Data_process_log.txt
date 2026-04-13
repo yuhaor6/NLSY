@@ -2,7 +2,7 @@
       name:  <unnamed>
        log:  D:\Stata Data\labor_signaling_project\output\Data_process_log.txt
   log type:  text
- opened on:  27 Mar 2026, 00:37:35
+ opened on:  10 Apr 2026, 19:31:02
 
 . 
 . di ""
@@ -20,7 +20,7 @@ DATA PROCESSING
 ==============================================================================
 
 . di "Start time: $S_DATE $S_TIME"
-Start time: 27 Mar 2026 00:37:35
+Start time: 10 Apr 2026 19:31:02
 
 . di ""
 
@@ -57,18 +57,22 @@ file left_out.dta saved
 
 . 
 . * Keep only the variables we need (ID + occupation + industry variables)
-. keep taxsimid     r0046400 r0263400 r0446400 r0702100 r0945000 r1255400 r1650
-> 200     r1922800 r2317600 r2525400 r2924400 r3127100 r3522800 r3727800 r41821
-> 00     r0046300 r0263300 r0446300 r0702000 r0944900 r1255300 r1650100     r19
-> 22700 r2317500 r2525300 r2924300 r3127000 r3522700 r3727700 r4182000     r033
-> 8300 r0546000 r0840500 r1087700 r1463400 r1810200 r2171900     r2376700 r2771
-> 500 r3013300 r3340700 r3605000 r3955200 r4587904     r5270600 r6472600 r65918
-> 00 r7209600 r7898000 t0138400 t1298000     t2326500 t3308700 t4282800 t525690
-> 0 t7818600 t8428300 t8982400     e5900100 e5910100 e5920100 e5930100 e5940100
->  e5950100 e5960100     e5970100 e5980100 e5990100 e6000100 e6010100 e6020100 
-> e6030100     e6040100 e6050100 e6060100 e6070100 e6080100 e6090100 e6100100  
->    e6110100 e6120100 e6130100 e8590100 x0177200 e8741100 e8939000     e916450
-> 0 e9452000
+. keep taxsimid ///
+>     r0046400 r0263400 r0446400 r0702100 r0945000 r1255400 r1650200 ///
+>     r1922800 r2317600 r2525400 r2924400 r3127100 r3522800 r3727800 r4182100 /
+> //
+>     r0046300 r0263300 r0446300 r0702000 r0944900 r1255300 r1650100 ///
+>     r1922700 r2317500 r2525300 r2924300 r3127000 r3522700 r3727700 r4182000 /
+> //
+>     r0338300 r0546000 r0840500 r1087700 r1463400 r1810200 r2171900 ///
+>     r2376700 r2771500 r3013300 r3340700 r3605000 r3955200 r4587904 ///
+>     r5270600 r6472600 r6591800 r7209600 r7898000 t0138400 t1298000 ///
+>     t2326500 t3308700 t4282800 t5256900 t7818600 t8428300 t8982400 ///
+>     e5900100 e5910100 e5920100 e5930100 e5940100 e5950100 e5960100 ///
+>     e5970100 e5980100 e5990100 e6000100 e6010100 e6020100 e6030100 ///
+>     e6040100 e6050100 e6060100 e6070100 e6080100 e6090100 e6100100 ///
+>     e6110100 e6120100 e6130100 e8590100 x0177200 e8741100 e8939000 ///
+>     e9164500 e9452000
 
 . 
 . save "occupation_industry.dta", replace
@@ -2044,10 +2048,16 @@ Unified occ_YYYY variables created
 
 . 
 . * Apply labels
-. label define occ_broad_lbl     1 "Professional/Technical"     2 "Managers/Adm
-> inistrators"     3 "Sales Workers"     4 "Clerical Workers"     5 "Craftsmen"
->      6 "Operatives"     7 "Laborers"     8 "Farm Workers"     9 "Service Work
-> ers"
+. label define occ_broad_lbl ///
+>     1 "Professional/Technical" ///
+>     2 "Managers/Administrators" ///
+>     3 "Sales Workers" ///
+>     4 "Clerical Workers" ///
+>     5 "Craftsmen" ///
+>     6 "Operatives" ///
+>     7 "Laborers" ///
+>     8 "Farm Workers" ///
+>     9 "Service Workers"
 
 . 
 . label values occ_broad_1979 occ_broad_lbl
@@ -2347,12 +2357,19 @@ Broad occupation categories created
 
 . 
 . * Apply labels
-. label define ind_broad_lbl     1 "Agriculture/Forestry/Fisheries"     2 "Mini
-> ng"     3 "Construction"     4 "Manufacturing"     5 "Transport/Communication
-> /Utilities"     6 "Wholesale/Retail Trade"     7 "Finance/Insurance/Real Esta
-> te"     8 "Business/Repair Services"     9 "Personal Services"     10 "Entert
-> ainment/Recreation"     11 "Professional Services"     12 "Public Administrat
-> ion"
+. label define ind_broad_lbl ///
+>     1 "Agriculture/Forestry/Fisheries" ///
+>     2 "Mining" ///
+>     3 "Construction" ///
+>     4 "Manufacturing" ///
+>     5 "Transport/Communication/Utilities" ///
+>     6 "Wholesale/Retail Trade" ///
+>     7 "Finance/Insurance/Real Estate" ///
+>     8 "Business/Repair Services" ///
+>     9 "Personal Services" ///
+>     10 "Entertainment/Recreation" ///
+>     11 "Professional Services" ///
+>     12 "Public Administration"
 
 . 
 . foreach yr in 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 199
@@ -3663,10 +3680,16 @@ RESHAPING TO LONG FORMAT
 . 
 . * Reshape Wide to Long by year
 . * NOTE: Added hgc_ to reshape for year-specific education
-. reshape long     unemp_ mstat_ page_ depx_ pwages_ swages_     psemp_ ssemp_ 
-> sui_ gssi_ transfers_ nonprop_     pensions_ rentpaid_     spomonth_ spoyear_
->      child1month_ child1year_     child2month_ child2year_     child3month_ c
-> hild3year_     hrs_ cumhrs_ hgc_,     i(taxsimid) j(year)
+. reshape long ///
+>     unemp_ mstat_ page_ depx_ pwages_ swages_ ///
+>     psemp_ ssemp_ sui_ gssi_ transfers_ nonprop_ ///
+>     pensions_ rentpaid_ ///
+>     spomonth_ spoyear_ ///
+>     child1month_ child1year_ ///
+>     child2month_ child2year_ ///
+>     child3month_ child3year_ ///
+>     hrs_ cumhrs_ hgc_, ///
+>     i(taxsimid) j(year)
 (j = 1978 1979 1980 1981 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992
 >  1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2
 > 008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021 2022 202
@@ -4342,8 +4365,9 @@ Spouse age validation applied:
 
 . 
 . * drop intermediate date vars
-. drop spomonth_ spoyear_ dob_spouse dob_c1 dob_c2 dob_c3 refdate      child1mo
-> nth_ child1year_ child2month_ child2year_ child3month_ child3year_
+. drop spomonth_ spoyear_ dob_spouse dob_c1 dob_c2 dob_c3 refdate ///
+>      child1month_ child1year_ child2month_ child2year_ child3month_ child3yea
+> r_
 
 . 
 . replace sage  = 0 if missing(sage)  | sage  < 0 | sage > 100
@@ -4691,9 +4715,11 @@ GOOD: All spouse ages are valid (0-100 range)
 
 . 
 . * Zero‐fill any remaining missing inputs
-. foreach v in pui sui pwages swages psemp ssemp              gssi transfers no
-> nprop              pensions rentpaid              mstat page depx stcg ltcg p
-> roptax              otheritem childcare pprofinc sprofinc scorp {
+. foreach v in pui sui pwages swages psemp ssemp ///
+>              gssi transfers nonprop ///
+>              pensions rentpaid ///
+>              mstat page depx stcg ltcg proptax ///
+>              otheritem childcare pprofinc sprofinc scorp {
   2.     replace `v' = 0 if missing(`v')
   3. }
 (0 real changes made)
@@ -4720,8 +4746,9 @@ GOOD: All spouse ages are valid (0-100 range)
 (0 real changes made)
 
 . 
-. local survvars page depx pui pwages swages pbusinc sbusinc sui gssi          
->        transfers nonprop pensions                 rentpaid
+. local survvars page depx pui pwages swages pbusinc sbusinc sui gssi ///
+>                 transfers nonprop pensions ///
+>                 rentpaid
 
 . 
 . foreach v of local survvars {
@@ -4866,12 +4893,9 @@ Duplicates in terms of taxsimid
 . tempfile afqt_q
 
 . save `afqt_q', replace
-(file
-    C:\Users\yuhao\AppData\Local\Temp\stata_worker_default_gq83faku\ST_b434_0
-    > 00008.tmp not found)
-file
-    C:\Users\yuhao\AppData\Local\Temp\stata_worker_default_gq83faku\ST_b434_0
-    > 00008.tmp saved as .dta format
+(file C:\Users\yuhao\AppData\Local\Temp\ST_16688_000002.tmp not found)
+file C:\Users\yuhao\AppData\Local\Temp\ST_16688_000002.tmp saved as .dta
+    format
 
 . restore
 
@@ -4917,12 +4941,9 @@ Duplicates in terms of taxsimid
 . tempfile afqt_s
 
 . save `afqt_s', replace
-(file
-    C:\Users\yuhao\AppData\Local\Temp\stata_worker_default_gq83faku\ST_b434_0
-    > 0000a.tmp not found)
-file
-    C:\Users\yuhao\AppData\Local\Temp\stata_worker_default_gq83faku\ST_b434_0
-    > 0000a.tmp saved as .dta format
+(file C:\Users\yuhao\AppData\Local\Temp\ST_16688_000004.tmp not found)
+file C:\Users\yuhao\AppData\Local\Temp\ST_16688_000004.tmp saved as .dta
+    format
 
 . restore
 
@@ -4972,6 +4993,163 @@ file
 . label var grad_degree "17+ years (graduate degree)"
 
 . 
+. /*===========================================================================
+> ===
+> FIX #8: CORRECT CUMHRS FOR EMPLOYED-BUT-NO-HOURS ANNUAL OBSERVATIONS
+> =============================================================================
+> =
+> ROOT CAUSE: The cumhrs variable was built by zero-filling ALL missing annual
+> hours before accumulation (pre-reshape). This treats survey non-response
+> identically to non-employment. Person-years where pwages > 0 but hrs = 0
+> are economically impossible — a worker cannot have positive wages and zero
+> hours — yet they arise from this zero-fill whenever a respondent reported
+> wages but skipped the hours question.
+> 
+> Bound, Brown & Mathiowetz (2001, Handbook of Econometrics) and Card & Hyslop
+> (1997) document that hours non-response in NLSY surveys is positively
+> correlated with employment, not non-employment. Standard data quality
+> practice is to flag and impute these cases.
+> 
+> FIX (post-reshape long format): For annual years (1978-1993), wherever
+> pwages > 0 and hrs == 0, replace hrs with the person's median annual hours
+> from valid observations (hrs > 0, pwages > 0). Use the sample-wide median as
+> fallback for persons with no valid obs. Then apply the correction cumulativel
+> y
+> to cumhrs (cumhrs at that year and all future years increases by the imputed
+> hours value). Finally recompute recent_hrs from the corrected cumhrs.
+> 
+> NOTE: Biennial years (1995+) are unchanged — zero hours in a biennial year
+> where pwages > 0 is less frequent and less consequential for the cumhrs
+> denominator given the longer horizon.
+> =============================================================================
+> =*/
+. 
+. di ""
+
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. di "FIX #8: CORRECTING CUMHRS FOR EMPLOYED-BUT-NO-HOURS (ANNUAL PERIOD)"
+FIX #8: CORRECTING CUMHRS FOR EMPLOYED-BUT-NO-HOURS (ANNUAL PERIOD)
+
+. di "=========================================================================
+> ====="
+==============================================================================
+
+. 
+. * Identify eligible cases: annual year, has wages, has zero hours
+. gen fix8_eligible = (year <= 1993 & pwages > 0 & !missing(pwages) & hrs == 0)
+
+. count if fix8_eligible == 1
+  1,745
+
+. di "FIX #8: " r(N) " person-years with pwages > 0 but hrs = 0 in annual perio
+> d (to impute)"
+FIX #8: 1745 person-years with pwages > 0 but hrs = 0 in annual period (to impu
+> te)
+
+. 
+. * Compute person-median hours from valid annual observations
+. * Valid = year <= 1993, pwages > 0, hrs > 0 and not missing
+. bysort taxsimid: egen person_med_hrs_fix8 = median( ///
+>     cond(year <= 1993 & pwages > 0 & !missing(pwages) & hrs > 0 & !missing(hr
+> s), ///
+>          hrs, .))
+(21,896 missing values generated)
+
+. 
+. * Sample-wide median annual hours as fallback (for persons with no valid obs)
+. quietly _pctile hrs if year <= 1993 & pwages > 0 & !missing(pwages) & ///
+>     hrs > 0 & !missing(hrs), p(50)
+
+. global sample_med_hrs_fix8 = r(r1)
+
+. di "FIX #8: Sample-wide median annual hours (fallback) = " %6.0f $sample_med_
+> hrs_fix8
+FIX #8: Sample-wide median annual hours (fallback) =   1920
+
+. 
+. * Build imputed hours value for eligible observations
+. gen hrs_correction_fix8 = .
+(583,556 missing values generated)
+
+. replace hrs_correction_fix8 = person_med_hrs_fix8 ///
+>     if fix8_eligible == 1 & !missing(person_med_hrs_fix8)
+(1,650 real changes made)
+
+. replace hrs_correction_fix8 = $sample_med_hrs_fix8 ///
+>     if fix8_eligible == 1 & missing(hrs_correction_fix8)
+(95 real changes made)
+
+. replace hrs_correction_fix8 = 0 if missing(hrs_correction_fix8)
+(581,811 real changes made)
+
+. 
+. * Apply correction to hrs (for downstream uses of hrs directly)
+. replace hrs = hrs_correction_fix8 if fix8_eligible == 1 & hrs_correction_fix8
+>  > 0
+variable hrs was int now float
+(1,745 real changes made)
+
+. 
+. * Apply correction cumulatively to cumhrs:
+. * At each affected year, cumhrs at that year and ALL later years should incre
+> ase
+. * by the imputed hours. We compute the cumulative sum of corrections within p
+> erson.
+. sort taxsimid year
+
+. by taxsimid: gen cumhrs_correction_fix8 = sum(hrs_correction_fix8)
+
+. replace cumhrs = cumhrs + cumhrs_correction_fix8
+(57,904 real changes made)
+
+. 
+. * Diagnostics
+. di ""
+
+
+. di "FIX #8 RESULTS:"
+FIX #8 RESULTS:
+
+. count if fix8_eligible == 1 & hrs_correction_fix8 > 0
+  1,745
+
+. di "  Obs imputed (person-median or fallback): " r(N)
+  Obs imputed (person-median or fallback): 1745
+
+. summarize cumhrs_correction_fix8 if cumhrs_correction_fix8 > 0, detail
+
+                   cumhrs_correction_fix8
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%           90             15
+ 5%          294             15
+10%          465             15       Obs              60,868
+25%          884             15       Sum of wgt.      60,868
+
+50%         1497                      Mean           1535.264
+                        Largest       Std. dev.      922.8058
+75%         2015           7680
+90%         2370           7680       Variance       851570.6
+95%         3155           7680       Skewness       1.477118
+99%         4740           7680       Kurtosis       8.003965
+
+. di "  Mean cumhrs correction applied: " %8.1f r(mean) " hours"
+  Mean cumhrs correction applied:   1535.3 hours
+
+. 
+. * Cleanup
+. drop fix8_eligible person_med_hrs_fix8 hrs_correction_fix8 cumhrs_correction_
+> fix8
+
+. 
+. di "FIX #8 complete."
+FIX #8 complete.
+
+. 
 . * Create lagged hours for signaling analysis
 . sort taxsimid year
 
@@ -5014,7 +5192,7 @@ file
 . 
 . * Create log versions for elasticity analysis
 . gen log_recent_hrs = ln(recent_hrs) if recent_hrs > 0
-(273,770 missing values generated)
+(272,025 missing values generated)
 
 . label var log_recent_hrs "Log of recent hours"
 
@@ -5046,7 +5224,8 @@ file
 
 . 
 . label define exp_bin_lbl 1 "0-5 yrs" 2 "6-10 yrs" 3 "11-15 yrs" 4 "16-20 yrs"
->                           5 "21-25 yrs" 6 "26-30 yrs" 7 "30+ yrs"
+>  ///
+>                          5 "21-25 yrs" 6 "26-30 yrs" 7 "30+ yrs"
 
 . label values exp_bin exp_bin_lbl
 
@@ -5333,7 +5512,7 @@ Output: nlsy_long_pre_taxsim.dta (saved to D:\Stata Data\labor_signaling_projec
 > t\data)
 
 . di "End time: $S_DATE $S_TIME"
-End time: 27 Mar 2026 00:37:50
+End time: 10 Apr 2026 19:31:23
 
 . di ""
 
@@ -5343,5 +5522,5 @@ End time: 27 Mar 2026 00:37:50
       name:  <unnamed>
        log:  D:\Stata Data\labor_signaling_project\output\Data_process_log.txt
   log type:  text
- closed on:  27 Mar 2026, 00:37:50
+ closed on:  10 Apr 2026, 19:31:23
 -------------------------------------------------------------------------------

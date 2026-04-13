@@ -2,7 +2,7 @@
       name:  <unnamed>
        log:  D:\Stata Data\labor_signaling_project\output\Pigouvian_Tax_log.txt
   log type:  text
- opened on:  10 Apr 2026, 18:27:38
+ opened on:  10 Apr 2026, 19:37:38
 
 . 
 . di ""
@@ -26,7 +26,7 @@ PIGOUVIAN TAX QUANTIFICATION (PHASE 5)
 Cross-phase consistency: δ from γ vs. δ from τ_p × α
 
 . di "Start time: $S_DATE $S_TIME"
-Start time: 10 Apr 2026 18:27:38
+Start time: 10 Apr 2026 19:37:38
 
 . di ""
 
@@ -142,11 +142,11 @@ PART 1: COLLECT CROSS-PHASE ESTIMATES
 Phase 1 structural estimates:
 .     list, clean noobs
 
-           description      value         se    eti_used  
-         gamma_FE_full   .9131034   .0100229           .  
-      delta_annual_ETI   .3945234          .   -.1734079  
-    delta_biennial_ETI   .7368515          .    .5438264  
-        delta_midpoint   .5656875          .           .  
+           description      value         se   eti_used  
+         gamma_FE_full   .9365716   .0104846          .  
+      delta_annual_ETI   .4936829          .      .0208  
+    delta_biennial_ETI   .6269776          .   .2964166  
+        delta_midpoint   .5603303          .          .  
 . 
 .     * Extract key scalars
 .     qui sum value if description == "gamma_FE_full"
@@ -158,9 +158,9 @@ Phase 1 structural estimates:
 .     di ""
 
 .     di "  γ_FE (full career):      " %7.4f $gamma_fe
-  γ_FE (full career):       0.9131
+  γ_FE (full career):       0.9366
 .     di "  δ (Phase 1 estimate):    " %7.4f $delta_p1
-  δ (Phase 1 estimate):     0.5657
+  δ (Phase 1 estimate):     0.5603
 . }
 
 . else {
@@ -184,16 +184,16 @@ Phase 2 Pigouvian tax estimates (preliminary):
 .     list, clean noobs
 
     decile       eps_w   chi_app~x       tau_p  
-         1    .0679378   -5.080706    6.080706  
-         2    .2467964   -21.08926    22.08926  
-         3   -.2807679    26.12984   -25.12984  
-         4    .6187637   -54.38181    55.38181  
-         5   -.4338877    39.83467   -38.83467  
-         6   -2.451737    220.4402   -219.4402  
-         7    -.068982    7.174161   -6.174161  
-         8   -.3360813    31.08061   -30.08061  
-         9   -.0210954    2.888118   -1.888118  
-        10   -.5233969     47.8461    -46.8461  
+         1    .1679428   -14.03154    15.03154  
+         2   -.1180439     11.5654    -10.5654  
+         3   -.1513316    14.54477   -13.54477  
+         4    .1282219   -10.47637    11.47637  
+         5   -.3272556    30.29068   -29.29068  
+         6    .0173265   -.5507929    1.550793  
+         7   -1.492896    134.6201   -133.6201  
+         8   -.0278441    3.492161   -2.492161  
+         9    .3360573   -29.07846    30.07846  
+        10   -.1929526    18.27003   -17.27003  
 . 
 .     * If chi_approx is missing (Phase 2 placeholder), note this
 .     qui count if missing(chi_approx)
@@ -215,11 +215,11 @@ Phase 2 Pigouvian tax estimates (preliminary):
 .     di "ETI estimates:"
 ETI estimates:
 .     di "  Annual:   " %7.4f $eti_annual
-  Annual:   -0.1734
+  Annual:    0.0208
 .     di "  Biennial: " %7.4f $eti_biennial
-  Biennial:  0.5438
+  Biennial:  0.2964
 .     di "  Average:  " %7.4f ($eti_annual + $eti_biennial)/2
-  Average:   0.1852
+  Average:   0.1586
 .     global eti_avg = ($eti_annual + $eti_biennial) / 2
 . }
 
@@ -282,7 +282,7 @@ Method: Log-rank regression on top 20% of income distribution
 .     local p80 = r(r1)
 . 
 .     keep if log_income_t >= `p80' & !missing(log_income_t)
-(25,712 observations deleted)
+(42,967 observations deleted)
 .     sort log_income_t
 .     gen rank_n = _n
 .     gen total_n = _N
@@ -291,22 +291,22 @@ Method: Log-rank regression on top 20% of income distribution
 .     di "Pareto tail sample: top 20% of annual income distribution"
 Pareto tail sample: top 20% of annual income distribution
 .     di "N = " _N " observations in tail"
-N = 6120 observations in tail
+N = 10665 observations in tail
 . 
 .     reg log_rank log_income_t, robust
 
-Linear regression                               Number of obs     =      6,120
-                                                F(1, 6118)        =   38064.46
+Linear regression                               Number of obs     =     10,665
+                                                F(1, 10663)       =   54931.41
                                                 Prob > F          =     0.0000
-                                                R-squared         =     0.9866
-                                                Root MSE          =     .11569
+                                                R-squared         =     0.9850
+                                                Root MSE          =     .12237
 
 ------------------------------------------------------------------------------
              |               Robust
     log_rank | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
 -------------+----------------------------------------------------------------
-log_income_t |  -3.448747   .0176767  -195.10   0.000      -3.4834   -3.414095
-       _cons |   35.28312   .1846956   191.03   0.000     34.92105    35.64519
+log_income_t |  -3.295037   .0140589  -234.37   0.000    -3.322595   -3.267479
+       _cons |   33.39225   .1457818   229.06   0.000     33.10649    33.67801
 ------------------------------------------------------------------------------
 .     scalar alpha_est = abs(_b[log_income_t])
 .     scalar alpha_se  = _se[log_income_t]
@@ -317,9 +317,9 @@ log_income_t |  -3.448747   .0176767  -195.10   0.000      -3.4834   -3.414095
 .     di "Pareto tail fit:"
 Pareto tail fit:
 .     di "  α = " %7.4f alpha_est "  SE = " %6.4f alpha_se
-  α =  3.4487  SE = 0.0177
+  α =  3.2950  SE = 0.0141
 .     di "  R² = " %6.4f alpha_r2
-  R² = 0.9866
+  R² = 0.9850
 .     di ""
 
 . 
@@ -407,10 +407,10 @@ PART 3: PIGOUVIAN TAX COMPUTATION
 METHOD A — Pareto Structural: τ_p = δ / α
 
 . di "  δ = " %6.4f $delta_p1 "  α = " %6.4f $alpha_pareto
-  δ = 0.5657  α = 3.4487
+  δ = 0.5603  α = 3.2950
 
 . di "  τ_p (Pareto) = " %7.4f `tau_p_a'
-  τ_p (Pareto) =  0.1640
+  τ_p (Pareto) =  0.1701
 
 . di ""
 
@@ -429,13 +429,13 @@ METHOD A — Pareto Structural: τ_p = δ / α
 . else if `tau_p_a' > 0 {
 .     di "RESULT: Optimal Pigouvian correction ≈ " %4.1f `tau_p_a'*100 " percen
 > tage points"
-RESULT: Optimal Pigouvian correction ≈ 16.4 percentage points
+RESULT: Optimal Pigouvian correction ≈ 17.0 percentage points
 .     di "  Interpretation: The signaling externality warrants a Pigouvian tax 
 > of"
   Interpretation: The signaling externality warrants a Pigouvian tax of
 .     di "  approximately " %4.1f `tau_p_a'*100 "pp on top of the Mirrleesian o
 > ptimal tax."
-  approximately 16.4pp on top of the Mirrleesian optimal tax.
+  approximately 17.0pp on top of the Mirrleesian optimal tax.
 . }
 
 . 
@@ -472,24 +472,24 @@ RESULT: Optimal Pigouvian correction ≈ 16.4 percentage points
 
 
 . di "3.2 SENSITIVITY OF δ TO ETI (at γ_FE = " %5.3f $gamma_fe ")"
-3.2 SENSITIVITY OF δ TO ETI (at γ_FE = 0.913)
+3.2 SENSITIVITY OF δ TO ETI (at γ_FE = 0.937)
 
 . di "------------------------------------------"
 ------------------------------------------
 
 . di "  ε (ETI)    δ_implied    τ_p (at α=" %4.2f $alpha_pareto ")"
-  ε (ETI)    δ_implied    τ_p (at α=3.45)
+  ε (ETI)    δ_implied    τ_p (at α=3.30)
 
 . foreach e_val in 0.20 0.30 0.40 0.50 0.60 {
   2.     local d_e = $gamma_fe * (1 + `e_val') / (1 + $gamma_fe)
   3.     local t_e = `d_e' / $alpha_pareto
   4.     di "  " %6.2f `e_val' "      " %7.4f `d_e' "      " %7.4f `t_e'
   5. }
-    0.20       0.5727       0.1661
-    0.30       0.6205       0.1799
-    0.40       0.6682       0.1938
-    0.50       0.7159       0.2076
-    0.60       0.7637       0.2214
+    0.20       0.5803       0.1761
+    0.30       0.6287       0.1908
+    0.40       0.6771       0.2055
+    0.50       0.7254       0.2202
+    0.60       0.7738       0.2348
 
 . 
 . /*===========================================================================
@@ -594,11 +594,11 @@ Stage  γ_FE     δ_implied  τ_p       Interpretation
 .     di "  Q`q'    " %7.4f `gq' "   " %7.4f `dq' "   " %7.4f `tq' ///
 >        "   `interp'"
   9. }
-  Q1     1.0957    0.6197    0.1797   Moderate distortion
-  Q2     1.0044    0.5939    0.1722   Moderate distortion
-  Q3     0.9131    0.5657    0.1640   Moderate distortion
-  Q4     0.8218    0.5346    0.1550   Moderate distortion
-  Q5     0.7305    0.5003    0.1451   Moderate distortion
+  Q1     1.1239    0.6131    0.1861   Moderate distortion
+  Q2     1.0302    0.5879    0.1784   Moderate distortion
+  Q3     0.9366    0.5603    0.1701   Moderate distortion
+  Q4     0.8429    0.5299    0.1608   Moderate distortion
+  Q5     0.7493    0.4963    0.1506   Moderate distortion
 
 . 
 . di ""
@@ -655,7 +655,7 @@ PART 5: CROSS-PHASE CONSISTENCY CHECK
 
 
 . di "δ_1 (Phase 1, structural): " %7.4f $delta_p1
-δ_1 (Phase 1, structural):  0.5657
+δ_1 (Phase 1, structural):  0.5603
 
 . di "  From: δ = γ_FE(1 + ε)/(1 + γ_FE)"
   From: δ = γ_FE(1 + ε)/(1 + γ_FE)
@@ -668,13 +668,13 @@ PART 5: CROSS-PHASE CONSISTENCY CHECK
 
 . di "  τ_p (Phase 2 preliminary): " %7.4f `tau_p_a' " [currently = δ/α from Ph
 > ase 1]"
-  τ_p (Phase 2 preliminary):  0.1640 [currently = δ/α from Phase 1]
+  τ_p (Phase 2 preliminary):  0.1701 [currently = δ/α from Phase 1]
 
 . di "  α (Pareto): " %7.4f $alpha_pareto
-  α (Pareto):  3.4487
+  α (Pareto):  3.2950
 
 . di "  δ_2 = τ_p × α = " %7.4f `tau_p_a' * $alpha_pareto
-  δ_2 = τ_p × α =  0.5657
+  δ_2 = τ_p × α =  0.5603
 
 . di ""
 
@@ -889,19 +889,19 @@ SUMMARY: Pigouvian Tax Estimates
 
                               method   estimate      lower      upper          
 >                   notes  
-        Phase 1: Pareto (ETI annual)   .1143962   .0800773    .148715          
+        Phase 1: Pareto (ETI annual)   .1498262   .1048784   .1947741          
 >                          
-      Phase 1: Pareto (ETI biennial)   .2136577   .1495604   .2777551          
+      Phase 1: Pareto (ETI biennial)   .1902794   .1331956   .2473632          
 >                          
-       Phase 1: Pareto (ETI average)   .1640269   .1148189    .213235          
+       Phase 1: Pareto (ETI average)   .1700528    .119037   .2210686          
 >        Primary estimate  
-          Phase 2: Direct χ (prelim)   .1640269   .1148189    .213235   Placeho
+          Phase 2: Direct χ (prelim)   .1700528    .119037   .2210687   Placeho
 > lder — needs full η^P_r  
-                  Sensitivity: α=1.5    .377125   .2639875   .4902624          
+                  Sensitivity: α=1.5   .3735535   .2614875   .4856196          
 >              Robustness  
-                  Sensitivity: α=2.5    .226275   .1583925   .2941575          
+                  Sensitivity: α=2.5   .2241321   .1568925   .2913717          
 >              Robustness  
-                  Sensitivity: α=3.0   .1885625   .1319937   .2451312          
+                  Sensitivity: α=3.0   .1867768   .1307437   .2428098          
 >              Robustness  
     Literature comparison (Sztutman)          .          .          .    HRS-ba
 > sed estimate from paper  
@@ -991,7 +991,7 @@ STATUS OF EACH PHASE:
 .     di "  Phase 1 (Structural γ):    COMPLETE ✓"
   Phase 1 (Structural γ):    COMPLETE ✓
 .     di "    Key result: γ_FE = " %6.4f $gamma_fe ", δ ≈ " %6.4f $delta_p1
-    Key result: γ_FE = 0.9131, δ ≈ 0.5657
+    Key result: γ_FE = 0.9366, δ ≈ 0.5603
 . }
 
 . else {
@@ -1140,7 +1140,7 @@ PHASE 5 COMPLETE
 ==============================================================================
 
 . di "End time: $S_DATE $S_TIME"
-End time: 10 Apr 2026 18:27:40
+End time: 10 Apr 2026 19:37:39
 
 . di ""
 
@@ -1166,5 +1166,5 @@ RECOMMENDED NEXT ACTION:
       name:  <unnamed>
        log:  D:\Stata Data\labor_signaling_project\output\Pigouvian_Tax_log.txt
   log type:  text
- closed on:  10 Apr 2026, 18:27:40
+ closed on:  10 Apr 2026, 19:37:39
 -------------------------------------------------------------------------------

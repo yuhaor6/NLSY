@@ -1,24 +1,7 @@
-/*==============================================================================
-EDA_WAGE_ANALYSIS.DO
-================================================================================
-Purpose: Exploratory Data Analysis for Wage Dynamics
-         Examining how wages change with experience, hours, age, and occupation
-
-CORRECTIONS APPLIED:
-- Uses pot_exp (potential experience) from corrected Data_process.do
-- Uses hgc (year-specific education) instead of max_education
-- Uses recent_hrs_annual for cross-period comparisons
-- Cumulative hours now include interpolated non-survey years
-- Ages are correctly aligned to income years
-
-ANALYSES INCLUDED:
-1. Occupation × Industry granularity assessment
-2. Wages vs. Experience (Mincer-style)
-3. Wages vs. Cumulative Hours Worked
-4. Wages vs. Age
-5. Wages vs. Cumulative Hours / Age (work intensity)
-
-==============================================================================*/
+* EDA_Wage_Analysis.do
+* Exploratory wage analysis: distributions, age profiles, experience returns
+* Input:  data/nlsy_long_pre_taxsim.dta
+* Output: EDA figures + log file
 
 clear all
 set more off
@@ -34,9 +17,7 @@ di "============================================================================
 di "Start time: $S_DATE $S_TIME"
 di ""
 
-/*==============================================================================
-PART 0: LOAD AND PREPARE DATA
-==============================================================================*/
+* --- Part 0: LOAD AND PREPARE DATA ---
 
 di ""
 di "=============================================================================="
@@ -52,9 +33,7 @@ di "Loaded dataset with " _N " observations"
 * Check which variables are available
 describe pwages page cumhrs hrs year taxsimid pot_exp hgc
 
-/*------------------------------------------------------------------------------
-0.1: Verify corrected variables exist
-------------------------------------------------------------------------------*/
+* --- 0.1: Verify corrected variables exist ---
 
 di ""
 di "VERIFICATION: Checking for corrected variables"
@@ -86,9 +65,7 @@ di ""
 di "Cumulative hours by period (should show growth, not plateau):"
 tabstat cumhrs if inlist(year, 1980, 1990, 2000, 2010, 2019), by(year) stat(mean median n)
 
-/*------------------------------------------------------------------------------
-0.2: Create key analytic variables
-------------------------------------------------------------------------------*/
+* --- 0.2: Create key analytic variables ---
 
 * Generate log wages (for workers with positive wages)
 capture drop log_pwages
@@ -133,9 +110,7 @@ label var hrs_per_age "Cumulative hours / Age"
 label var log_cumhrs "Log cumulative hours"
 label var log_hrs_per_age "Log(cumulative hours / age)"
 
-/*------------------------------------------------------------------------------
-0.3: Sample restrictions for wage analysis
-------------------------------------------------------------------------------*/
+* --- 0.3: Sample restrictions for wage analysis ---
 
 * Create sample indicator for valid wage observations
 capture drop wage_sample
@@ -154,9 +129,7 @@ restore
 
 save "eda_analysis_temp.dta", replace
 
-/*==============================================================================
-PART 1: OCCUPATION × INDUSTRY GRANULARITY ANALYSIS
-==============================================================================*/
+* --- Part 1: OCCUPATION × INDUSTRY GRANULARITY ANALYSIS ---
 
 di ""
 di "=============================================================================="
@@ -282,9 +255,7 @@ else {
     restore
 }
 
-/*==============================================================================
-PART 2: WAGES VS EXPERIENCE (MINCER-STYLE)
-==============================================================================*/
+* --- Part 2: WAGES VS EXPERIENCE (MINCER-STYLE) ---
 
 di ""
 di "=============================================================================="
@@ -296,9 +267,7 @@ di "  pot_exp = age - current_year_education - 6"
 di "  (Not lifetime max education)"
 di ""
 
-/*------------------------------------------------------------------------------
-2.1: Non-parametric by experience bins
-------------------------------------------------------------------------------*/
+* --- 2.1: Non-parametric by experience bins ---
 
 di "2.1 NON-PARAMETRIC: WAGES BY EXPERIENCE BIN"
 di "-------------------------------------------"
@@ -344,9 +313,7 @@ graph export "wages_by_experience.png", replace width(1200)
 
 restore
 
-/*------------------------------------------------------------------------------
-2.2: Parametric Mincer equation
-------------------------------------------------------------------------------*/
+* --- 2.2: Parametric Mincer equation ---
 
 di ""
 di "2.2 PARAMETRIC: MINCER WAGE EQUATION"
@@ -374,9 +341,7 @@ di "  At 10 years: Each year → " %4.2f (`b1' + 2*`b2'*10)*100 "% wage increase
 di "  At 20 years: Each year → " %4.2f (`b1' + 2*`b2'*20)*100 "% wage increase"
 di ""
 
-/*==============================================================================
-PART 3: WAGES VS CUMULATIVE HOURS WORKED
-==============================================================================*/
+* --- Part 3: WAGES VS CUMULATIVE HOURS WORKED ---
 
 di ""
 di "=============================================================================="
@@ -387,9 +352,7 @@ di "NOTE: Cumulative hours now include interpolated estimates for non-survey yea
 di "      (corrected in Data_process_CORRECTED.do)"
 di ""
 
-/*------------------------------------------------------------------------------
-3.1: Non-parametric by hours quintile
-------------------------------------------------------------------------------*/
+* --- 3.1: Non-parametric by hours quintile ---
 
 di "3.1 NON-PARAMETRIC: WAGES BY CUMULATIVE HOURS QUINTILE"
 di "------------------------------------------------------"
@@ -422,9 +385,7 @@ graph export "wages_by_cumhrs_bars.png", replace width(1200)
 
 restore
 
-/*------------------------------------------------------------------------------
-3.2: Scatter plot with smoothing
-------------------------------------------------------------------------------*/
+* --- 3.2: Scatter plot with smoothing ---
 
 di ""
 di "3.2 VISUAL: LOG WAGES VS LOG CUMULATIVE HOURS"
@@ -444,9 +405,7 @@ graph export "wages_cumhrs_scatter.png", replace width(1200)
 
 restore
 
-/*------------------------------------------------------------------------------
-3.3: Regression analysis
-------------------------------------------------------------------------------*/
+* --- 3.3: Regression analysis ---
 
 di ""
 di "3.3 PARAMETRIC: LOG WAGES ON LOG CUMULATIVE HOURS"
@@ -462,9 +421,7 @@ di ""
 di "ELASTICITY: " %6.3f `elasticity'
 di "  10% increase in cumulative hours → " %4.2f `elasticity'*10 "% wage increase"
 
-/*==============================================================================
-PART 4: WAGES VS AGE
-==============================================================================*/
+* --- Part 4: WAGES VS AGE ---
 
 di ""
 di "=============================================================================="
@@ -474,9 +431,7 @@ di ""
 di "NOTE: Ages are now correctly aligned to income years (corrected in Data_process.do)"
 di ""
 
-/*------------------------------------------------------------------------------
-4.1: Non-parametric age-wage profile
-------------------------------------------------------------------------------*/
+* --- 4.1: Non-parametric age-wage profile ---
 
 di "4.1 NON-PARAMETRIC: WAGE-AGE PROFILE"
 di "------------------------------------"
@@ -507,9 +462,7 @@ graph export "wages_by_age.png", replace width(1200)
 
 restore
 
-/*------------------------------------------------------------------------------
-4.2: Parametric analysis
-------------------------------------------------------------------------------*/
+* --- 4.2: Parametric analysis ---
 
 di ""
 di "4.2 PARAMETRIC: AGE-EARNINGS REGRESSION"
@@ -556,9 +509,7 @@ di ""
 di "MODEL COMPARISON (Age Specifications):"
 estimates table age_quad age_cubic age_quartic, b(%9.5f) se(%9.5f) stats(N r2)
 
-/*==============================================================================
-PART 5: WAGES VS CUMULATIVE HOURS / AGE (WORK INTENSITY)
-==============================================================================*/
+* --- Part 5: WAGES VS CUMULATIVE HOURS / AGE (WORK INTENSITY) ---
 
 di ""
 di "=============================================================================="
@@ -571,9 +522,7 @@ di "  High ratio = Started working young and/or worked many hours"
 di "  Low ratio = Limited work history relative to age"
 di ""
 
-/*------------------------------------------------------------------------------
-5.1: Summary statistics
-------------------------------------------------------------------------------*/
+* --- 5.1: Summary statistics ---
 
 di "5.1 SUMMARY STATISTICS"
 di "----------------------"
@@ -591,9 +540,7 @@ di "  If hrs_per_age = 2000, that's 80,000 total hours"
 di "  Over 22 working years (age 18-40), that's ~3,600 hrs/year = ~70 hrs/week"
 di ""
 
-/*------------------------------------------------------------------------------
-5.2: Non-parametric by quintiles
-------------------------------------------------------------------------------*/
+* --- 5.2: Non-parametric by quintiles ---
 
 di "5.2 NON-PARAMETRIC: WAGES BY WORK INTENSITY QUINTILE"
 di "----------------------------------------------------"
@@ -627,9 +574,7 @@ graph export "wages_by_work_intensity.png", replace width(1200)
 
 restore
 
-/*------------------------------------------------------------------------------
-5.3: Regression analysis
-------------------------------------------------------------------------------*/
+* --- 5.3: Regression analysis ---
 
 di ""
 di "5.3 PARAMETRIC: WORK INTENSITY REGRESSION"
@@ -647,9 +592,7 @@ di "INTERPRETATION:"
 di "  Elasticity of wages w.r.t. hours/age ratio: " %6.3f `elasticity'
 di "  10% increase in work intensity → " %4.2f `elasticity'*10 "% wage increase"
 
-/*------------------------------------------------------------------------------
-5.4: Comparing specifications
-------------------------------------------------------------------------------*/
+* --- 5.4: Comparing specifications ---
 
 di ""
 di "5.4 COMPARING CUMULATIVE HOURS VS HOURS/AGE"
@@ -674,9 +617,7 @@ di "  - If log_cumhrs dominates: Total accumulated hours matter most"
 di "  - If log_hrs_per_age dominates: Intensity matters most"
 di "  - If both significant: Both channels affect wages"
 
-/*==============================================================================
-PART 6: COMPREHENSIVE SUMMARY TABLE
-==============================================================================*/
+* --- Part 6: COMPREHENSIVE SUMMARY TABLE ---
 
 di ""
 di "=============================================================================="
@@ -701,9 +642,7 @@ estimates table mincer1 cumhrs_reg age_quad hrs_age_reg comprehensive, ///
     b(%9.4f) se(%9.4f) stats(N r2) ///
     title("Wage Determinants: Alternative Specifications")
 
-/*==============================================================================
-PART 7: SAVE RESULTS AND CLOSE
-==============================================================================*/
+* --- Part 7: SAVE RESULTS AND CLOSE ---
 
 di ""
 di "=============================================================================="
