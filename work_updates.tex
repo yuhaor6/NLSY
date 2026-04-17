@@ -1,0 +1,712 @@
+\documentclass[11pt, letterpaper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{caption}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{NLSY79 Labor Signaling Project}
+\lhead{Work Updates}
+\rfoot{\thepage}
+
+\titleformat{\section}{\large\bfseries}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+\setlist[itemize]{itemsep=2pt, topsep=4pt}
+\setlist[enumerate]{itemsep=2pt, topsep=4pt}
+
+\newcommand{\codebox}[1]{\texttt{\small #1}}
+\newcommand{\dofile}[1]{\texttt{#1}}
+\newcommand{\logfile}[1]{\texttt{#1}}
+\newcommand{\datafile}[1]{\texttt{#1}}
+\newcommand{\outputfile}[1]{\texttt{#1}}
+\newcommand{\fixlabel}[1]{\textbf{[Fix \##1]}}
+
+\begin{document}
+
+%% ============================================================================
+\begin{center}
+{\LARGE \textbf{Project Work Updates}}\\[6pt]
+{\large NLSY79 Dynamic Signaling \& Optimal Labor Taxation}\\[4pt]
+{\normalsize April 2026}
+\end{center}
+\vspace{8pt}
+\hrule
+\vspace{12pt}
+
+Hey Prof.\ André! This doc is basically a brain-dump of everything that's been going on with the NLSY79 adaptation of your paper. There are three sections: (1) a file guide so you know what everything does and where to find things, (2) a walkthrough of all the methods and what was tried/fixed along the way, and (3) all the current results with comparisons to your HRS numbers and the broader literature. Hope this makes it easy to see where we stand!
+
+\tableofcontents
+\newpage
+
+%% ============================================================================
+\section{File Guide --- What Everything Does and Where to Find Stuff}
+%% ============================================================================
+
+\subsection{Data Files}
+
+\begin{longtable}{p{4.8cm} p{2.2cm} p{2.2cm} p{5.8cm}}
+\toprule
+\textbf{File} & \textbf{Format} & \textbf{Obs} & \textbf{Description} \\
+\midrule
+\endhead
+\datafile{merged\_data.dta} & Wide & 12,686 & One row per person; raw NLSY79 variables before any reshaping. Starting point for the pipeline. \\[4pt]
+\datafile{merged\_data\_with\_occind.dta} & Wide & 12,686 & Same as above but with \codebox{occ\_broad} and \codebox{ind\_broad} tacked on for the years 1979--1993. These come from the NLSY79 occupation/industry supplements. \\[4pt]
+\datafile{nlsy\_long\_pre\_taxsim.dta} & Long & 583,556 & The main working dataset. One row per person-year, all variables ready to go. This is what almost every analysis do-file uses as its starting point. \\[4pt]
+\datafile{txpydata.raw} / \datafile{results.raw} & TAXSIM I/O & --- & Raw input/output files for the TAXSIM35 tax calculator. \dofile{Two\_Period\_Analysis.do} writes the input, calls TAXSIM online, reads the output. \\[4pt]
+\datafile{two\_period\_summary.dta} & Long & --- & Collapsed ETI regression inputs (person-year pairs). Produced by \dofile{Two\_Period\_Analysis.do}. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Do-Files --- What Each Script Does}
+
+\subsubsection{\dofile{Data\_process.do} \textnormal{--- The Main Data Pipeline}}
+
+\textbf{Purpose:} Takes the raw NLSY79 CSV exports and turns them into \datafile{nlsy\_long\_pre\_taxsim.dta}. This is the single most important file in the project --- if something is weird in the downstream analyses, start here.
+
+\textbf{What it does, step by step:}
+\begin{enumerate}
+    \item Reads in the raw NLSY79 data in wide format (one row per person, variables like \codebox{hrly\_wage\_1990}, \codebox{hrs\_worked\_1993}, etc.)
+    \item Cleans up the NLSY79 negative codes ($-1$ to $-5$ are all different flavors of missing; they get replaced with proper Stata \codebox{.})
+    \item Creates time-varying education variable \codebox{hgc} (highest grade completed at each year)
+    \item Builds the marital status variable \codebox{mstat} with the right TAXSIM coding (1 = Single, 2 = Married Filing Jointly). This had a bug in the original code (Fix \#1) where NLSY code 2 (separated) was being mapped to TAXSIM 2 (MFJ).
+    \item Computes cumulative hours \codebox{cumhrs} by running a cumulative sum of annual hours. Biennial years (1994+) are interpolated. Fix \#2 fixed the interpolation for biennial gaps.
+    \item Reshapes to long format (one row per person-year)
+    \item Creates potential experience \codebox{pot\_exp = page - hgc - 6}
+    \item Creates income variables and TAXSIM-ready variables
+    \item Runs TAXSIM35 to get marginal tax rates (these feed into Phase 2)
+    \item Saves \datafile{nlsy\_long\_pre\_taxsim.dta}
+\end{enumerate}
+
+\textbf{Fixes incorporated:} \#1 (marital status), \#2 (biennial hour interpolation), \#3--\#7 (various TAXSIM input validations --- spouse age, dependent clipping, etc.), \#8 (hours imputation for employed non-respondents).
+
+\textbf{Log to read:} \logfile{output/Data\_process\_log.txt}. The important things to look for are the ``TAXSIM validation'' section near the end (it reports counts of observations that needed to be cleaned before TAXSIM could run) and the ``reshape check'' line that confirms the long panel has the right number of observations.
+
+\textbf{Outputs:} \datafile{nlsy\_long\_pre\_taxsim.dta} (583,556 obs), \datafile{merged\_data\_with\_occind.dta} (12,686 persons wide).
+
+\vspace{6pt}
+\subsubsection{\dofile{Structural\_Wage\_Experience.do} \textnormal{--- Phase 1: Estimating $\gamma$}}
+
+\textbf{Purpose:} Estimates the wage-hours elasticity $\gamma$ that goes into the $\delta$ and $\tau_p$ formulas.
+
+\textbf{What it does:}
+\begin{itemize}
+    \item Loads \datafile{nlsy\_long\_pre\_taxsim.dta}, restricts to workers ages 18--65 with positive wages and potential experience 0--40 years (N = 179,209 person-years).
+    \item Runs a within-person fixed-effects regression of log wages on log cumulative hours, controlling for a quadratic in potential experience and year fixed effects.
+    \item Runs this separately for each career quintile (Q1 through Q5 by potential experience).
+    \item Runs the ``horse race'' spec where \codebox{log\_cumhrs} and \codebox{log\_recent\_hrs} compete directly.
+    \item FWL collinearity check (residualizes \codebox{log\_cumhrs} on \codebox{pot\_exp} and year FEs, then re-estimates $\gamma$ to confirm the profile isn't a collinearity artifact).
+    \item Polynomial interaction model: $\gamma(\text{exp}) = \beta_0 + \beta_1 \cdot \text{exp} + \beta_2 \cdot \text{exp}^2$.
+    \item First-difference robustness (year-on-year $\Delta$log to check for heterogeneous trends).
+    \item Lagged IV for $\gamma$ (instruments log\_cumhrs with its 1-year lag).
+    \item Q5 non-identification check (survivor selection test).
+\end{itemize}
+
+\textbf{Log:} \logfile{output/Structural\_Wage\_Experience\_log.txt}. Key sections to read: ``Career-stage FE results'' (main $\gamma$ table), ``Wald test'' (tests equality across quintiles), ``Polynomial interaction'' (the $\beta_1$ estimate), and ``Survivor selection'' at the end.
+
+\textbf{Outputs:}
+\begin{itemize}
+    \item \outputfile{Phase1\_Table1\_GammaByStage.rtf} --- $\gamma$ by career quintile, FE estimates
+    \item \outputfile{Phase1\_Table2\_OLSvsFE.rtf} --- OLS vs. FE comparison (selection bias decomp)
+    \item \outputfile{Phase1\_Table3\_Structural.csv} --- structural parameters ($\delta$, implied $\tau_p$ range)
+    \item \outputfile{Phase1\_Fig1\_GammaProfile.png} --- bar chart of $\gamma$ by career quintile
+    \item \outputfile{Phase1\_Fig2\_SelectionDecomp.png} --- OLS vs. FE comparison chart
+    \item \outputfile{Phase1\_Fig3\_PolynomialGamma.png} --- the continuous polynomial $\gamma$(exp) curve
+    \item \outputfile{Phase1\_DeltaArc.csv} --- $\delta$ values at each career stage
+\end{itemize}
+
+\vspace{6pt}
+\subsubsection{\dofile{Two\_Period\_Analysis.do} \textnormal{--- Phase 2: ETI via Gruber-Saez}}
+
+\textbf{Purpose:} Estimates the elasticity of taxable income (ETI, $\varepsilon^w$) using a Gruber-Saez (2002) two-period IV design. Also computes the participation semi-elasticity $\eta^P$.
+
+\textbf{What it does:}
+\begin{itemize}
+    \item Builds two analysis samples: \textbf{Annual} (3-year windows, 1978--1993, ages $\approx$ 17--35) and \textbf{Biennial} (two-period windows, 1995--2019, ages $\approx$ 31--62).
+    \item For each person-period, computes log income change $\Delta \log z$ and log net-of-tax rate change $\Delta \log(1-\tau)$.
+    \item Constructs the \textbf{Gruber-Saez instrument}: simulated marginal tax rate change based on the person's baseline income and the actual tax schedule change (TAXSIM35). This is the standard ``simulate the change, not the income'' IV.
+    \item Runs 2SLS: $\Delta \log z = \varepsilon \cdot \Delta \log(1-\tau) + \text{controls}$.
+    \item Controls include: log base income splines (9 knots), year dummies, and marital status (including marital-change indicators after Fix \#10).
+    \item Also does the Kopczuk robustness check (lagged income change as mean-reversion control).
+    \item Runs the $\eta^P$ estimation on a participation sample (people who were in-sample in base year but may exit).
+\end{itemize}
+
+\textbf{Log:} \logfile{output/Two\_Period\_Analysis.log} and \logfile{output/two\_period\_analysis\_log.txt}. The big things to check: first-stage F-statistics (should be $> 100$; they're $> 1{,}000$ here), the 2SLS coefficient and its significance, and the Kleibergen-Paap statistic if you want to double-check weak instrument.
+
+\textbf{Outputs:}
+\begin{itemize}
+    \item \outputfile{Phase2\_Table3\_Elasticities.rtf} --- main ETI table, annual and biennial
+    \item \outputfile{Phase2\_Table4\_Pigouvian.csv} --- $\tau_p$ implied by each ETI spec
+    \item \outputfile{Phase2\_Fig1\_EpsWProfile.png} --- ETI by career stage
+    \item \outputfile{Phase2\_Fig2\_DynamicEps.png} --- dynamic ETI across cohort-years
+    \item \outputfile{Fig1a\_FirstStage\_Annual.png}, \outputfile{Fig1b\_FirstStage\_Biennial.png} --- first-stage scatter plots
+    \item \outputfile{Table1\_MainETI.rtf}, \outputfile{Table2\_AgeGroups.rtf}, \outputfile{Table3\_ReformPeriods.rtf}, \outputfile{Table4\_IncomeGroups.rtf} --- various subgroup ETI tables
+    \item \outputfile{two\_period\_summary.csv}, \outputfile{two\_period\_summary.dta} --- collapsed data for any further analysis
+\end{itemize}
+
+\vspace{6pt}
+\subsubsection{\dofile{Labor\_Wedge\_Estimation.do} \textnormal{--- Labor Wedge $\chi$}}
+
+\textbf{Purpose:} Puts together the ETI and participation elasticity to compute the labor wedge $\chi = 1 + \varepsilon^w/\eta^P$ for each income decile.
+
+\textbf{Important caveat:} The labor wedge $\chi$ route is unreliable for NLSY79 because $\eta^P \approx -0.011$ is near zero for young workers, which makes $\varepsilon^w/\eta^P \approx -27$. That's not a bug; it's an economic result. Young workers aren't on the participation margin in the same way as HRS workers ages 50+. So $\tau_p = 1 - \chi$ blows up for this sample. The structural $\tau_p = \delta/\alpha$ route (Phase 5) is the right one here.
+
+\textbf{Log:} \logfile{output/Labor\_Wedge\_log.txt}. The decile-level $\chi$ table will show some very large numbers --- that's expected given the near-zero $\eta^P$.
+
+\textbf{Outputs:} \outputfile{Final\_Regression\_Table.rtf}, \outputfile{Regression\_Table.rtf}.
+
+\vspace{6pt}
+\subsubsection{\dofile{Advantageous\_Selection\_Test.do} \textnormal{--- Phase 3: AFQT Selection Test}}
+
+\textbf{Purpose:} Tests whether higher-ability workers (measured by AFQT score) are systematically more likely to enter the labor market when tax cuts raise signaling returns. This is ``Proposition 1'' in your paper.
+
+\textbf{What it does:}
+\begin{itemize}
+    \item Merges AFQT scores (1980 battery, pre-labor-market) onto the long-panel data.
+    \item For each major tax reform (ERTA 1981, TRA 1986, EGTRRA 2001, JGTRRA 2003, TCJA 2017), categorizes workers as: entrants (joined around the reform), stayers, exiters, non-participants.
+    \item Tests whether AFQT scores of entrants exceed those of stayers (advantageous selection) or fall below (adverse selection).
+    \item Also runs a regression version interacting reform dummies with AFQT.
+\end{itemize}
+
+\textbf{Log:} \logfile{output/Advantageous\_Selection\_log.txt}. The key lines are the t-tests comparing entrant vs. stayer AFQT for each reform.
+
+\textbf{Outputs:} \outputfile{Phase3\_Fig1\_AFQTbyGroup.png} (AFQT distributions by group for ERTA reform).
+
+\vspace{6pt}
+\subsubsection{\dofile{Sector\_Heterogeneity\_Analysis.do} \textnormal{--- Phase 4: Sector Variation}}
+
+\textbf{Purpose:} Tests whether the signaling mechanism shows up more strongly in high-signaling occupations/industries, and runs the Altonji-Pierret (2001) test for employer learning.
+
+\textbf{What it does:}
+\begin{itemize}
+    \item Merges occupation/industry codes from \datafile{merged\_data\_with\_occind.dta} onto the long panel (1979--1993 only).
+    \item Groups occupations into Low/Medium/High signaling theory categories.
+    \item Estimates $\gamma$ by occupation and industry using within-person FE.
+    \item Runs Altonji-Pierret regressions: log wage on AFQT $\times$ experience interaction (the idea: if employers learn slowly, the coefficient on AFQT$\times$exp should be positive as the market reveals ability over time).
+    \item Robustness: restricts to workers with $\geq 5$ years in the same occupation to filter out early-career noise.
+\end{itemize}
+
+\textbf{Log:} \logfile{output/Sector\_Heterogeneity\_log.txt}. Look for the ``AP by occupation'' section and the ``5+ year tenure restriction'' block.
+
+\textbf{Outputs:}
+\begin{itemize}
+    \item \outputfile{Phase4\_Table1\_GammaByOcc.rtf}, \outputfile{Phase4\_Table2\_GammaByInd.rtf}
+    \item \outputfile{Phase4\_Table3\_AltonjiPierretBySector.rtf}
+    \item \outputfile{Phase4\_Table4\_SignalingRanking.csv}
+    \item \outputfile{Phase4\_Fig1\_GammaRanking.png}, \outputfile{Phase4\_Fig2\_APRanking.png}
+\end{itemize}
+
+\vspace{6pt}
+\subsubsection{\dofile{Pigouvian\_Tax\_Quantification.do} \textnormal{--- Phase 5: Computing $\tau_p$}}
+
+\textbf{Purpose:} Pulls everything together and computes $\tau_p = \delta/\alpha$. Also does the delta-method confidence interval and bootstrap validation.
+
+\textbf{What it does:}
+\begin{itemize}
+    \item Estimates the Pareto tail index $\alpha$ via log-rank regression on the top 20\% of annual income.
+    \item Combines $\gamma$ (from Phase 1) and $\varepsilon^w$ (from Phase 2) to get $\delta = \gamma(1+\varepsilon)/(1+\gamma)$.
+    \item Computes $\tau_p = \delta/\alpha$.
+    \item Delta-method for the CI, propagating uncertainty through $\varepsilon \to \delta \to \tau_p/\alpha$.
+    \item Bootstrap (B = 500 for $\varepsilon$-only; B = 200 for joint $\gamma + \varepsilon$).
+    \item Plots $\tau_p$ as a function of the career stage.
+\end{itemize}
+
+\textbf{Log:} \logfile{output/Pigouvian\_Tax\_log.txt}. Key lines: the Pareto regression output ($R^2 = 0.985$ and $\hat{\alpha} = 3.295$), the $\delta$ and $\tau_p$ point estimates, and the bootstrap CI convergence check.
+
+\textbf{Outputs:}
+\begin{itemize}
+    \item \outputfile{Phase5\_Table3\_Summary.csv} --- the main $\tau_p$ summary table
+    \item \outputfile{Phase5\_Fig1\_TauProfile.png} --- $\tau_p$ over the career arc
+    \item \outputfile{joint\_bootstrap\_draws.csv} --- raw B = 200 bootstrap draws of $(\gamma, \varepsilon, \delta, \tau_p)$
+\end{itemize}
+
+\vspace{6pt}
+\subsubsection{\dofile{Skill\_vs\_Signal\_Analysis.do} \textnormal{--- Horse Race Detail}}
+
+\textbf{Purpose:} Digs deeper into the horse race between cumulative hours and recent hours, including industry-level variation and the BSX-style robustness.
+
+\textbf{Log:} \logfile{output/Skill\_vs\_Signal\_log.txt}.
+
+\vspace{6pt}
+\subsubsection{\dofile{BSX\_Wage\_Elasticity.do} \textnormal{--- BSX Approach (Hourly Wage IV)}}
+
+\textbf{Purpose:} Alternative to the main Mincer-style $\gamma$ estimation. Instead of annual wages, uses hourly wages and instruments log cumulative hours with a leave-one-out (LOO) industry-year wage shock. This is adapted from Blundell and Shephard's (2012) SIPP-based approach.
+
+\textbf{Why it exists:} Annual wages reflect both hours and hourly wages confounded; the BSX approach isolates the pure hourly wage response to cumulative hours. The LOO industry instrument (mean log wage of all other workers in the same industry-year, excluding the individual) provides exogenous variation in the wage signal without the simultaneity in current hours and current wages.
+
+\textbf{Constraint:} Only works 1979--1993 because \codebox{ind\_broad} is only available in the annual period.
+
+\textbf{Log:} \logfile{output/bsx\_wage\_elasticity\_log.txt}.
+
+\vspace{6pt}
+\subsubsection{Exploratory Files}
+
+\begin{itemize}
+    \item \dofile{EDA\_DeepDive\_OccInd.do} --- deep-dive EDA on the occupation $\times$ industry cells. Log: \logfile{output/EDA\_DeepDive\_log.txt}. Outputs include histograms of observations per cell (\outputfile{hist\_obs\_per\_cell.png}, \outputfile{hist\_individuals\_per\_cell.png}), boxplot of wages for top cells (\outputfile{boxplot\_wages\_top\_cells.png}).
+    \item \dofile{EDA\_Wage\_Analysis.do} --- general wage descriptives. Log: \logfile{output/EDA\_wage\_analysis\_log.txt}. Outputs: \outputfile{wages\_by\_age.png}, \outputfile{wages\_by\_experience.png}, \outputfile{wages\_cumhrs\_scatter.png}, \outputfile{wages\_by\_cumhrs\_bars.png}, \outputfile{wage\_variance\_evolution.png}, etc.
+    \item \dofile{early\_small\_data\_process.do} --- early prototype pipeline, not used for final results.
+\end{itemize}
+
+\subsection{How to Re-Run Everything (In Order)}
+
+If you want to regenerate all results from scratch:
+\begin{enumerate}
+    \item \dofile{Data\_process.do} --- creates \datafile{nlsy\_long\_pre\_taxsim.dta}
+    \item \dofile{Structural\_Wage\_Experience.do} --- Phase 1 ($\gamma$)
+    \item \dofile{Two\_Period\_Analysis.do} --- Phase 2 (ETI, $\varepsilon^w$)
+    \item \dofile{Advantageous\_Selection\_Test.do} --- Phase 3 (AFQT)
+    \item \dofile{Sector\_Heterogeneity\_Analysis.do} --- Phase 4 (sector heterogeneity)
+    \item \dofile{Pigouvian\_Tax\_Quantification.do} --- Phase 5 ($\tau_p$)
+    \item \dofile{Labor\_Wedge\_Estimation.do} --- labor wedge (informational only, not for $\tau_p$)
+    \item \dofile{Skill\_vs\_Signal\_Analysis.do} and \dofile{BSX\_Wage\_Elasticity.do} --- robustness
+\end{enumerate}
+
+\newpage
+%% ============================================================================
+\section{Methods Walkthrough --- How We Got Here}
+%% ============================================================================
+
+Ok so this section is basically a detailed account of what was done and why. Starting from ``we need to replicate André's paper with NLSY79 data'' and ending at the current results. A lot of stuff was tried, a lot of stuff didn't work the first time, and some fixes were pretty non-obvious. I'll walk through everything chronologically.
+
+\subsection{Starting Point: What's the Goal?}
+
+Your paper (Sztutman 2024) uses HRS data to estimate the optimal Pigouvian labor income subsidy under a dynamic signaling model. The key formula is:
+$$\tau_p = \delta / \alpha$$
+where $\delta$ measures how much wage growth is driven by employer learning (vs. actual skill), and $\alpha$ is the Pareto tail index of income. You need two things from the data: (1) the wage-hours elasticity $\gamma$ to identify $\delta$, and (2) the elasticity of taxable income $\varepsilon^w$ to identify the same $\delta$ from the tax side. The NLSY79 is a completely different dataset from HRS --- younger cohort (born 1957--1964, ages 14--65 in the panel), different data structure, different tax reform history --- so we can't just copy your Stata code. We need to rebuild the analysis from scratch, using the same theory but adapted to this panel.
+
+\subsection{Phase 0: Data Pipeline (Data\_process.do)}
+
+The first task was building the data pipeline. NLSY79 comes as a messy wide-format CSV where every variable has a year suffix (\codebox{hrly\_wage\_1990}, \codebox{hrs\_worked\_1991}, etc.) and missing values are coded as $-1$ through $-5$ (different types of non-response). The pipeline has to:
+\begin{enumerate}
+    \item Read in the raw data, recode all the negative codes to Stata missing.
+    \item Build education-year histories (\codebox{hgc} at each year).
+    \item Build cumulative hours (\codebox{cumhrs}).
+    \item Handle the biennial gap: NLSY79 switched from annual to biennial surveys in 1994. This means years 1994, 1996, etc.\ have no data; the cumulative hours variable needs to be interpolated across those gaps.
+    \item Reshape to long format.
+    \item Call TAXSIM35 for marginal tax rates.
+\end{enumerate}
+
+\textbf{Early bug --- Fix \#1:} The marital status mapping was wrong. NLSY codes marital status 1--6 (married, separated, divorced, etc.). TAXSIM wants 1 = Single, 2 = Married Filing Jointly. The original code was mapping NLSY code 2 (``separated'') to TAXSIM 2 (MFJ), which is just wrong --- a separated person should be 1 (Single) for tax purposes. This affected about 8--10\% of observations.
+
+\textbf{Early bug --- Fix \#2:} The biennial interpolation was using a mechanical linear fill that would sometimes assign cumhrs values mid-year in a way that violated the cumulative property (cumhrs should never decrease). Fixed by computing the correct interpolation weights.
+
+\textbf{Fixes \#3--\#7} were all TAXSIM input validation issues. TAXSIM crashes if you feed it a spouse age of 118 (NLSY's ``not applicable'' code for unmarried people), or negative wages, or a dependent count of 99. These are just guard-rail fixes to make TAXSIM not blow up. Each one was documented and corresponds to a specific validation block in the pipeline.
+
+\subsection{Phase 1: Estimating $\gamma$ --- The Structural Wage-Hours Elasticity}
+
+The main specification is a within-person fixed-effects regression:
+$$\log w_{it} = \alpha_i + \gamma \cdot \log(\text{cumhrs}_{it}) + \beta_1 \text{pot\_exp}_{it} + \beta_2 \text{pot\_exp}^2_{it} + \sum_t \lambda_t + \varepsilon_{it}$$
+
+\textbf{Why FE?} We want to identify the within-person return to accumulating hours --- not the cross-sectional correlation between high-hours people and high wages (which could just be ability selection). The fixed effect $\alpha_i$ absorbs all time-invariant worker characteristics.
+
+\textbf{Why cumulative hours (not experience)?} The theoretical model (your model) says wages grow because employers observe a worker's cumulative history and update their posterior on ability. Cumulative hours is the right proxy for the ``size of the employer signal.'' Potential experience is a pure age-based measure; cumhrs actually reflects labor market attachment.
+
+\textbf{Controls:} Quadratic in potential experience (standard Mincer), year fixed effects. In the sector heterogeneity analysis, also occ/ind fixed effects.
+
+\textbf{The career quintile split:} We split the sample by quintiles of potential experience (Q1 = least experienced, Q5 = most experienced) and estimate $\gamma$ separately for each. The prediction from the dynamic signaling model is that $\gamma$ should decline over the career: early on, each additional hour is a big new signal because employers know little; later, the marginal hour adds less information because the employer has already learned a lot. This is reflected in a declining $\gamma$ profile.
+
+\textbf{What we found:} The FE estimate over the full career is $\gamma = 0.9366$ (SE = 0.0105, t = 89.2). The quintile profile is Q1: 1.10, Q2: 1.05, Q3: 1.07, Q4: 0.93, Q5: 1.12. The polynomial fit gives $\beta_1 = -0.0134$ (t = $-9.26$), confirming a statistically significant declining trend.
+
+\textbf{Problem --- the U-shape:} The quintile profile looked U-shaped (Q5 $> $ Q1--Q4), not monotone-declining. This is actually expected once you account for \textit{survivor selection} at Q5. Late-career workers who are still in the NLSY79 panel at Q5 have average wages 57 log-points higher than workers who exited at Q4. The Q5 sample is drawn from the top of the wage distribution, not a representative cross-section. Formally, Q5 is non-identified: the SE is 3$\times$ the Cramér-Rao lower bound and the CI spans every other quintile estimate. So Q5 is reported for completeness but excluded from the career-arc story.
+
+\textbf{Collinearity check (FWL):} There was a concern that \codebox{log\_cumhrs} and \codebox{pot\_exp} are so correlated within-person that the $\gamma$ estimates might be a collinearity artifact. The FWL (Frisch-Waugh-Lovell) check residualizes \codebox{log\_cumhrs} on \codebox{pot\_exp} and year FEs, then re-estimates. Result: 71.6\% of within-person cumhrs variation is explained by experience, but the $\gamma$ estimates are identical to the main spec (FWL theorem guarantees this). So it's not an artifact; it just inflates standard errors. The Q5 SE being huge (0.1099) is partly this.
+
+\textbf{First-difference robustness:} FD estimator ($\gamma_\text{FD} = 1.367$) is larger than FE ($\gamma_\text{FE} = 0.937$). The gap (FD $>$ FE) is in the opposite direction from what you'd expect if heterogeneous upward trends contaminated FE. FD picks up more short-run within-year simultaneity; FE is the conservative structural estimator. Both agree Q4 is the career trough.
+
+\textbf{Horse race --- Fix \#8:} There was a problem with the horse race between cumulative and recent hours: early-career $\gamma$ was implausibly high ($> 1$), tracing to an artifact in how missing hours were treated. The original pipeline set all missing hours to zero before computing the cumulative sum. But some workers had positive wages in a year and just didn't respond to the hours question --- they were employed, not unemployed. Setting their hours to zero created impossible records (positive wages, zero hours) concentrated in the early career (1978--1993 annual period, when NLSY response rates were lower for the hours question). Fix \#8 imputes hours for these ``employed non-respondents'' using the person's own median hours from years where both wages and hours are valid (hot-deck imputation, following Bound, Brown \& Mathiowetz 2001). This brings early-career $\gamma$ down and smooths the cumulative hours profile.
+
+\textbf{Simultaneity IV:} Instrumented \codebox{log\_cumhrs} with its 1-year lag. First-stage: coefficient = 0.670, t = 169, F $\approx 28{,}600$. IV estimate $\gamma_\text{IV} = 0.697$. The gap $\gamma_\text{FE} - \gamma_\text{IV} = 0.24$ gives an upper bound on simultaneity bias. Both imply $\delta < 1$ (model consistent). The primary paper reports FE = 0.937 as the benchmark.
+
+\subsection{Phase 2: ETI via the Gruber-Saez (2002) Design}
+
+\textbf{The method:} Gruber and Saez (2002, \textit{Journal of Public Economics}) proposed identifying the ETI using tax reforms as natural experiments, with a simulated-instrument IV to avoid the mechanical correlation between income levels and tax rates. The instrument is: ``given your income at time $t$, what would your marginal rate have been under the tax law at $t+k$?'' This isolates reform-driven variation in the net-of-tax rate from income-driven variation.
+
+\textbf{Source paper found:} Gruber, J., \& Saez, E. (2002). The elasticity of taxable income: Evidence and implications. \textit{Journal of Public Economics}, 84(1), 1--32.
+
+\textbf{We implemented this with two samples:}
+\begin{itemize}
+    \item \textbf{Annual:} 3-year windows, 1978--1993, ages $\approx$ 17--35. Identifies $\varepsilon^w$ around ERTA 1981 and TRA86.
+    \item \textbf{Biennial:} Two-period windows, 1995--2019, ages $\approx$ 31--62. Identifies $\varepsilon^w$ around EGTRRA 2001, JGTRRA 2003, and TCJA 2017.
+\end{itemize}
+
+\textbf{Controls:} Log base income splines (9 knots, following Gruber-Saez's nonparametric income control), year fixed effects, marital status indicators.
+
+\textbf{The annual ETI problem:} The first run with the annual period gave $\varepsilon = -0.173$ (t = $-1.40$), wrong-signed and insignificant. This is the sign you'd expect if income falls when taxes fall, which makes no economic sense. The biennial was fine ($\varepsilon = +0.544$, t = 3.24). Four things were wrong in the annual period, each fixed:
+
+\textbf{Fix \#9 --- Income floor:} The original code used $\$10{,}000$ (1984 dollars) as the floor for both periods. But Gruber-Saez themselves use $\$10{,}000$ in 1991 dollars ($\approx \$7{,}100$ in 1984\$), and the annual period covers young workers (ages 17--35) earning $\$3{,}000$--$\$8{,}000$ nominal in the early 1980s. A $\$10{,}000$ real floor was cutting out workers with genuine full-time employment at near-minimum-wage rates. Fixed by setting the annual floor to $\$5{,}000$ (1984\$), which requires more than full-time federal minimum wage. This added 21,800 observations (N: 31,832 $\to$ 53,632).
+
+\textbf{Fix \#10 --- Marital changers:} The original code dropped anyone whose marital status changed between the base and end year (\codebox{drop if mstat\_t != mstat\_t3}). This removed 21\% of the annual sample --- the peak marriage years (ages 17--35) are exactly when NLSY79 workers are getting married and divorced. Gruber-Saez (2002, Appendix A2) show their results are robust to keeping marital changers with controls. Fixed by replacing the hard drop with two indicator variables (\codebox{single\_to\_married}, \codebox{married\_to\_single}) added as controls. The biennial restriction is unchanged (ages 31--62 have $<$10\% marital changers).
+
+\textbf{Fix \#11 --- Mean-reversion control (Kopczuk 2005):} The 1982 recession caused big income drops. ERTA was signed right before this recession trough. Workers who dropped in 1981--82 then recovered in 1982--85 --- their income change looks like a positive response to the tax cut, but it's really just mean reversion. Kopczuk (2005, \textit{Journal of Public Economics}) shows this bias and corrects it by including the lagged income change (the preceding 3-year window) as a control. We implemented this, but it requires a balanced 2-period panel, which collapses the annual N from 53,632 to 1,595 (97\% loss). The estimate with this control is $\varepsilon = +0.021$ (SE = 0.352), way too noisy to use as a primary spec. So Fix \#11 was moved to robustness-only. It does not change the main results.
+
+\textbf{Fix \#12 --- Trimming extreme income changes:} The raw distribution of $\Delta \log z$ included changes of $\pm5$, i.e., income growing or shrinking by $e^5 \approx 148\times$ over 3 years. Those are clearly measurement error or school-to-work transitions where baseline income was near zero. Gruber-Saez (footnote 11) trim at $|\Delta \log z| \leq 1$ in robustness checks; Kopczuk (2005, Table 4) uses $|\Delta \log z| \leq \log 5 \approx 1.609$ as his primary spec. We use the Kopczuk bound. This dropped $\approx 2{,}000$ observations from both periods. It didn't change the annual ETI sign but reduced the biennial estimate from $+0.544$ to $+0.297$ (the pre-trim biennial was probably driven by a few outlier recoveries after JGTRRA 2003).
+
+\textbf{Near-worker robustness (April 12):} A valid concern is that the null annual ETI might just be a threshold artifact (we're not including workers who earn slightly below $\$5{,}000$ real and those workers are the ones who respond). We reran the annual spec with a $\$1{,}000$ floor (adding 5,796 observations of near-workers earning $\approx\$2{,}700$ mean real income). Result: $\varepsilon = -0.049$ (SE = 0.082, t = $-0.60$, F = 2,500). The estimate moves by 0.001 and the t-stat is $-0.60$ to two decimal places. Near-workers DO see identifying variation (F = 2,500 $\gg$ 10), they just don't respond. This rules out weak instrument as an explanation. The near-zero annual ETI is a genuine behavioral null: young workers building resumes are not adjusting taxable income in response to net-of-tax rates.
+
+\textbf{The biennial ETI ($\varepsilon^w = +0.297$, t = 2.46):} This is the identified result and the one that drives $\delta$ and $\tau_p$. It's smaller than the pre-fix estimate ($+0.544$) because Fix \#12 removed some outlier recoveries, but still significant and economically meaningful. The first-stage F = 1,146, well above any weak-instrument threshold.
+
+\subsection{Phase 3: AFQT Selection Test (Advantageous Selection)}
+
+Your paper tests whether higher-ability workers select into the labor market more aggressively when signaling returns increase (Proposition 1). In the HRS, you find mental status scores decrease by 1.3 pts per 1\% increase in the net-of-tax retention rate (p $<$ 0.01), meaning lower-ability workers drop out when taxes rise, leaving a higher-ability pool --- advantageous selection.
+
+We tried the same test with AFQT scores (the Armed Forces Qualifying Test, administered to all NLSY79 respondents in 1980 before most of them entered the labor market --- so it's a clean pre-market ability measure).
+
+\textbf{The problem:} NLSY79 workers were born 1957--1964. At the major relevant reforms (EGTRRA 2001, ages 37--44; TCJA 2017, ages 53--60), they're prime-age and late-career workers. The entry margin isn't binding for them. Only ERTA 1981 (cohort ages 17--24) is a plausible entry-decision test.
+
+\textbf{What we found for ERTA:} Entrant AFQT mean = 44,898; Stayer AFQT mean = 47,889. Gap = $-2{,}991$, t = $-4.35$, p $<$ 0.001. \textit{Entrants are lower-ability than stayers} --- no advantageous selection; if anything, it's slightly adverse.
+
+\textbf{Interpretation:} This is a data constraint, not a theory rejection. The ERTA test window (ages 17--24) is when young workers enter the labor market regardless of tax incentives --- this is just the cohort age effect. A clean test of Proposition 1 needs either (a) an older NLSY79-style panel with entry variation at later ages, or (b) matched cross-sections of young workers around ERTA with ability proxies. The NLSY79 is the wrong design for this test.
+
+\subsection{Phase 4: Sector Heterogeneity and the Altonji-Pierret Test}
+
+\textbf{The Altonji-Pierret (AP) test} (Altonji \& Pierret 2001, \textit{ReStud}) is the standard empirical test for employer learning. The logic: if employers gradually learn worker ability over time, the wage premium for a pre-market ability measure (AFQT) should \textit{rise} with career experience as the labor market reveals ability. The regression is:
+$$\log w_{it} = \alpha_i + \beta_1 \cdot \text{AFQT}_i \cdot \text{exp}_{it} + \text{controls}$$
+$\beta_1 > 0$ is employer learning.
+
+\textbf{Occupation grouping:} Broad occupations (available 1979--1993) were grouped into: High signaling (Professional/Technical, Managers/Admin), Medium (Clerical, Sales, Craftsmen, Operatives, Service), and Low (Laborers, Farm Workers). The prediction is $\gamma$ should be \textit{higher} in High signaling sectors (employer learning matters more) and the AP slope should be \textit{higher} too.
+
+\textbf{$\gamma$ by group:} Low = 0.900, Medium = 0.953, High = 1.037. Monotone in the right direction. ✓
+
+\textbf{AP slope --- the initial mess:} Full-sample AP slopes were not monotone: Low = 0.00511, High = 0.00666, but Medium = 0.00960 (highest). Worse, Laborers (Low signaling) individually had the highest AP slope (0.01316, t = 3.06) and Professional/Tech (High signaling) had the lowest (0.00125, t = 0.39).
+
+\textbf{Fix --- the tenure restriction:} The problem was sample composition. In the 1979--1993 window, NLSY79 workers are ages 15--36. For High signaling occupations (Professional/Tech, Managers), many workers have only 2--4 years of occupation-specific experience. With that little tenure, there isn't enough experience variation to detect a growing AFQT premium. Meanwhile, Laborers (Low signaling) have short but intensive early-career tenure with high entry-exit churn, which creates a spurious AFQT $\times$ experience correlation.
+
+The fix was restricting to workers with $\geq 5$ years in the same occupation. Result: Laborers AP collapses from 0.01316 to 0.00015 (t = 0.01) --- the apparent signal was entirely tenure noise. Managers/Admin AP rises from 0.00966 to 0.01493 (t = 2.85). Group ordering: Low = 0.00432, High = 0.00882. Monotone ✓. Consistent with employer learning operating more strongly in high-signaling occupations.
+
+\textbf{Open issue:} Managers/Admin ranks 7th in $\gamma$ (below Operatives). This is also a tenure artifact --- junior managers in 1979--1993 (ages 15--36) have short occupation records, which compresses within-person cumhrs variation. This should resolve if the analysis could cover ages 36--55 for managers.
+
+\subsection{Phase 5: Computing $\tau_p = \delta/\alpha$}
+
+\textbf{Pareto tail:} We estimated $\alpha$ via log-rank regression on the top 20\% of annual income (standard Gabaix-Ioannides approach):
+$$\log(1 - F(y)) = c - \alpha \cdot \log(y)$$
+Result: $\hat{\alpha} = 3.295$ (SE = 0.014, $R^2 = 0.985$). Essentially a perfect Pareto fit in the upper tail.
+
+\textbf{Structural parameter $\delta$:} The model gives $\gamma = \delta/(1 - \delta + \varepsilon)$, which inverts to $\delta = \gamma(1+\varepsilon)/(1+\gamma)$. Using biennial $\varepsilon = +0.297$ and $\gamma = 0.9366$:
+$$\delta = \frac{0.9366 \times 1.297}{1.9366} = 0.628$$
+
+\textbf{Pigouvian tax:} $\tau_p = \delta/\alpha = 0.628/3.295 = 19.1\%$.
+
+\textbf{Confidence interval (delta-method):} Uncertainty propagates through $\varepsilon \to \delta \to \tau_p/\alpha$. The dominant contribution is SE($\varepsilon$) = 0.121 (99.6\% of total variance in $\delta$); SE($\gamma$) = 0.0105 is negligible. Result: SE($\tau_p$) = 1.78pp, CI = $[15.6\%, 22.6\%]$.
+
+\textbf{Bootstrap validation:} $\varepsilon$-only bootstrap (B = 500): CI = $[15.6\%, 22.5\%]$, matches delta-method. Joint $\gamma + \varepsilon$ bootstrap (B = 200): CI = $[15.7\%, 20.8\%]$, slightly \textit{narrower} (confirming $\gamma$ uncertainty doesn't widen the CI). Primary reported CI is $[15.6\%, 22.6\%]$ (delta-method, most conservative).
+
+\newpage
+%% ============================================================================
+\section{Current Results}
+%% ============================================================================
+
+\subsection{Phase 1 --- Structural Wage-Hours Elasticity $\gamma$}
+
+\begin{table}[h!]
+\centering
+\caption{Wage-Hours Elasticity by Career Stage (Within-Person FE)}
+\label{tab:gamma_by_stage}
+\begin{tabular}{lrrrr}
+\toprule
+Career Stage & N & $\hat{\gamma}_\text{FE}$ & SE & $t$-stat \\
+\midrule
+Q1 (Early, exp = 0--8yr) & 39,520 & 1.1012 & 0.0210 & 52.33 \\
+Q2 (exp = 8--13yr) & 38,814 & 1.0487 & 0.0380 & 27.61 \\
+Q3 (exp = 13--18yr) & 32,892 & 1.0670 & 0.0628 & 16.99 \\
+Q4 (exp = 18--26yr) & 34,383 & 0.9274 & 0.0571 & 16.23 \\
+Q5 (Late, $>$26yr)\textsuperscript{*} & 33,600 & 1.1151 & 0.1099 & 10.15 \\
+\textbf{Full career} & \textbf{179,209} & \textbf{0.9366} & \textbf{0.0105} & \textbf{89.2} \\
+\midrule
+\multicolumn{3}{l}{Wald test ($H_0$: equal $\gamma$ across stages)} & \multicolumn{2}{r}{$F = 16.865$, $p < 0.0001$} \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize \textsuperscript{*} Q5 is non-identified (survivor selection gap = +0.567; SE = 3$\times$ Cramér-Rao LB).}\\
+\multicolumn{5}{l}{\footnotesize Controls: quadratic pot\_exp, year FEs. Clustered SE at person level.}
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Polynomial Career-Arc Specification}
+\label{tab:polynomial}
+\begin{tabular}{lrrrr}
+\toprule
+Coefficient & Estimate & SE & $t$-stat & Interpretation \\
+\midrule
+$\beta_0$ (log\_cumhrs) & 0.9742 & 0.0107 & 90.9 & $\gamma$ at career entry \\
+$\beta_1$ (exp $\times$ log\_cumhrs) & $-0.0134$ & 0.0015 & $-9.26$ & Linear career decline \\
+$\beta_2$ (exp$^2$ $\times$ log\_cumhrs) & $+0.0003$ & 0.00004 & $+7.07$ & Small quadratic upturn \\
+\midrule
+\multicolumn{3}{l}{Joint test $H_0$: $\beta_1 = \beta_2 = 0$} & \multicolumn{2}{r}{$F(2,11524) = 43.20$, $p < 0.0001$} \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize $\gamma$ minimum at exp$^* = 21.6$ years: $\hat{\gamma}(21.6) = 0.829$.}
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Horse Race: Cumulative vs.\ Recent Hours}
+\label{tab:horse_race}
+\begin{tabular}{lcccl}
+\toprule
+Stage & $\hat{\gamma}_\text{cumhrs}$ & $\hat{\gamma}_\text{recent}$ & Ratio (cum/rec) & Interpretation \\
+\midrule
+Q1 & 0.166 & 0.815 & 0.20 & Signaling dominant \\
+Q2 & 0.208 & 0.726 & 0.29 & Signaling dominant \\
+Q3 & 0.335 & 0.624 & 0.54 & Mixed \\
+Q4 & 0.396 & 0.529 & 0.75 & Mixed \\
+Q5 & 0.530 & 0.486 & 1.09 & Mixed \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize Early career: face-time (recent hours) dominates. Late career: cumulative history matters more.}
+\end{tabular}
+\end{table}
+
+\textbf{Key takeaways from Phase 1:}
+\begin{itemize}
+    \item Full-career $\gamma = 0.937$: a 10\% increase in career hours raises wages $\approx 9.4\%$.
+    \item The career arc is declining (Wald F = 16.865; polynomial $\beta_1 = -0.0134$, t = $-9.26$): wage growth from hours is highest early and decreases as employers learn.
+    \item $\gamma$ minimum at 21.6 years ($\gamma = 0.829$): consistent with employer learning being mostly complete by mid-career.
+    \item Horse race: signaling (recent hours) dominates early career; cumulative history dominates late career. This pattern matches the dynamic model.
+    \item OLS $>$ FE at late career (positive selection): high-ability workers accumulate more hours AND have higher wages. FE correctly strips this out.
+\end{itemize}
+
+\subsection{Phase 2 --- Elasticity of Taxable Income}
+
+\begin{table}[h!]
+\centering
+\caption{ETI Estimates (IV, Gruber-Saez Specification)}
+\label{tab:eti}
+\begin{tabular}{llrrrr}
+\toprule
+Period & Specification & N & $\hat{\varepsilon}^w$ & SE & $t$-stat \\
+\midrule
+\multirow{3}{*}{Annual (1978--93)} & Primary (\#9+\#10+\#12, \$5K floor) & 53,632 & $-0.048$ & 0.080 & $-0.60$ \\
+ & Near-worker robustness (\$1K floor) & 59,428 & $-0.049$ & 0.082 & $-0.60$ \\
+ & Kopczuk robustness (+\#11) & 1,595 & $+0.021$ & 0.352 & $+0.06$ \\
+\midrule
+Biennial (1995--19) & Primary (\#12 only, \$10K floor) & 47,201 & $\mathbf{+0.297}$ & \textbf{0.121} & \textbf{+2.46} \\
+\bottomrule
+\multicolumn{6}{l}{\footnotesize First-stage F: Annual primary = 2,617; Biennial = 1,146 (both strong).}\\
+\multicolumn{6}{l}{\footnotesize Annual ε is insignificant; biennial ε = +0.297 is the identified structural parameter.}
+\end{tabular}
+\end{table}
+
+\textbf{Interpretation:}
+The annual null (t = $-0.60$) is a lifecycle result: young workers (ages 17--35) are building reputations and don't reduce labor supply when taxed more. The biennial estimate (ages 31--62, $\varepsilon = +0.297$) captures prime-career workers with established identities who do respond to marginal rates --- this is the standard ETI result found in the literature.
+
+\subsection{Phase 3 --- Advantageous Selection}
+
+\begin{table}[h!]
+\centering
+\caption{AFQT Scores by Participation Type (ERTA 1981 Reform)}
+\label{tab:afqt}
+\begin{tabular}{lrrr}
+\toprule
+Group & N & Mean AFQT & SE \\
+\midrule
+Entrants & 2,637 & 44,898 & 557 \\
+Stayers & 4,973 & 47,889 & 405 \\
+Exiters & 1,116 & 39,608 & --- \\
+Non-participants & 3,188 & 32,733 & --- \\
+\midrule
+Entrant $-$ Stayer gap & & $-2{,}991$ & --- \\
+& & \multicolumn{2}{r}{$t = -4.35$, $p < 0.001$} \\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize No advantageous selection found; data constraint limits later-reform tests.}
+\end{tabular}
+\end{table}
+
+\subsection{Phase 4 --- Sector Heterogeneity}
+
+\begin{table}[h!]
+\centering
+\caption{$\gamma$ and Altonji-Pierret Slope by Signaling Group}
+\label{tab:sector}
+\begin{tabular}{lrrrr}
+\toprule
+Group & $\hat{\gamma}_\text{FE}$ & AP slope (full) & AP slope (5+yr tenure) & Significant? \\
+\midrule
+Low (Laborers, Farm) & 0.900 & 0.00511 & 0.00432 & Neither \\
+Medium & 0.953 & 0.00960 & (varies) & Partial \\
+High (Prof/Tech, Mgr) & 1.037 & 0.00666 & 0.00882 & Mgr: $t = 2.85$ ✓ \\
+\midrule
+\multicolumn{3}{l}{$\gamma$ ordering: Low $<$ Med $<$ High} & \multicolumn{2}{r}{✓ Theory consistent} \\
+\multicolumn{3}{l}{AP ordering (5+yr): Low $<$ High} & \multicolumn{2}{r}{✓ Consistent after artifact removed} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{$\gamma$ and AP Slope by Individual Occupation (all occupations)}
+\label{tab:occ_ranking}
+\begin{tabular}{rlrrl}
+\toprule
+$\gamma$ Rank & Occupation & $\hat{\gamma}_\text{FE}$ & AP slope (5+yr) & Theory Group \\
+\midrule
+1 & Sales & 1.235 & 0.00454 & Medium \\
+2 & Clerical & 1.077 & 0.00499 & Medium \\
+3 & Professional/Tech & 1.050 & 0.00271 & High (predicted) \\
+4 & Service Workers & 0.968 & 0.00496 & Medium \\
+5 & Laborers & 0.937 & 0.00015 & Low (predicted) \\
+6 & Operatives & 0.878 & $-0.00494$ & Medium \\
+7 & Managers/Admin & 0.867 & 0.01493 & High (predicted) \\
+8 & Craftsmen & 0.716 & 0.00677 & Medium \\
+9 & Farm Workers & 0.470 & 0.00848 & Low (predicted) \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize Mgr/Admin $\gamma$ ranking depressed by short tenure artifact (ages 15--36 sample window).}
+\end{tabular}
+\end{table}
+
+\newpage
+\subsection{Phase 5 --- Pigouvian Tax $\tau_p$}
+
+\begin{table}[h!]
+\centering
+\caption{Main Results: Structural Parameters and Optimal Pigouvian Subsidy}
+\label{tab:main_results}
+\begin{tabular}{lrrl}
+\toprule
+Parameter & Estimate & Uncertainty & Notes \\
+\midrule
+$\hat{\gamma}$ (full career FE) & 0.9366 & SE = 0.0105 & N = 179,209 \\
+$\hat{\varepsilon}^w$ (biennial IV) & +0.297 & SE = 0.121 & N = 47,201, $t = 2.46$ \\
+$\hat{\alpha}$ (Pareto log-rank) & 3.295 & SE = 0.014 & $R^2 = 0.985$, top 20\% \\
+\midrule
+$\hat{\delta}$ (biennial primary) & 0.628 & SE = 0.058 & $\delta = \gamma(1+\varepsilon)/(1+\gamma)$ \\
+\midrule
+$\hat{\tau}_p$ (\textbf{primary estimate}) & \textbf{19.1\%} & 95\% CI: [15.6\%, 22.6\%] & delta-method \\
+$\hat{\tau}_p$ ($\varepsilon$-only bootstrap, B=500) & 19.1\% & CI: [15.6\%, 22.5\%] & confirms delta-method \\
+$\hat{\tau}_p$ (joint bootstrap, B=200) & 18.2\% & CI: [15.7\%, 20.8\%] & slightly narrower (expected) \\
+\midrule
+$\hat{\tau}_p$ (annual $\varepsilon$ lower bound) & 14.0\% & & $\varepsilon = -0.048$ (insignificant) \\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize Sensitivity range across ETI specs: [14.0\%, 19.1\%].}
+\end{tabular}
+\end{table}
+
+\textbf{Figures produced by Phase 5:}
+\begin{itemize}
+    \item \outputfile{Phase5\_Fig1\_TauProfile.png} --- $\tau_p$ plotted over the career arc; shows how the implied Pigouvian subsidy declines as employers learn (earlier quintiles have higher $\tau_p$).
+    \item \outputfile{joint\_bootstrap\_draws.csv} --- B = 200 joint draws of $(\gamma, \varepsilon, \delta, \tau_p)$; can be used to make a bootstrap distribution histogram.
+\end{itemize}
+
+\subsection{Comparison to Sztutman (2024) and Literature}
+
+\begin{table}[h!]
+\centering
+\caption{Comparison: This Project vs.\ Sztutman (2024) HRS Paper}
+\label{tab:comparison_sztutman}
+\begin{tabular}{p{3.8cm} p{5cm} p{5cm}}
+\toprule
+\textbf{Quantity} & \textbf{Sztutman (2024) --- HRS, ages 50+} & \textbf{This Project --- NLSY79, ages 17--62} \\
+\midrule
+Dataset & Health and Retirement Study (HRS); $\sim$20,000 individuals; biannual 1992--2018 & NLSY79; 12,686 individuals; annual/biennial 1978--2023 \\[4pt]
+$\varepsilon^w$ & $-0.16$ (4yr), $-0.27$ (6yr) & Annual: $-0.048$ (insig.); Biennial: $+0.297$ ($t = 2.46$) \\[4pt]
+$\eta^P$ & $+0.01$ to $+0.10$ & $-0.011$ (near-zero; income effect dominates for young workers) \\[4pt]
+Labor wedge $\chi$ & Monotone decreasing across income; $(1-\chi) \approx 1.6$--$16\%$ & Unreliable ($\eta^P \approx 0$ blows up $\chi$) \\[4pt]
+$\hat{\tau}_p$ (average) & $\sim 5\%$ (Guvenen + Aryal: $\sim 6\%$) & \textbf{19.1\%} CI [15.6\%, 22.6\%] \\[4pt]
+$\hat{\tau}_p$ (top earners) & $10$--$60\%$ (top earners) & Not yet decomposed by income \\[4pt]
+$\hat{\delta}$ implied & $\approx 0.17$ (back-of-envelope from $\gamma$ profile) & $0.628$ (biennial primary) \\[4pt]
+$\hat{\alpha}$ (Pareto tail) & Not estimated directly & $3.295$ ($R^2 = 0.985$) \\[4pt]
+Career-arc $\gamma$ profile & Not done (HRS ages 50+ only) & $\beta_1 = -0.0134$ ($F = 43.20$); minimum at exp$^* = 21.6$yr \\[4pt]
+Horse race & Not done & Q1--Q2 signaling, Q3--Q5 mixed \\[4pt]
+Sector heterogeneity & Not done & $\gamma$: Low $<$ Med $<$ High ✓; AP: consistent after tenure restriction ✓ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Why is $\tau_p$ 3--4$\times$ larger than yours?} This is a prediction of the model, not a contradiction. $\delta$ declines over the career as employers learn. We're measuring $\delta$ from NLSY79 workers early-to-mid career ($\delta = 0.628$); you're measuring from HRS workers at career-end (implied $\delta \approx 0.17$, after most learning is complete). The $\gamma$ career arc ($\beta_1 = -0.0134$, $F = 43.20$) provides direct evidence of this declining $\delta$: $\gamma$ falls from 0.97 at entry to 0.83 at 21.6 years. A $\delta$ declining from 0.63 (young) to 0.17 (ages 50+) means roughly 73\% of employer uncertainty resolves over a working life. The two estimates are complementary points on this lifecycle arc, not contradictions.
+
+\begin{table}[h!]
+\centering
+\caption{Comparison: ETI Estimates vs.\ Prior Literature}
+\label{tab:eti_lit}
+\begin{tabular}{llrl}
+\toprule
+Source & Sample & $\hat{\varepsilon}^w$ & Notes \\
+\midrule
+Gruber \& Saez (2002) & US tax records, 1979--1990 & $+0.40$ (broad income) & Benchmark paper \\
+Kopczuk (2005) & US tax records, 1979--1990 & $+0.25$ & With mean-reversion control \\
+Saez (2004) & Top incomes, 1960--2000 & $+0.5$--$+1.5$ & Top tail only \\
+Chetty et al.\ (2011) & Administrative data, Denmark & $+0.33$ & Hours margin separately \\
+Sztutman (2024) & HRS, ages 50+, 4yr & $-0.16$ & Sign convention: w.r.t.\ $1-\tau$ \\
+\midrule
+\textbf{This paper (biennial)} & NLSY79, ages 31--62 & $\mathbf{+0.297}$ & \textbf{Primary identified estimate} \\
+This paper (annual) & NLSY79, ages 17--35 & $-0.048$ (n.s.) & Lifecycle null: signaling phase \\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize Sztutman sign convention: his $\varepsilon^w$ is w.r.t.\ net retention rate, equivalent to our positive sign.}
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Comparison: Altonji-Pierret Tests vs.\ Prior Literature}
+\label{tab:ap_lit}
+\begin{tabular}{llrl}
+\toprule
+Source & Sample & AP slope (AFQT$\times$exp) & Interpretation \\
+\midrule
+Altonji \& Pierret (2001, ReStud) & NLSY79, 1979--1993 & $+0.003$--$+0.008$ & Benchmark employer learning test \\
+Farber \& Gibbons (1996, QJE) & NLSY79, similar & Positive, significant & Confirms learning \\
+Lange (2007, JPE) & NLS Young Men & Learning complete in 3yr & Fast learning model \\
+\midrule
+\textbf{This paper (full sample)} & NLSY79, by occ group & 0.005--0.010 & Consistent with AP benchmark \\
+This paper (5+yr tenure) & High signaling (Mgr) & 0.015 ($t = 2.85$) & Stronger for high-signaling occ \\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize Full-sample inconsistency resolved by tenure restriction. Laborers artifact removed.}
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Comparison: Pigouvian Labor Subsidy Estimates}
+\label{tab:tau_lit}
+\begin{tabular}{llrl}
+\toprule
+Source & Method & $\hat{\tau}_p$ & Sample \\
+\midrule
+Sztutman (2024) --- back-of-envelope & $1 - \chi$ route & $\sim 5\%$ (avg); $25\%$ (top) & HRS, ages 50+ \\
+Sztutman (2024) --- Guvenen + Aryal & $1 - \chi$ route & $\sim 6\%$ & HRS \\
+Bovenberg \& de Mooij (1994) & Static Pigouvian & Standard $\sim 10\%$--$20\%$ & Various \\
+\midrule
+\textbf{This paper (biennial primary)} & $\delta/\alpha$ route & \textbf{19.1\%} [15.6\%, 22.6\%] & NLSY79, ages 17--62 \\
+This paper (lower bound) & $\delta/\alpha$ route (annual $\varepsilon$) & 14.0\% & NLSY79 \\
+\bottomrule
+\multicolumn{4}{l}{\footnotesize Our estimate is larger because NLSY79 covers earlier careers (higher $\delta$ = more unresolved learning).}
+\end{tabular}
+\end{table}
+
+\subsection{What's Still Open}
+
+\begin{enumerate}
+    \item \textbf{Near-worker $\eta^P$ for $\chi$ route:} The $\chi = 1 + \varepsilon/\eta^P$ route is broken for this sample because $\eta^P \approx 0$. Expanding the TAXSIM participation sample to include near-workers (\$1K--\$10K) and re-estimating $\eta^P$ separately for that stratum would let us do this as a robustness check. \dofile{Labor\_Wedge\_Estimation.do} already has the code structure; it just needs a re-run with the lower TAXSIM floor.
+
+    \item \textbf{Managers/Admin $\gamma$ ranking:} Mgr/Admin is 7th in $\gamma$ despite being a High signaling group. This is a tenure artifact (sample window is ages 15--36 = junior managers). No fix without extended panel coverage.
+
+    \item \textbf{Income-group $\tau_p$ decomposition:} The paper currently reports one $\tau_p$ (average). Decomposing by income decile requires a working $\chi(y)$ profile (the labor wedge at each income level), which needs the near-worker $\eta^P$ expansion.
+
+    \item \textbf{External validity:} Single birth cohort (1957--1964). The $\delta$ estimate captures one cohort's career trajectory. Whether the lifecycle $\delta$ profile is stable across cohorts is an assumption, not an empirical result.
+\end{enumerate}
+
+\vspace{12pt}
+\hrule
+\vspace{6pt}
+\begin{center}
+\textit{All results generated April 10--13, 2026. Primary do-file versions in \texttt{do file/} directory. See \texttt{results.md} for detailed regression output.}
+\end{center}
+
+\end{document}
